@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solicitação | HA Financeira</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        input { color: black !important; background: #f8fafc !important; border: 1px solid #e2e8f0 !important; }
+        input:focus { border-color: #3b82f6 !important; outline: none; }
+    </style>
+</head>
+<body class="bg-white min-h-screen p-6 font-sans">
+
+    <div class="max-w-xl mx-auto bg-white rounded-3xl shadow-2xl border p-8">
+        <h1 class="text-3xl font-black italic text-center mb-8">HA <span class="text-blue-600">FINANCEIRA</span></h1>
+        
+        <form id="formSoli" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="text" id="nome" placeholder="Nome Completo" required class="p-4 rounded-xl">
+                <input type="text" id="cpf" placeholder="CPF" required class="p-4 rounded-xl">
+                <input type="text" id="rg" placeholder="Nº do RG" required class="p-4 rounded-xl">
+                <input type="text" id="whatsapp" placeholder="WhatsApp (DDD + Número)" required class="p-4 rounded-xl">
+            </div>
+
+            <div class="bg-slate-50 p-6 rounded-2xl border space-y-4">
+                <p class="text-[10px] font-black text-blue-600 uppercase tracking-widest">Contatos de Referência</p>
+                <div class="grid grid-cols-1 gap-3">
+                    <input type="text" id="ref1_n" placeholder="Nome Parente 1" required class="p-3 rounded-lg text-sm">
+                    <input type="text" id="ref1_t" placeholder="WhatsApp Parente 1" required class="p-3 rounded-lg text-sm">
+                    <hr class="my-2">
+                    <input type="text" id="ref2_n" placeholder="Nome Parente 2" required class="p-3 rounded-lg text-sm">
+                    <input type="text" id="ref2_t" placeholder="WhatsApp Parente 2" required class="p-3 rounded-lg text-sm">
+                </div>
+            </div>
+
+            <div>
+                <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Melhor dia para pagar</label>
+                <input type="date" id="data_sug" required class="w-full p-4 rounded-xl">
+            </div>
+
+            <div class="grid grid-cols-3 gap-2 text-[8px] font-bold text-slate-400 text-center uppercase">
+                <div class="p-2 border rounded-lg">Selfie + Doc<input type="file" id="f1" required class="mt-1 w-full"></div>
+                <div class="p-2 border rounded-lg">Foto do RG<input type="file" id="f2" required class="mt-1 w-full"></div>
+                <div class="p-2 border rounded-lg">Fachada Casa<input type="file" id="f3" required class="mt-1 w-full"></div>
+            </div>
+
+            <button type="submit" id="btn" class="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-lg hover:bg-slate-900 transition-all uppercase">Enviar Análise</button>
+        </form>
+    </div>
+
+    <script>
+        const _supabase = supabase.createClient('https://bbutsgzcdaalhombjshj.supabase.co', 'sb_publishable_R1Luxm2nZZmdCxcYIulF6w_WeoRW6t8');
+
+        document.getElementById('formSoli').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn');
+            btn.disabled = true; btn.innerText = "Enviando Arquivos...";
+
+            async function subir(id, tag) {
+                const file = document.getElementById(id).files[0];
+                const nomeF = `${Date.now()}_${tag}.jpg`;
+                // Upload direto para a raiz do bucket 'esprestimo' para evitar erro 400
+                const { error } = await _supabase.storage.from('esprestimo').upload(nomeF, file);
+                if (error) throw error;
+                return _supabase.storage.from('esprestimo').getPublicUrl(nomeF).data.publicUrl;
+            }
+
+            try {
+                const u1 = await subir('f1', 'selfie');
+                const u2 = await subir('f2', 'doc');
+                const u3 = await subir('f3', 'casa');
+
+                const payload = {
+                    nome: document.getElementById('nome').value,
+                    cpf: document.getElementById('cpf').value,
+                    rg: document.getElementById('rg').value,
+                    whatsapp: "55" + document.getElementById('whatsapp').value.replace(/\D/g,''),
+                    nome_referencia: document.getElementById('ref1_n').value,
+                    tel_referencia: "55" + document.getElementById('ref1_t').value.replace(/\D/g,''),
+                    ref2_nome: document.getElementById('ref2_n').value,
+                    ref2_tel: "55" + document.getElementById('ref2_t').value.replace(/\D/g,''),
+                    data_sugerida: document.getElementById('data_sug').value,
+                    url_selfie: u1, url_documento: u2, url_casa: u3, status: 'PENDENTE'
+                };
+
+                const res = await fetch('/enviar-solicitacao', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+
+                if(res.ok) { alert("✅ Sucesso!"); location.reload(); }
+                else { throw new Error(); }
+            } catch (err) { alert("Erro de Servidor (500). Verifique o banco."); btn.disabled = false; }
+        };
+    </script>
+</body>
+</html>

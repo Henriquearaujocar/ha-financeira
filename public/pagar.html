@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acesso Seguro - Extrato</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 flex items-center justify-center min-h-screen p-4">
+    <div id="cardAcesso" class="bg-white w-full max-w-md rounded-2xl shadow-xl p-8 text-center">
+        <h1 class="text-xl font-bold text-slate-800 mb-4">Verificação de Segurança</h1>
+        <p class="text-slate-500 mb-6 text-sm">Informe seu CPF para visualizar seu extrato atualizado.</p>
+        <input type="text" id="cpfInput" placeholder="000.000.000-00" class="w-full p-4 border-2 border-slate-200 rounded-xl mb-4 outline-none focus:border-blue-500 text-center text-xl">
+        <button onclick="acessar()" id="btnAcessar" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg">Visualizar Extrato</button>
+    </div>
+
+    <div id="telaDados" class="hidden bg-white w-full max-w-md rounded-2xl shadow-xl p-8 text-center">
+        <h1 id="nomeCliente" class="text-xl font-bold text-slate-800"></h1>
+        <div class="bg-red-50 rounded-xl p-4 my-6 border border-red-100">
+            <span class="text-xs text-red-400 uppercase font-bold">Saldo Devedor</span>
+            <div id="saldo" class="text-3xl font-black text-red-600">R$ 0,00</div>
+        </div>
+        <input type="number" id="valorPagar" placeholder="Quanto deseja pagar?" class="w-full p-4 border-2 border-slate-200 rounded-xl mb-4 text-center">
+        <button onclick="gerarPagamento()" class="w-full bg-green-500 text-white font-bold py-4 rounded-xl shadow-lg">Pagar Agora</button>
+    </div>
+
+    <script>
+        const id = new URLSearchParams(window.location.search).get('id');
+        let clienteLogado = null;
+
+        async function acessar() {
+            const cpf = document.getElementById('cpfInput').value;
+            const res = await fetch('/validar-extrato', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id, cpf })
+            });
+
+            if(res.ok) {
+                clienteLogado = await res.json();
+                document.getElementById('cardAcesso').classList.add('hidden');
+                document.getElementById('telaDados').classList.remove('hidden');
+                document.getElementById('nomeCliente').innerText = `Olá, ${clienteLogado.nome}`;
+                document.getElementById('saldo').innerText = `R$ ${clienteLogado.valor_total.toFixed(2)}`;
+            } else {
+                alert("CPF não confere com este link de cobrança.");
+            }
+        }
+
+        async function gerarPagamento() {
+            const v = document.getElementById('valorPagar').value;
+            const res = await fetch('/cliente-gerar-pagamento', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id: clienteLogado.id, valorParaPagar: v })
+            });
+            const data = await res.json();
+            window.location.href = data.checkout_url;
+        }
+    </script>
+</body>
+</html>
