@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal HA | Acesso Seguro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { background-color: #020617; color: #f1f5f9; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.05); }
+        .input-dark { background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.1); outline: none; transition: all 0.3s; }
+        .input-dark:focus { border-color: #3b82f6; box-shadow: 0 0 20px rgba(59,130,246,0.3); }
+        .animate-up { animation: slideUp 0.6s cubic-bezier(0, 0, 0.2, 1); }
+        @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-6 relative">
+    
+    <div class="absolute inset-0 z-0 opacity-20" style="background: radial-gradient(circle at 50% 0%, #3b82f6 0%, transparent 70%);"></div>
+
+    <main class="glass-card w-full max-w-md rounded-[3rem] p-10 shadow-2xl relative z-10 animate-up text-center border-t-4 border-blue-500">
+        
+        <div class="mb-10">
+            <i class="fa-solid fa-shield-halved text-5xl text-blue-500 mb-4 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]"></i>
+            <h1 class="text-3xl font-black italic tracking-tighter uppercase text-white">Portal HA</h1>
+            <p class="text-[10px] text-blue-400 font-black uppercase tracking-[0.3em] mt-1">Ambiente Seguro</p>
+        </div>
+
+        <!-- Passo 1: Autenticação Cega a formatação -->
+        <div id="step1" class="space-y-6">
+            <p class="text-xs text-slate-400 font-bold uppercase tracking-widest leading-relaxed">Para visualizar seu contrato aprovado e liberar seu PIX, confirme o seu CPF abaixo.</p>
+            <input type="tel" id="cpfInput" placeholder="Digite seu CPF..." class="input-dark w-full rounded-2xl p-5 text-center text-xl text-white font-black tracking-widest placeholder:text-slate-600">
+            <button onclick="validarAcesso()" class="w-full bg-blue-600 hover:bg-blue-500 py-5 rounded-2xl font-black uppercase text-sm shadow-[0_0_20px_rgba(59,130,246,0.4)] transition-all">Acessar Contrato</button>
+        </div>
+
+        <!-- Passo 2: Assinatura e Dados -->
+        <div id="step2" class="hidden space-y-6 text-left">
+            <div class="bg-blue-900/20 p-6 rounded-3xl border border-blue-500/20 text-center">
+                <p class="text-[10px] text-blue-400 font-black uppercase tracking-widest mb-1">Valor Aprovado</p>
+                <h2 id="valorLiberado" class="text-4xl font-black text-white italic tracking-tighter">R$ 0,00</h2>
+            </div>
+            
+            <div class="bg-slate-900/50 p-6 rounded-3xl border border-white/5 space-y-4">
+                <div class="flex justify-between items-center border-b border-white/5 pb-3">
+                    <span class="text-[9px] uppercase font-black text-slate-500 tracking-widest">Parcelas</span>
+                    <span id="txtParcelas" class="text-xs font-black text-white">--</span>
+                </div>
+                <div class="flex justify-between items-center border-b border-white/5 pb-3">
+                    <span class="text-[9px] uppercase font-black text-slate-500 tracking-widest">Total do Contrato</span>
+                    <span id="txtTotal" class="text-xs font-black text-white">--</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-[9px] uppercase font-black text-slate-500 tracking-widest">1º Vencimento</span>
+                    <span id="txtVencimento" class="text-xs font-black text-blue-400">--</span>
+                </div>
+            </div>
+
+            <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-700 flex gap-4 items-start">
+                <input type="checkbox" id="checkTermos" class="mt-1 w-5 h-5 accent-blue-500 cursor-pointer">
+                <label for="checkTermos" class="text-[10px] text-slate-400 uppercase font-bold leading-relaxed cursor-pointer select-none">
+                    Declaro que li e estou de acordo com o valor liberado, a taxa de juros aplicada e a data de vencimento estipulada neste contrato digital.
+                </label>
+            </div>
+
+            <button onclick="assinarContrato()" class="w-full bg-emerald-600 hover:bg-emerald-500 py-6 rounded-3xl font-black uppercase text-sm shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all text-white flex justify-center items-center gap-2">
+                Assinar e Receber PIX <i class="fa-solid fa-check-double"></i>
+            </button>
+        </div>
+
+    </main>
+
+    <script>
+        const API_BASE = window.location.origin;
+        const urlParams = new URLSearchParams(window.location.search);
+        const id = urlParams.get('id');
+        let dadosSessao = null;
+
+        if (!id) {
+            document.body.innerHTML = "<h2 class='text-white text-center mt-20 font-black uppercase'>Link Inválido. Peça um novo link.</h2>";
+        }
+
+        async function validarAcesso() {
+            const cpfRaw = document.getElementById('cpfInput').value;
+            if(!cpfRaw) return alert("Digite o CPF.");
+
+            // LIMPEZA BLINDADA NO CLIENT SIDE TAMBÉM
+            const cpfLimpo = cpfRaw.replace(/\D/g, '');
+
+            try {
+                const res = await fetch(`${API_BASE}/validar-extrato`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ id, cpf: cpfLimpo })
+                });
+
+                if(res.ok) {
+                    dadosSessao = await res.json();
+                    
+                    if(dadosSessao.status !== 'APROVADO_AGUARDANDO_ACEITE') {
+                        return alert("Este contrato já foi ativado ou liquidado.");
+                    }
+
+                    document.getElementById('step1').classList.add('hidden');
+                    document.getElementById('step2').classList.remove('hidden');
+
+                    document.getElementById('valorLiberado').innerText = Number(dadosSessao.valor_emprestado).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+                    document.getElementById('txtParcelas').innerText = `${dadosSessao.qtd_parcelas}x ${dadosSessao.frequencia}`;
+                    document.getElementById('txtTotal').innerText = Number(dadosSessao.valor_total).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+                    
+                    const dt = new Date(dadosSessao.data_vencimento + 'T12:00:00Z').toLocaleDateString('pt-BR');
+                    document.getElementById('txtVencimento').innerText = dt;
+                } else {
+                    alert("Acesso Negado. CPF incorreto ou contrato não encontrado.");
+                }
+            } catch (err) {
+                alert("Falha de conexão com o servidor.");
+            }
+        }
+
+        async function assinarContrato() {
+            if(!document.getElementById('checkTermos').checked) {
+                return alert("Você precisa aceitar as condições contratuais (marcar a caixinha) para prosseguir.");
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/cliente-aceitou`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ id: dadosSessao.uuid })
+                });
+
+                if(res.ok) {
+                    document.getElementById('step2').innerHTML = `
+                        <div class="text-center space-y-4 py-8">
+                            <i class="fa-solid fa-circle-check text-6xl text-emerald-500 mb-4 drop-shadow-[0_0_20px_rgba(16,185,129,0.5)]"></i>
+                            <h2 class="text-2xl font-black text-white uppercase italic">Contrato Ativado!</h2>
+                            <p class="text-xs text-slate-400 font-bold uppercase leading-relaxed tracking-widest">Sua liberação está em fila de pagamento. O comprovante PIX será enviado no seu WhatsApp em breve.</p>
+                        </div>
+                    `;
+                    // Opcional: Avisar o admin no zap
+                    irZap(`Olá, acabei de assinar meu contrato de ${document.getElementById('valorLiberado').innerText}. No aguardo do meu PIX! 🚀`);
+                } else {
+                    alert("Erro ao confirmar aceite. Tente novamente ou fale com o suporte.");
+                }
+            } catch (err) {
+                alert("Falha na conexão com o servidor.");
+            }
+        }
+
+        function irZap(texto) {
+            window.location.href = `https://wa.me/5587981404650?text=${encodeURIComponent(texto)}`;
+        }
+    </script>
+</body>
+</html>

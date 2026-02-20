@@ -3,97 +3,369 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solicitação | HA Financeira</title>
+    <title>Solicitar Crédito | HA Elite V3.9.9 Master</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        input { color: black !important; background: #f8fafc !important; border: 1px solid #e2e8f0 !important; }
-        input:focus { border-color: #3b82f6 !important; outline: none; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { background-color: #020617; color: #f1f5f9; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.05); }
+        .input-field { background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 1.25rem; padding: 1.25rem; width: 100%; outline: none; transition: 0.3s; }
+        .input-field:focus { border-color: #3b82f6; box-shadow: 0 0 20px rgba(59, 130, 246, 0.2); }
+        .step-hidden { display: none; }
+        .file-success { border: 2px solid #10b981 !important; background: rgba(16, 185, 129, 0.15) !important; color: #10b981 !important; }
+        .loading-overlay { position: fixed; inset: 0; background: rgba(2, 6, 23, 0.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(10px); }
+        .btn-blue { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); transition: all 0.3s; }
+        .btn-blue:hover { filter: brightness(1.1); transform: translateY(-2px); }
+        .btn-emerald { background: linear-gradient(135deg, #10b981 0%, #059669 100%); transition: all 0.3s; }
+        .font-black-italic { font-weight: 900; font-style: italic; }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .animate-up { animation: slideUp 0.4s ease-out; }
     </style>
 </head>
-<body class="bg-white min-h-screen p-6 font-sans">
+<body class="min-h-screen flex items-center justify-center p-4">
 
-    <div class="max-w-xl mx-auto bg-white rounded-3xl shadow-2xl border p-8">
-        <h1 class="text-3xl font-black italic text-center mb-8">HA <span class="text-blue-600">FINANCEIRA</span></h1>
-        
-        <form id="formSoli" class="space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input type="text" id="nome" placeholder="Nome Completo" required class="p-4 rounded-xl">
-                <input type="text" id="cpf" placeholder="CPF" required class="p-4 rounded-xl">
-                <input type="text" id="rg" placeholder="Nº do RG" required class="p-4 rounded-xl">
-                <input type="text" id="whatsapp" placeholder="WhatsApp (DDD + Número)" required class="p-4 rounded-xl">
+    <!-- Overlay de Carregamento Master -->
+    <div id="loading" class="loading-overlay">
+        <div class="relative w-20 h-20 mb-6">
+            <div class="absolute inset-0 border-4 border-blue-500/20 rounded-full"></div>
+            <div class="absolute inset-0 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+        <p class="font-black uppercase text-[10px] tracking-[0.3em] text-blue-500 animate-pulse text-center px-6">Sincronizando Proposta com a Central HA...</p>
+    </div>
+
+    <!-- Sistema de Feedback (Toast) -->
+    <div id="toast" class="fixed top-6 left-1/2 -translate-x-1/2 z-[200] hidden animate-up">
+        <div class="bg-slate-900 border border-white/10 px-8 py-4 rounded-3xl shadow-2xl flex items-center gap-4">
+            <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-500"></i>
+            <p id="toastMsg" class="text-xs font-black uppercase tracking-widest"></p>
+        </div>
+    </div>
+
+    <div class="w-full max-w-lg glass-card p-10 rounded-[3.5rem] shadow-2xl border border-blue-500/10 relative">
+        <div class="text-center mb-10">
+            <h1 class="text-3xl font-black-italic uppercase text-blue-500 tracking-tighter leading-none">HA Elite</h1>
+            <p class="text-[8px] text-slate-500 font-bold uppercase tracking-[0.4em] mt-2 italic">Plataforma de Crédito Inteligente</p>
+        </div>
+
+        <form id="formSolicitar" class="space-y-6">
+            <!-- Dados Invisíveis de Auditoria -->
+            <input type="hidden" id="indicado_por" name="indicado_por" value="DIRETO">
+            <input type="hidden" id="latitude" name="latitude">
+            <input type="hidden" id="longitude" name="longitude">
+
+            <!-- PASSO 1: SIMULADOR FINANCEIRO -->
+            <div id="step1" class="space-y-6 animate-up">
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black uppercase text-blue-400 ml-2 tracking-widest">Valor do Crédito</label>
+                    <input type="number" id="valor" name="valor" placeholder="R$ 0,00" class="input-field font-black text-2xl italic tracking-tighter text-center" oninput="simular()" required>
+                </div>
+                
+                <div class="grid grid-cols-1 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-[9px] font-black uppercase text-slate-500 ml-2">Modelo de Plano</label>
+                        <select id="tipo_plano" name="tipo_plano" class="input-field font-bold text-xs" onchange="toggleParcelas()">
+                            <option value="30DIAS">30 Dias (Parcela Única)</option>
+                            <option value="PARCELADO">Plano Parcelado</option>
+                        </select>
+                    </div>
+
+                    <div id="configParcelas" class="hidden grid grid-cols-2 gap-4">
+                        <div class="space-y-2">
+                            <label class="text-[9px] font-black uppercase text-slate-500 ml-2">Frequência</label>
+                            <select id="frequencia" name="frequencia" class="input-field font-bold text-xs" onchange="simular()">
+                                <option value="MENSAL">Mensal</option>
+                                <option value="SEMANAL">Semanal</option>
+                            </select>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[9px] font-black uppercase text-slate-500 ml-2">Parcelas</label>
+                            <select id="qtd_parcelas" name="qtd_parcelas" class="input-field font-bold text-xs" onchange="simular()">
+                                <option value="2">2x</option>
+                                <option value="3">3x</option>
+                                <option value="4">4x</option>
+                                <option value="5">5x</option>
+                                <option value="6">6x</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-blue-600/5 p-8 rounded-[2.5rem] text-center border border-blue-500/10 shadow-inner">
+                    <p class="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-2">Resumo da Oferta</p>
+                    <h2 id="resumoTotal" class="text-4xl font-black text-white italic tracking-tighter">R$ 0,00</h2>
+                    <p id="resumoMensal" class="text-[10px] font-bold text-slate-500 mt-3 uppercase tracking-wider italic">Informe o valor acima</p>
+                </div>
+                
+                <button type="button" onclick="nextStep(2)" class="w-full btn-blue py-6 rounded-3xl font-black uppercase text-xs shadow-xl shadow-blue-600/20">Avançar Cadastro <i class="fa-solid fa-chevron-right ml-2"></i></button>
             </div>
 
-            <div class="bg-slate-50 p-6 rounded-2xl border space-y-4">
-                <p class="text-[10px] font-black text-blue-600 uppercase tracking-widest">Contatos de Referência</p>
-                <div class="grid grid-cols-1 gap-3">
-                    <input type="text" id="ref1_n" placeholder="Nome Parente 1" required class="p-3 rounded-lg text-sm">
-                    <input type="text" id="ref1_t" placeholder="WhatsApp Parente 1" required class="p-3 rounded-lg text-sm">
-                    <hr class="my-2">
-                    <input type="text" id="ref2_n" placeholder="Nome Parente 2" required class="p-3 rounded-lg text-sm">
-                    <input type="text" id="ref2_t" placeholder="WhatsApp Parente 2" required class="p-3 rounded-lg text-sm">
+            <!-- PASSO 2: DADOS PESSOAIS E REFERÊNCIAS -->
+            <div id="step2" class="step-hidden space-y-4 animate-up">
+                <p class="text-[10px] font-black uppercase text-blue-400 tracking-widest ml-2 mb-2">Informações Cadastrais</p>
+                <input type="text" id="nome_input" name="nome" placeholder="Nome Completo" class="input-field font-bold" required>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="text" id="cpf_cliente" name="cpf" placeholder="Seu CPF" class="input-field font-bold text-center" required maxlength="14" oninput="mascaraCPF(this)">
+                    <input type="text" id="whatsapp_input" name="whatsapp" placeholder="WhatsApp (DDD)" class="input-field font-bold text-center" required maxlength="15" oninput="mascaraTel(this)">
+                </div>
+                
+                <p class="text-[9px] font-black uppercase text-blue-500 pt-6 ml-2 border-t border-white/5">Contatos de Referência</p>
+                <div class="space-y-4">
+                    <div class="glass-card p-5 rounded-[2rem] space-y-3">
+                        <p class="text-[8px] font-black uppercase text-slate-500 italic">Referência 01</p>
+                        <input type="text" id="ref1_nome" placeholder="Nome do Contato" class="input-field text-xs" required>
+                        <input type="text" id="ref1_tel" placeholder="Telefone / WhatsApp" class="input-field text-xs" maxlength="15" oninput="mascaraTel(this)" required>
+                    </div>
+                    <div class="glass-card p-5 rounded-[2rem] space-y-3">
+                        <p class="text-[8px] font-black uppercase text-slate-500 italic">Referência 02</p>
+                        <input type="text" id="ref2_nome" placeholder="Nome do Contato" class="input-field text-xs" required>
+                        <input type="text" id="ref2_tel" placeholder="Telefone / WhatsApp" class="input-field text-xs" maxlength="15" oninput="mascaraTel(this)" required>
+                    </div>
+                </div>
+                
+                <div class="pt-4">
+                    <label class="text-[8px] font-black text-slate-500 uppercase ml-2">Código de Indicação (Opcional)</label>
+                    <input type="text" id="cpf_indicador" placeholder="CPF do Promotor" class="input-field text-xs italic text-center mt-1" onblur="validarIndicador()">
+                    <p id="msg-indicador" class="text-[9px] font-bold mt-2 px-4 text-center"></p>
+                </div>
+
+                <div class="flex gap-4 pt-6">
+                    <button type="button" onclick="nextStep(1)" class="w-1/3 bg-slate-800 py-5 rounded-3xl font-black uppercase text-[10px]">Voltar</button>
+                    <button type="button" onclick="nextStep(3)" class="flex-1 btn-blue py-5 rounded-3xl font-black uppercase text-[10px] shadow-xl shadow-blue-600/20">Dossiê de Fotos <i class="fa-solid fa-camera ml-2"></i></button>
                 </div>
             </div>
 
-            <div>
-                <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Melhor dia para pagar</label>
-                <input type="date" id="data_sug" required class="w-full p-4 rounded-xl">
+            <!-- PASSO 3: DOSSIÊ FOTOGRÁFICO -->
+            <div id="step3" class="step-hidden space-y-6 text-center animate-up">
+                <p class="text-[10px] font-black uppercase text-blue-400 tracking-widest mb-6">Dossiê Fotográfico (Obrigatório)</p>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <label id="lbl-selfie" class="cursor-pointer bg-slate-900/50 p-6 rounded-3xl border border-dashed border-slate-700 hover:border-blue-500 transition-all group relative overflow-hidden">
+                        <i id="icon-selfie" class="fa-solid fa-user-check text-blue-500 text-2xl mb-3"></i>
+                        <p class="text-[9px] font-black uppercase text-xs">Selfie Atual</p>
+                        <input type="file" id="selfie" class="hidden" accept="image/*" onchange="fileFeedback('selfie')">
+                    </label>
+                    <label id="lbl-doc" class="cursor-pointer bg-slate-900/50 p-6 rounded-3xl border border-dashed border-slate-700 hover:border-blue-500 transition-all group relative overflow-hidden">
+                        <i id="icon-doc" class="fa-solid fa-id-card text-blue-500 text-2xl mb-3"></i>
+                        <p class="text-[9px] font-black uppercase text-xs">Documento</p>
+                        <input type="file" id="doc" class="hidden" accept="image/*" onchange="fileFeedback('doc')">
+                    </label>
+                    <label id="lbl-residencia" class="cursor-pointer bg-slate-900/50 p-6 rounded-3xl border border-dashed border-slate-700 hover:border-blue-500 transition-all group relative overflow-hidden">
+                        <i id="icon-residencia" class="fa-solid fa-file-invoice text-blue-500 text-2xl mb-3"></i>
+                        <p class="text-[9px] font-black uppercase text-xs">Residência</p>
+                        <input type="file" id="residencia" class="hidden" accept="image/*" onchange="fileFeedback('residencia')">
+                    </label>
+                    <label id="lbl-casa" class="cursor-pointer bg-slate-900/50 p-6 rounded-3xl border border-dashed border-slate-700 hover:border-blue-500 transition-all group relative overflow-hidden">
+                        <i id="icon-casa" class="fa-solid fa-house-user text-blue-500 text-2xl mb-3"></i>
+                        <p class="text-[9px] font-black uppercase text-xs">Fachada Casa</p>
+                        <input type="file" id="casa" class="hidden" accept="image/*" onchange="fileFeedback('casa')">
+                    </label>
+                </div>
+                
+                <div class="flex flex-col gap-4 pt-8">
+                    <button type="submit" class="w-full btn-emerald py-6 rounded-[2.5rem] font-black uppercase text-xs shadow-xl shadow-emerald-900/20 hover:scale-[1.02] transition-all">Finalizar Solicitação</button>
+                    <button type="button" onclick="nextStep(2)" class="text-[9px] font-black uppercase text-slate-500 hover:text-white transition-all">Revisar Dados</button>
+                </div>
             </div>
-
-            <div class="grid grid-cols-3 gap-2 text-[8px] font-bold text-slate-400 text-center uppercase">
-                <div class="p-2 border rounded-lg">Selfie + Doc<input type="file" id="f1" required class="mt-1 w-full"></div>
-                <div class="p-2 border rounded-lg">Foto do RG<input type="file" id="f2" required class="mt-1 w-full"></div>
-                <div class="p-2 border rounded-lg">Fachada Casa<input type="file" id="f3" required class="mt-1 w-full"></div>
-            </div>
-
-            <button type="submit" id="btn" class="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-lg hover:bg-slate-900 transition-all uppercase">Enviar Análise</button>
         </form>
     </div>
 
     <script>
-        const _supabase = supabase.createClient('https://bbutsgzcdaalhombjshj.supabase.co', 'sb_publishable_R1Luxm2nZZmdCxcYIulF6w_WeoRW6t8');
+        const API_BASE = window.location.origin;
 
-        document.getElementById('formSoli').onsubmit = async (e) => {
+        // GPS Auditoria
+        window.onload = () => {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    document.getElementById('latitude').value = pos.coords.latitude.toString();
+                    document.getElementById('longitude').value = pos.coords.longitude.toString();
+                }, err => console.warn("GPS negado"), { timeout: 5000 });
+            }
+        };
+
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toastIcon');
+            const txt = document.getElementById('toastMsg');
+            txt.innerText = msg;
+            icon.className = type === 'success' ? 'fa-solid fa-circle-check text-emerald-500' : 'fa-solid fa-triangle-exclamation text-red-500';
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 5000);
+        }
+
+        function mascaraCPF(i) {
+            let v = i.value.replace(/\D/g, '').substring(0, 11);
+            i.value = v.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+        }
+
+        function mascaraTel(i) {
+            let v = i.value.replace(/\D/g, '').substring(0, 11);
+            i.value = v.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+        }
+
+        function fileFeedback(id) {
+            const input = document.getElementById(id);
+            if (input.files && input.files[0]) {
+                const label = document.getElementById(`lbl-${id}`);
+                label.classList.add('file-success');
+                label.querySelector('i').className = 'fa-solid fa-circle-check text-emerald-500 text-2xl mb-3';
+                showToast(`Arquivo ${id.toUpperCase()} anexado.`);
+            }
+        }
+
+        async function comprimirImagem(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader(); reader.readAsDataURL(file);
+                reader.onload = (e) => {
+                    const img = new Image(); img.src = e.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 1200;
+                        canvas.width = MAX_WIDTH;
+                        canvas.height = (img.height / img.width) * MAX_WIDTH;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.7));
+                    };
+                };
+            });
+        }
+
+        async function uploadFoto(id, cpf) {
+            const input = document.getElementById(id);
+            if (!input.files[0]) return null;
+            const base64 = await comprimirImagem(input.files[0]);
+            try {
+                const res = await fetch(`${API_BASE}/upload-foto`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ imagem: base64, nomeArquivo: `${cpf}_${id}_${Date.now()}.jpg` })
+                });
+                const data = await res.json();
+                return data.url;
+            } catch (e) { 
+                console.error("Erro upload:", e);
+                return null; 
+            }
+        }
+
+        async function validarIndicador() {
+            const cpfInput = document.getElementById('cpf_indicador').value.replace(/\D/g, '');
+            if (cpfInput.length !== 11) return;
+            const msgEl = document.getElementById('msg-indicador');
+            msgEl.innerText = "Consultando base...";
+            try {
+                const res = await fetch(`${API_BASE}/validar-indicador/${cpfInput}`);
+                const data = await res.json();
+                if (data.encontrado) {
+                    msgEl.innerText = `✅ Promotor HA: ${data.nome}`;
+                    msgEl.className = "text-[9px] font-bold mt-2 text-emerald-400 text-center";
+                    document.getElementById('indicado_por').value = cpfInput;
+                } else {
+                    msgEl.innerText = "❌ Código de promotor inválido.";
+                    msgEl.className = "text-[9px] font-bold mt-2 text-red-400 text-center";
+                    document.getElementById('indicado_por').value = "DIRETO";
+                }
+            } catch (e) {
+                msgEl.innerText = "";
+            }
+        }
+
+        function simular() {
+            const cap = parseFloat(document.getElementById('valor').value) || 0;
+            const plano = document.getElementById('tipo_plano').value;
+            const freq = document.getElementById('frequencia').value;
+            const parcelas = parseInt(document.getElementById('qtd_parcelas').value) || 1;
+            let total = 0;
+            let labelMensal = "";
+            if (plano === "30DIAS") {
+                total = cap * 1.30;
+                labelMensal = "Pagamento Único (30 Dias)";
+            } else {
+                total = (freq === "MENSAL") ? cap * (1 + (0.30 * parcelas)) : cap * (1 + (0.075 * parcelas));
+                labelMensal = `${parcelas}x de ${(total/parcelas).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} (${freq})`;
+            }
+            document.getElementById('resumoTotal').innerText = total.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+            document.getElementById('resumoMensal').innerText = labelMensal;
+        }
+
+        function toggleParcelas() {
+            const isParcelado = document.getElementById('tipo_plano').value === 'PARCELADO';
+            document.getElementById('configParcelas').classList.toggle('hidden', !isParcelado);
+            simular();
+        }
+
+        function nextStep(s) {
+            if (s === 2 && !document.getElementById('valor').value) {
+                showToast("Por favor, informe o valor desejado.", "error"); return;
+            }
+            document.querySelectorAll('[id^="step"]').forEach(el => el.classList.add('step-hidden'));
+            document.getElementById(`step${s}`).classList.remove('step-hidden');
+            window.scrollTo(0, 0);
+        }
+
+        document.getElementById('formSolicitar').onsubmit = async (e) => {
             e.preventDefault();
-            const btn = document.getElementById('btn');
-            btn.disabled = true; btn.innerText = "Enviando Arquivos...";
-
-            async function subir(id, tag) {
-                const file = document.getElementById(id).files[0];
-                const nomeF = `${Date.now()}_${tag}.jpg`;
-                // Upload direto para a raiz do bucket 'esprestimo' para evitar erro 400
-                const { error } = await _supabase.storage.from('esprestimo').upload(nomeF, file);
-                if (error) throw error;
-                return _supabase.storage.from('esprestimo').getPublicUrl(nomeF).data.publicUrl;
+            const loading = document.getElementById('loading');
+            loading.style.display = 'flex';
+            
+            const cpfRaw = document.getElementById('cpf_cliente').value.replace(/\D/g, '');
+            if(cpfRaw.length < 11) { 
+                showToast("CPF incompleto ou inválido.", "error"); 
+                loading.style.display = 'none'; return; 
             }
 
             try {
-                const u1 = await subir('f1', 'selfie');
-                const u2 = await subir('f2', 'doc');
-                const u3 = await subir('f3', 'casa');
+                // Upload Sequencial das Fotos
+                const [uS, uD, uR, uC] = await Promise.all([
+                    uploadFoto('selfie', cpfRaw), 
+                    uploadFoto('doc', cpfRaw), 
+                    uploadFoto('residencia', cpfRaw), 
+                    uploadFoto('casa', cpfRaw)
+                ]);
 
-                const payload = {
-                    nome: document.getElementById('nome').value,
-                    cpf: document.getElementById('cpf').value,
-                    rg: document.getElementById('rg').value,
-                    whatsapp: "55" + document.getElementById('whatsapp').value.replace(/\D/g,''),
-                    nome_referencia: document.getElementById('ref1_n').value,
-                    tel_referencia: "55" + document.getElementById('ref1_t').value.replace(/\D/g,''),
-                    ref2_nome: document.getElementById('ref2_n').value,
-                    ref2_tel: "55" + document.getElementById('ref2_t').value.replace(/\D/g,''),
-                    data_sugerida: document.getElementById('data_sug').value,
-                    url_selfie: u1, url_documento: u2, url_casa: u3, status: 'PENDENTE'
+                // Montagem do Objeto Sincronizada com o SCHEMA do Supabase
+                const dados = {
+                    nome: document.getElementById('nome_input').value,
+                    cpf: cpfRaw,
+                    whatsapp: document.getElementById('whatsapp_input').value.replace(/\D/g, ''),
+                    valor: parseFloat(document.getElementById('valor').value),
+                    tipo_plano: document.getElementById('tipo_plano').value,
+                    frequencia: document.getElementById('frequencia').value,
+                    qtd_parcelas: parseInt(document.getElementById('qtd_parcelas').value) || 1,
+                    indicado_por: document.getElementById('indicado_por').value,
+                    url_selfie: uS,
+                    url_documento: uD,
+                    url_residencia: uR,
+                    url_casa: uC,
+                    referencia1_nome: document.getElementById('ref1_nome').value || "N/A",
+                    referencia1_tel: document.getElementById('ref1_tel').value || "N/A",
+                    referencia2_nome: document.getElementById('ref2_nome').value || "N/A",
+                    referencia2_tel: document.getElementById('ref2_tel').value || "N/A",
+                    latitude: document.getElementById('latitude').value,
+                    longitude: document.getElementById('longitude').value,
+                    status: 'PENDENTE'
                 };
 
-                const res = await fetch('/enviar-solicitacao', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
+                const res = await fetch(`${API_BASE}/enviar-solicitacao`, {
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dados)
                 });
 
-                if(res.ok) { alert("✅ Sucesso!"); location.reload(); }
-                else { throw new Error(); }
-            } catch (err) { alert("Erro de Servidor (500). Verifique o banco."); btn.disabled = false; }
+                if (res.ok) {
+                    showToast("SOLICITAÇÃO ENVIADA COM SUCESSO!");
+                    setTimeout(() => window.location.reload(), 3000);
+                } else {
+                    const err = await res.json();
+                    showToast(err.details || err.erro || "Falha ao processar solicitação.", "error");
+                }
+            } catch (err) { 
+                console.error(err);
+                showToast("Erro de comunicação com o servidor.", "error"); 
+            } finally {
+                loading.style.display = 'none';
+            }
         };
     </script>
 </body>

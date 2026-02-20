@@ -1,27 +1,67 @@
 const axios = require('axios');
 
-async function gerarLinkCobranca(nomeDevedor, valor) {
+/**
+ * Gera um link de pagamento utilizando a API de Invoices Pública da InfinitePay.
+ * Baseado nas instruções oficiais: Não requer JWT, apenas o Handle (InfiniteTag) no body.
+ */
+async function gerarLinkCobranca(devedor, valor) {
+    let appUrl = process.env.APP_URL;
+    
+    // 🛡️ ALERTA INTELIGENTE DE INFRAESTRUTURA
+    if (!appUrl || appUrl.includes('localhost')) {
+        console.warn("⚠️ AVISO: Seu APP_URL no .env não está configurado ou é 'localhost'.");
+        console.warn("A InfinitePay não consegue enviar a confirmação de pagamento (Webhook) para o seu computador. Use Ngrok para testes locais ou um Domínio Público.");
+        appUrl = appUrl || "https://seusite.com"; 
+    }
+    
+    // Converte R$ 15.50 para 1550 centavos (Exigência da InfinitePay)
+    const valorCentavos = Math.round(parseFloat(valor) * 100);
+
+    // Pega a Tag do seu .env
+    const handleTag = process.env.INFINITY_API_KEY || "henrique_de_araujo";
+
+    // Payload Exato instruído pelo suporte (Enxuto, com valor livre em centavos)
     const data = {
-        "handle": "henrique_de_araujo", // Seu handle da InfinitePay
+        "handle": handleTag, 
+        "order_nsu": devedor.uuid,
+        "redirect_url": `${appUrl}/pagamento-concluido`,
+        "webhook_url": `${appUrl}/webhook-infinitepay`, // A URL pública que o InfinitePay vai bater
         "items": [
             {
+                "id": "pagamento_avulso",
                 "quantity": 1,
-                "price": valor * 100, // A API geralmente recebe em centavos (Ex: 10.00 vira 1000)
-                "description": `Empréstimo/Cobrança - ${nomeDevedor}`
+                "price": valorCentavos,
+                "description": `Pgto HA Elite - ${devedor.nome.substring(0, 15)}`
             }
         ]
     };
 
     try {
-        // Aqui usamos a URL de produção ou sandbox da InfinitePay
-        const response = await axios.post('https://api.infinitepay.io/v1/checkout', data, {
-            headers: { 'Authorization': `Bearer ${process.env.INFINITY_TOKEN}` }
+        console.log(`⏳ Solicitando Link IP Público para ${devedor.nome} (R$ ${valor})...`);
+        
+        // ROTA PÚBLICA: Sem envio de Token (Authorization: Bearer)
+        const response = await axios.post('https://api.infinitepay.io/invoices/public/checkout/links', data, {
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
         });
 
-        return response.data.checkout_url;
+        console.log("✅ Link InfinitePay Gerado com Sucesso via API Pública!");
+        return response.data.url || response.data.checkout_url || response.data.payment_url;
+        
     } catch (error) {
-        console.error("Erro ao gerar link na InfinitePay", error);
-        return null;
+        console.error("❌ Falha na API Pública da InfinitePay:");
+        if (error.response) {
+            console.error("Motivo:", JSON.stringify(error.response.data));
+        } else {
+            console.error(error.message);
+        }
+
+        // PLANO B: Link Direto 
+        const valorFormatado = Number(valor).toFixed(2);
+        console.log("🔄 Acionando Link Público Estático (Plano B)...");
+        return `https://pay.infinitepay.io/${handleTag}/${valorFormatado}`;
     }
 }
 

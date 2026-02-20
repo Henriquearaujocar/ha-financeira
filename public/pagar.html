@@ -3,59 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Acesso Seguro - Extrato</title>
+    <title>HA Elite | Extrato em Tempo Real</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { background-color: #020617; color: #f1f5f9; font-family: 'Inter', sans-serif; }
+        .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.05); }
+        .input-dark { background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.1); outline: none; transition: 0.3s; color: white; }
+        .font-black-italic { font-weight: 900; font-style: italic; }
+        .animate-up { animation: slideUp 0.5s ease-out forwards; }
+        @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    </style>
 </head>
-<body class="bg-slate-100 flex items-center justify-center min-h-screen p-4">
-    <div id="cardAcesso" class="bg-white w-full max-w-md rounded-2xl shadow-xl p-8 text-center">
-        <h1 class="text-xl font-bold text-slate-800 mb-4">Verificação de Segurança</h1>
-        <p class="text-slate-500 mb-6 text-sm">Informe seu CPF para visualizar seu extrato atualizado.</p>
-        <input type="text" id="cpfInput" placeholder="000.000.000-00" class="w-full p-4 border-2 border-slate-200 rounded-xl mb-4 outline-none focus:border-blue-500 text-center text-xl">
-        <button onclick="acessar()" id="btnAcessar" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg">Visualizar Extrato</button>
-    </div>
+<body class="min-h-screen flex items-center justify-center p-6 relative">
 
-    <div id="telaDados" class="hidden bg-white w-full max-w-md rounded-2xl shadow-xl p-8 text-center">
-        <h1 id="nomeCliente" class="text-xl font-bold text-slate-800"></h1>
-        <div class="bg-red-50 rounded-xl p-4 my-6 border border-red-100">
-            <span class="text-xs text-red-400 uppercase font-bold">Saldo Devedor</span>
-            <div id="saldo" class="text-3xl font-black text-red-600">R$ 0,00</div>
+    <div class="absolute inset-0 z-0 opacity-20" style="background: radial-gradient(circle at 50% 0%, #3b82f6 0%, transparent 70%);"></div>
+
+    <main class="glass-card w-full max-w-sm rounded-[3rem] p-10 text-center relative z-10 animate-up shadow-2xl border-t-4 border-blue-500">
+        <i class="fa-solid fa-file-invoice-dollar text-5xl text-blue-500 mb-4 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]"></i>
+        <h1 class="text-3xl font-black-italic tracking-tighter uppercase mb-8">Meu Extrato</h1>
+
+        <!-- Passo 1: Validação Limpa -->
+        <div id="step1" class="space-y-6">
+            <p class="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Confirme sua identidade</p>
+            <input type="tel" id="cpfInput" placeholder="Seu CPF..." class="input-dark w-full rounded-2xl p-5 text-center text-xl font-black tracking-widest placeholder:text-slate-600 focus:border-blue-500 focus:shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+            <button onclick="validarExtrato()" class="w-full bg-blue-600 hover:bg-blue-500 py-5 rounded-2xl font-black uppercase text-sm shadow-lg transition-all">Ver Débitos</button>
         </div>
-        <input type="number" id="valorPagar" placeholder="Quanto deseja pagar?" class="w-full p-4 border-2 border-slate-200 rounded-xl mb-4 text-center">
-        <button onclick="gerarPagamento()" class="w-full bg-green-500 text-white font-bold py-4 rounded-xl shadow-lg">Pagar Agora</button>
-    </div>
+
+        <!-- Passo 2: Resultado e Pagamento -->
+        <div id="step2" class="hidden space-y-8">
+            <div class="bg-slate-900/50 p-6 rounded-[2rem] border border-white/5 relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-16 h-16 bg-blue-500/10 rounded-bl-[100px]"></div>
+                <p class="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Saldo Devedor Total</p>
+                <h2 id="saldoTotal" class="text-4xl font-black-italic text-white">R$ 0,00</h2>
+                <p id="vencimento" class="text-[9px] text-blue-400 font-black uppercase mt-2 tracking-widest">--</p>
+            </div>
+
+            <div class="space-y-4 text-left">
+                <label class="text-[9px] uppercase font-black text-slate-400 tracking-widest ml-2">Quanto deseja pagar hoje?</label>
+                <input type="number" id="valorAbater" placeholder="R$ 0,00" class="input-dark w-full rounded-2xl p-5 text-center text-2xl font-black text-emerald-400 focus:border-emerald-500 focus:shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                
+                <button onclick="pagar()" class="w-full bg-emerald-600 hover:bg-emerald-500 py-6 rounded-[2rem] font-black uppercase text-xs shadow-xl transition-all flex items-center justify-center gap-2">
+                    <i class="fa-brands fa-pix text-lg"></i> Gerar Chave PIX
+                </button>
+            </div>
+            
+            <p class="text-[9px] text-slate-500 uppercase font-bold leading-relaxed px-2">
+                Qualquer valor pago que seja inferior ao total abaterá apenas o montante da dívida.
+            </p>
+        </div>
+    </main>
 
     <script>
-        const id = new URLSearchParams(window.location.search).get('id');
-        let clienteLogado = null;
+        const API_BASE = window.location.origin;
+        const urlParams = new URLSearchParams(window.location.search);
+        const id = urlParams.get('id');
+        let devedor = null;
 
-        async function acessar() {
-            const cpf = document.getElementById('cpfInput').value;
-            const res = await fetch('/validar-extrato', {
+        if (!id) {
+            document.body.innerHTML = "<h2 class='text-white text-center mt-20 font-black uppercase'>Acesso Negado. Use o link do WhatsApp.</h2>";
+        }
+
+        async function validarExtrato() {
+            const cpfRaw = document.getElementById('cpfInput').value;
+            if(!cpfRaw) return alert("Digite o CPF.");
+
+            // LIMPEZA BLINDADA
+            const cpfLimpo = cpfRaw.replace(/\D/g, '');
+
+            const res = await fetch(`${API_BASE}/validar-extrato`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ id, cpf })
+                body: JSON.stringify({ id, cpf: cpfLimpo })
             });
 
             if(res.ok) {
-                clienteLogado = await res.json();
-                document.getElementById('cardAcesso').classList.add('hidden');
-                document.getElementById('telaDados').classList.remove('hidden');
-                document.getElementById('nomeCliente').innerText = `Olá, ${clienteLogado.nome}`;
-                document.getElementById('saldo').innerText = `R$ ${clienteLogado.valor_total.toFixed(2)}`;
+                devedor = await res.json();
+                document.getElementById('step1').classList.add('hidden');
+                document.getElementById('step2').classList.remove('hidden');
+                document.getElementById('saldoTotal').innerText = Number(devedor.valor_total).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+                
+                // Formatação correta para fuso horário do Brasil
+                const dataVenc = new Date(devedor.data_vencimento + 'T12:00:00Z').toLocaleDateString('pt-BR');
+                document.getElementById('vencimento').innerText = `Vencimento: ${dataVenc}`;
             } else {
-                alert("CPF não confere com este link de cobrança.");
+                alert("Link expirado ou CPF incorreto.");
             }
         }
 
-        async function gerarPagamento() {
-            const v = document.getElementById('valorPagar').value;
-            const res = await fetch('/cliente-gerar-pagamento', {
+        async function pagar() {
+            const v = document.getElementById('valorAbater').value;
+            if(!v || v <= 0) return alert("Digite o valor que deseja pagar.");
+
+            const res = await fetch(`${API_BASE}/cliente-gerar-pagamento`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ id: clienteLogado.id, valorParaPagar: v })
+                body: JSON.stringify({ id: devedor.id, valorParaPagar: v })
             });
+            
             const data = await res.json();
-            window.location.href = data.checkout_url;
+            
+            if(data.checkout_url) {
+                window.location.href = data.checkout_url;
+            } else {
+                alert("Erro ao gerar PIX. Tente novamente mais tarde.");
+            }
         }
     </script>
 </body>
