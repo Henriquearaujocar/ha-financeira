@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CMS Ventures | Login Master</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+        body { background-color: #020617; color: #f1f5f9; font-family: 'Inter', sans-serif; overflow: hidden; }
+        .glass-card { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.05); }
+        .input-dark { background: rgba(2, 6, 23, 0.8); border: 1px solid rgba(255,255,255,0.1); outline: none; transition: 0.3s; color: white; width: 100%; padding: 1rem 1.25rem; border-radius: 0.75rem; }
+        .input-dark:focus { border-color: #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.2); }
+    </style>
+</head>
+<body class="h-screen w-screen flex items-center justify-center relative">
+
+    <!-- Fundo Animado -->
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-600 rounded-full mix-blend-multiply filter blur-[150px] opacity-20 pointer-events-none"></div>
+
+    <!-- Mensagem de Erro (Toast) -->
+    <div id="toast" class="fixed top-6 left-1/2 -translate-x-1/2 z-[200] hidden transition-all duration-300">
+        <div class="bg-red-500/10 border border-red-500/50 px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 backdrop-blur-md">
+            <i class="fa-solid fa-triangle-exclamation text-red-500"></i>
+            <p id="toastMsg" class="text-xs font-black uppercase tracking-widest text-red-400"></p>
+        </div>
+    </div>
+
+    <!-- Caixa de Login -->
+    <main class="glass-card w-full max-w-md p-10 rounded-3xl shadow-2xl relative z-10 mx-4">
+        <div class="text-center mb-10">
+            <h1 class="text-3xl font-black italic text-blue-500 tracking-tighter uppercase drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">CMS Ventures</h1>
+            <p class="text-[9px] font-black uppercase text-slate-500 tracking-[0.4em] mt-2">Acesso Restrito</p>
+        </div>
+
+        <form id="formLogin" onsubmit="fazerLogin(event)" class="space-y-6">
+            <div>
+                <label class="text-[10px] font-black uppercase text-slate-400 ml-2 block mb-2">E-mail de Acesso</label>
+                <div class="relative">
+                    <i class="fa-solid fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                    <input type="email" id="email" required placeholder="admin@cmsventures.com" class="input-dark pl-11 text-sm font-bold">
+                </div>
+            </div>
+
+            <div>
+                <label class="text-[10px] font-black uppercase text-slate-400 ml-2 block mb-2">Senha de Segurança</label>
+                <div class="relative">
+                    <i class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                    <input type="password" id="senha" required placeholder="••••••••" class="input-dark pl-11 text-sm font-bold tracking-widest">
+                </div>
+            </div>
+
+            <button type="submit" id="btnAcessar" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase py-4 rounded-xl transition-all shadow-lg shadow-blue-500/30 tracking-widest text-sm mt-4">
+                <i class="fa-solid fa-right-to-bracket mr-2"></i> Entrar no Sistema
+            </button>
+        </form>
+
+        <div class="mt-8 text-center">
+            <p class="text-[10px] font-bold text-slate-600"><i class="fa-solid fa-shield-halved mr-1"></i> Ambiente Seguro e Monitorizado</p>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        // Se já estiver logado, atira-o logo para o painel
+        window.onload = () => {
+            const token = localStorage.getItem('token');
+            if (token) {
+                window.location.href = '/index.html';
+            }
+        };
+
+        function showToastErro(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 4000);
+        }
+
+        async function fazerLogin(event) {
+            event.preventDefault();
+            
+            const btn = document.getElementById('btnAcessar');
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('senha').value;
+
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Autenticando...`;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.token) {
+                    // Guarda o token de segurança no navegador
+                    localStorage.setItem('token', data.token);
+                    
+                    btn.classList.replace('bg-blue-600', 'bg-emerald-600');
+                    btn.classList.replace('shadow-blue-500/30', 'shadow-emerald-500/30');
+                    btn.innerHTML = `<i class="fa-solid fa-check mr-2"></i> Acesso Permitido`;
+                    
+                    // Redireciona para o Master Cockpit
+                    setTimeout(() => {
+                        window.location.href = '/index.html';
+                    }, 800);
+                } else {
+                    throw new Error(data.erro || 'Erro desconhecido. Verifique as credenciais.');
+                }
+            } catch (error) {
+                showToastErro(error.message);
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-right-to-bracket mr-2"></i> Entrar no Sistema`;
+                document.getElementById('senha').value = ''; // Limpa a senha por segurança
+            }
+        }
+    </script>
+</body>
+</html>

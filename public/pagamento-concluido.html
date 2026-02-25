@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CMS Ventures | Pagamento em Processamento</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { background-color: #020617; color: #f1f5f9; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.05); }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 relative">
+
+    <!-- Efeitos de Fundo (Verde Sucesso) -->
+    <div class="fixed top-[-10%] left-[-10%] w-[300px] h-[300px] bg-emerald-600 rounded-full mix-blend-multiply filter blur-[100px] opacity-20 pointer-events-none"></div>
+    <div class="fixed bottom-[-10%] right-[-10%] w-[300px] h-[300px] bg-blue-600 rounded-full mix-blend-multiply filter blur-[100px] opacity-10 pointer-events-none"></div>
+
+    <main class="glass-card w-full max-w-md rounded-[2rem] p-8 relative z-10 shadow-2xl text-center">
+        
+        <div class="mb-6 relative">
+            <div class="w-24 h-24 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/50 shadow-[0_0_30px_rgba(16,185,129,0.3)]">
+                <i class="fa-solid fa-receipt text-4xl text-emerald-400"></i>
+            </div>
+            <h1 class="text-2xl font-black italic text-white tracking-tighter uppercase">Pedido Recebido!</h1>
+        </div>
+
+        <div class="space-y-4">
+            <p class="text-sm text-slate-300">
+                A sua intenção de pagamento foi registada na InfinitePay.
+            </p>
+            
+            <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                <p class="text-[10px] font-black uppercase text-emerald-500 mb-2 tracking-widest flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i> A Aguardar Confirmação Bancária
+                </p>
+                <p class="text-xs text-slate-400">
+                    Assim que o banco confirmar a transação, o seu saldo será atualizado automaticamente no nosso sistema em poucos segundos.
+                </p>
+            </div>
+        </div>
+
+        <button onclick="window.close(); window.location.href='/';" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-black uppercase py-4 rounded-xl transition-all border border-slate-700 mt-8 text-xs">
+            Voltar ao Início
+        </button>
+        
+        <p class="text-[9px] text-slate-600 uppercase font-bold mt-6"><i class="fa-solid fa-shield-check mr-1"></i> Ambiente Seguro CMS Ventures</p>
+    </main>
+
+</body>
+</html>

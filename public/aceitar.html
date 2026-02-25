@@ -3,70 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal HA | Acesso Seguro</title>
+    <title>CMS Ventures | Assinatura Digital</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
         body { background-color: #020617; color: #f1f5f9; font-family: 'Inter', sans-serif; overflow-x: hidden; }
-        .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.05); }
-        .input-dark { background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.1); outline: none; transition: all 0.3s; }
-        .input-dark:focus { border-color: #3b82f6; box-shadow: 0 0 20px rgba(59,130,246,0.3); }
-        .animate-up { animation: slideUp 0.6s cubic-bezier(0, 0, 0.2, 1); }
-        @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.05); }
+        .input-field { background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 1rem; padding: 1rem 1.25rem; width: 100%; outline: none; transition: 0.3s; text-align: center; font-size: 1.25rem; letter-spacing: 0.1em; }
+        .input-field:focus { border-color: #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.3); }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-6 relative">
-    
-    <div class="absolute inset-0 z-0 opacity-20" style="background: radial-gradient(circle at 50% 0%, #3b82f6 0%, transparent 70%);"></div>
+<body class="min-h-screen flex items-center justify-center p-4 relative">
 
-    <main class="glass-card w-full max-w-md rounded-[3rem] p-10 shadow-2xl relative z-10 animate-up text-center border-t-4 border-blue-500">
+    <!-- Efeitos de Fundo -->
+    <div class="fixed top-[-10%] left-[-10%] w-[300px] h-[300px] bg-blue-600 rounded-full mix-blend-multiply filter blur-[100px] opacity-20 pointer-events-none"></div>
+    <div class="fixed bottom-[-10%] right-[-10%] w-[300px] h-[300px] bg-emerald-600 rounded-full mix-blend-multiply filter blur-[100px] opacity-10 pointer-events-none"></div>
+
+    <main class="glass-card w-full max-w-lg rounded-[2rem] p-8 md:p-10 relative z-10 shadow-2xl transition-all duration-500" id="mainCard">
         
-        <div class="mb-10">
-            <i class="fa-solid fa-shield-halved text-5xl text-blue-500 mb-4 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]"></i>
-            <h1 class="text-3xl font-black italic tracking-tighter uppercase text-white">Portal HA</h1>
-            <p class="text-[10px] text-blue-400 font-black uppercase tracking-[0.3em] mt-1">Ambiente Seguro</p>
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-black italic text-blue-500 tracking-tighter uppercase">CMS Ventures</h1>
+            <p class="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] mt-2">Assinatura de Contrato Digital</p>
         </div>
 
-        <!-- Passo 1: Autenticação Cega a formatação -->
-        <div id="step1" class="space-y-6">
-            <p class="text-xs text-slate-400 font-bold uppercase tracking-widest leading-relaxed">Para visualizar seu contrato aprovado e liberar seu PIX, confirme o seu CPF abaixo.</p>
-            <input type="tel" id="cpfInput" placeholder="Digite seu CPF..." class="input-dark w-full rounded-2xl p-5 text-center text-xl text-white font-black tracking-widest placeholder:text-slate-600">
-            <button onclick="validarAcesso()" class="w-full bg-blue-600 hover:bg-blue-500 py-5 rounded-2xl font-black uppercase text-sm shadow-[0_0_20px_rgba(59,130,246,0.4)] transition-all">Acessar Contrato</button>
-        </div>
-
-        <!-- Passo 2: Assinatura e Dados -->
-        <div id="step2" class="hidden space-y-6 text-left">
-            <div class="bg-blue-900/20 p-6 rounded-3xl border border-blue-500/20 text-center">
-                <p class="text-[10px] text-blue-400 font-black uppercase tracking-widest mb-1">Valor Aprovado</p>
-                <h2 id="valorLiberado" class="text-4xl font-black text-white italic tracking-tighter">R$ 0,00</h2>
+        <!-- PASSO 1: VALIDAÇÃO DE IDENTIDADE (NOVO E SEGURO) -->
+        <div id="step-auth" class="space-y-6">
+            <div class="text-center space-y-2 mb-6">
+                <i class="fa-solid fa-shield-halved text-4xl text-blue-500 mb-2"></i>
+                <h2 class="text-lg font-bold text-white uppercase">Confirme a sua Identidade</h2>
+                <p class="text-xs text-slate-400">Por segurança, insira o seu CPF para aceder aos termos do seu crédito aprovado.</p>
             </div>
+
+            <input type="text" id="inputCpf" placeholder="000.000.000-00" class="input-field font-mono" maxlength="14">
             
-            <div class="bg-slate-900/50 p-6 rounded-3xl border border-white/5 space-y-4">
-                <div class="flex justify-between items-center border-b border-white/5 pb-3">
-                    <span class="text-[9px] uppercase font-black text-slate-500 tracking-widest">Parcelas</span>
-                    <span id="txtParcelas" class="text-xs font-black text-white">--</span>
-                </div>
-                <div class="flex justify-between items-center border-b border-white/5 pb-3">
-                    <span class="text-[9px] uppercase font-black text-slate-500 tracking-widest">Total do Contrato</span>
-                    <span id="txtTotal" class="text-xs font-black text-white">--</span>
-                </div>
-                <div class="flex justify-between items-center">
-                    <span class="text-[9px] uppercase font-black text-slate-500 tracking-widest">1º Vencimento</span>
-                    <span id="txtVencimento" class="text-xs font-black text-blue-400">--</span>
-                </div>
-            </div>
-
-            <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-700 flex gap-4 items-start">
-                <input type="checkbox" id="checkTermos" class="mt-1 w-5 h-5 accent-blue-500 cursor-pointer">
-                <label for="checkTermos" class="text-[10px] text-slate-400 uppercase font-bold leading-relaxed cursor-pointer select-none">
-                    Declaro que li e estou de acordo com o valor liberado, a taxa de juros aplicada e a data de vencimento estipulada neste contrato digital.
-                </label>
-            </div>
-
-            <button onclick="assinarContrato()" class="w-full bg-emerald-600 hover:bg-emerald-500 py-6 rounded-3xl font-black uppercase text-sm shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all text-white flex justify-center items-center gap-2">
-                Assinar e Receber PIX <i class="fa-solid fa-check-double"></i>
+            <button onclick="validarIdentidade()" id="btnValidar" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase py-4 rounded-xl transition-all shadow-[0_10px_20px_rgba(59,130,246,0.2)]">
+                <i class="fa-solid fa-lock-open mr-2"></i> Aceder ao Contrato
             </button>
+        </div>
+
+        <!-- PASSO 2: TERMOS E ASSINATURA -->
+        <div id="step-contrato" class="hidden space-y-6">
+            <div class="bg-blue-900/20 border border-blue-500/30 p-5 rounded-2xl text-center">
+                <p class="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-1">Crédito Aprovado</p>
+                <h2 id="valorLiberado" class="text-3xl font-black italic text-emerald-400">R$ 0,00</h2>
+                <p id="nomeCliente" class="text-sm font-bold text-white mt-2">...</p>
+            </div>
+
+            <div class="space-y-3 bg-slate-900/50 p-5 rounded-2xl border border-slate-700 text-sm">
+                <h3 class="text-xs font-black uppercase text-slate-400 border-b border-slate-700 pb-2 mb-3">Resumo das Condições</h3>
+                <div class="flex justify-between items-center"><span class="text-slate-400">Total a Pagar (C/ Juros):</span> <span id="valorTotal" class="font-bold text-white">R$ 0,00</span></div>
+                <div class="flex justify-between items-center"><span class="text-slate-400">Plano / Parcelas:</span> <span id="planoTexto" class="font-bold text-blue-400 uppercase">...</span></div>
+                <div class="flex justify-between items-center"><span class="text-slate-400">1º Vencimento:</span> <span id="dataVencimento" class="font-bold text-orange-400">...</span></div>
+            </div>
+
+            <label class="flex items-start gap-3 p-4 bg-slate-800/30 border border-slate-700 rounded-xl cursor-pointer hover:bg-slate-800/50 transition-colors mt-4">
+                <input type="checkbox" id="checkTermos" class="mt-1 w-5 h-5 accent-blue-500 rounded cursor-pointer">
+                <span class="text-xs text-slate-300 leading-relaxed">
+                    Li, compreendi e aceito os termos do crédito. Reconheço a dívida no valor de <strong id="textoTotal" class="text-white">R$ 0,00</strong>, comprometendo-me a pagá-la até à data de vencimento estipulada.
+                </span>
+            </label>
+
+            <button onclick="assinarContrato()" id="btnAssinar" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase py-4 rounded-xl transition-all shadow-[0_10px_20px_rgba(16,185,129,0.2)] flex items-center justify-center gap-2 mt-2">
+                <i class="fa-solid fa-pen-nib"></i> Assinar Digitalmente
+            </button>
+        </div>
+
+        <!-- PASSO 3: SUCESSO -->
+        <div id="step-sucesso" class="hidden text-center py-8 space-y-4">
+            <i class="fa-solid fa-circle-check text-7xl text-emerald-500 mb-4 drop-shadow-[0_0_20px_rgba(16,185,129,0.5)]"></i>
+            <h2 class="text-2xl font-black text-white uppercase italic">Contrato Assinado!</h2>
+            <p class="text-slate-400 text-sm">A sua assinatura digital foi registada com sucesso e tem validade legal.</p>
+            
+            <div class="bg-blue-900/20 border border-blue-500/20 p-4 rounded-xl mt-6">
+                <p class="text-xs text-blue-300 font-bold mb-3">Aguarde, será redirecionado para o nosso WhatsApp para receber o seu PIX.</p>
+                <i class="fa-solid fa-circle-notch fa-spin text-2xl text-blue-500"></i>
+            </div>
+        </div>
+
+        <!-- MENSAGEM DE ERRO (JÁ ASSINADO) -->
+        <div id="step-erro" class="hidden text-center py-8 space-y-4">
+            <i class="fa-solid fa-triangle-exclamation text-6xl text-orange-500 mb-4"></i>
+            <h2 class="text-xl font-black text-white uppercase italic">Link Inválido</h2>
+            <p id="msgErro" class="text-slate-400 text-sm">Este contrato não foi encontrado ou já foi assinado anteriormente.</p>
         </div>
 
     </main>
@@ -74,83 +93,111 @@
     <script>
         const API_BASE = window.location.origin;
         const urlParams = new URLSearchParams(window.location.search);
-        const id = urlParams.get('id');
-        let dadosSessao = null;
+        const idReal = urlParams.get('id');
+        let devedorCache = null;
 
-        if (!id) {
-            document.body.innerHTML = "<h2 class='text-white text-center mt-20 font-black uppercase'>Link Inválido. Peça um novo link.</h2>";
+        // Máscara de CPF simples
+        document.getElementById('inputCpf').addEventListener('input', function (e) {
+            let x = e.target.value.replace(/\D/g, '').match(/(\d{0,3})(\d{0,3})(\d{0,3})(\d{0,2})/);
+            e.target.value = !x[2] ? x[1] : x[1] + '.' + x[2] + (x[3] ? '.' + x[3] : '') + (x[4] ? '-' + x[4] : '');
+        });
+
+        if (!idReal) {
+            document.getElementById('step-auth').classList.add('hidden');
+            document.getElementById('step-erro').classList.remove('hidden');
+            document.getElementById('msgErro').innerText = "Link de assinatura incompleto. Verifique o link enviado no WhatsApp.";
         }
 
-        async function validarAcesso() {
-            const cpfRaw = document.getElementById('cpfInput').value;
-            if(!cpfRaw) return alert("Digite o CPF.");
+        async function validarIdentidade() {
+            const cpf = document.getElementById('inputCpf').value;
+            if (cpf.length < 14) return alert("Por favor, digite o CPF completo.");
 
-            // LIMPEZA BLINDADA NO CLIENT SIDE TAMBÉM
-            const cpfLimpo = cpfRaw.replace(/\D/g, '');
+            const btn = document.getElementById('btnValidar');
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Verificando...`;
+            btn.disabled = true;
 
             try {
                 const res = await fetch(`${API_BASE}/validar-extrato`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ id, cpf: cpfLimpo })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: idReal, cpf: cpf })
                 });
 
-                if(res.ok) {
-                    dadosSessao = await res.json();
-                    
-                    if(dadosSessao.status !== 'APROVADO_AGUARDANDO_ACEITE') {
-                        return alert("Este contrato já foi ativado ou liquidado.");
+                const dev = await res.json();
+
+                if (res.ok && dev) {
+                    // Valida se o cliente já assinou antes
+                    if (dev.status !== 'APROVADO_AGUARDANDO_ACEITE') {
+                        document.getElementById('step-auth').classList.add('hidden');
+                        document.getElementById('step-erro').classList.remove('hidden');
+                        document.getElementById('msgErro').innerText = "Este contrato já foi assinado e encontra-se ativo no sistema.";
+                        return;
                     }
 
-                    document.getElementById('step1').classList.add('hidden');
-                    document.getElementById('step2').classList.remove('hidden');
-
-                    document.getElementById('valorLiberado').innerText = Number(dadosSessao.valor_emprestado).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-                    document.getElementById('txtParcelas').innerText = `${dadosSessao.qtd_parcelas}x ${dadosSessao.frequencia}`;
-                    document.getElementById('txtTotal').innerText = Number(dadosSessao.valor_total).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+                    devedorCache = dev;
                     
-                    const dt = new Date(dadosSessao.data_vencimento + 'T12:00:00Z').toLocaleDateString('pt-BR');
-                    document.getElementById('txtVencimento').innerText = dt;
+                    // Preenche os dados do contrato
+                    document.getElementById('nomeCliente').innerText = dev.nome;
+                    document.getElementById('valorLiberado').innerText = parseFloat(dev.valor_emprestado).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    document.getElementById('valorTotal').innerText = parseFloat(dev.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    document.getElementById('textoTotal').innerText = parseFloat(dev.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    document.getElementById('planoTexto').innerText = `${dev.qtd_parcelas || 1}x ${dev.frequencia || 'MENSAL'}`;
+                    
+                    // Formatar data para exibição PT-BR
+                    const dataVenc = new Date(dev.data_vencimento + 'T12:00:00Z');
+                    document.getElementById('dataVencimento').innerText = dataVenc.toLocaleDateString('pt-BR');
+
+                    // Troca de ecrã
+                    document.getElementById('step-auth').classList.add('hidden');
+                    document.getElementById('step-contrato').classList.remove('hidden');
                 } else {
-                    alert("Acesso Negado. CPF incorreto ou contrato não encontrado.");
+                    alert("CPF incorreto ou contrato não encontrado.");
                 }
-            } catch (err) {
-                alert("Falha de conexão com o servidor.");
+            } catch (error) {
+                alert("Erro de conexão. Tente novamente.");
+            } finally {
+                btn.innerHTML = `<i class="fa-solid fa-lock-open mr-2"></i> Aceder ao Contrato`;
+                btn.disabled = false;
             }
         }
 
         async function assinarContrato() {
-            if(!document.getElementById('checkTermos').checked) {
-                return alert("Você precisa aceitar as condições contratuais (marcar a caixinha) para prosseguir.");
-            }
+            const check = document.getElementById('checkTermos');
+            if (!check.checked) return alert("Você precisa marcar a caixa indicando que aceita os termos antes de assinar.");
+
+            const btn = document.getElementById('btnAssinar');
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Registrando...`;
+            btn.disabled = true;
 
             try {
                 const res = await fetch(`${API_BASE}/cliente-aceitou`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ id: dadosSessao.uuid })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: idReal })
                 });
 
-                if(res.ok) {
-                    document.getElementById('step2').innerHTML = `
-                        <div class="text-center space-y-4 py-8">
-                            <i class="fa-solid fa-circle-check text-6xl text-emerald-500 mb-4 drop-shadow-[0_0_20px_rgba(16,185,129,0.5)]"></i>
-                            <h2 class="text-2xl font-black text-white uppercase italic">Contrato Ativado!</h2>
-                            <p class="text-xs text-slate-400 font-bold uppercase leading-relaxed tracking-widest">Sua liberação está em fila de pagamento. O comprovante PIX será enviado no seu WhatsApp em breve.</p>
-                        </div>
-                    `;
-                    // Opcional: Avisar o admin no zap
-                    irZap(`Olá, acabei de assinar meu contrato de ${document.getElementById('valorLiberado').innerText}. No aguardo do meu PIX! 🚀`);
-                } else {
-                    alert("Erro ao confirmar aceite. Tente novamente ou fale com o suporte.");
-                }
-            } catch (err) {
-                alert("Falha na conexão com o servidor.");
-            }
-        }
+                if (res.ok) {
+                    document.getElementById('step-contrato').classList.add('hidden');
+                    document.getElementById('step-sucesso').classList.remove('hidden');
 
-        function irZap(texto) {
-            window.location.href = `https://wa.me/5587981404650?text=${encodeURIComponent(texto)}`;
+                    const valorFormatado = document.getElementById('valorLiberado').innerText;
+                    
+                    // Redireciona para o WhatsApp após 3 segundos
+                    setTimeout(() => {
+                        const textoZap = `Olá, acabei de assinar meu contrato de ${valorFormatado}. No aguardo da liberação do meu PIX! 🚀`;
+                        // 🚨 ATENÇÃO: Substitua este número pelo WhatsApp oficial da sua empresa
+                        const numeroAdmin = "5587981404000"; 
+                        window.location.href = `https://wa.me/${numeroAdmin}?text=${encodeURIComponent(textoZap)}`;
+                    }, 3000);
+
+                } else {
+                    throw new Error("Falha ao registrar aceite.");
+                }
+            } catch (error) {
+                alert("Ocorreu um erro ao assinar. Tente novamente.");
+                btn.innerHTML = `<i class="fa-solid fa-pen-nib"></i> Assinar Digitalmente`;
+                btn.disabled = false;
+            }
         }
     </script>
 </body>

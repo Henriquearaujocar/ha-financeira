@@ -3,111 +3,232 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HA Elite | Extrato em Tempo Real</title>
+    <title>CMS Ventures | Pagamento Seguro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        body { background-color: #020617; color: #f1f5f9; font-family: 'Inter', sans-serif; }
-        .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.05); }
-        .input-dark { background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.1); outline: none; transition: 0.3s; color: white; }
-        .font-black-italic { font-weight: 900; font-style: italic; }
-        .animate-up { animation: slideUp 0.5s ease-out forwards; }
-        @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        body { background-color: #020617; color: #f1f5f9; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.05); }
+        .input-field { background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 1rem; padding: 1rem 1.25rem; width: 100%; outline: none; transition: 0.3s; text-align: center; font-size: 1.25rem; letter-spacing: 0.1em; }
+        .input-field:focus { border-color: #10b981; box-shadow: 0 0 15px rgba(16, 185, 129, 0.3); }
+        
+        /* Oculta setas de número */
+        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-6 relative">
+<body class="min-h-screen flex items-center justify-center p-4 relative">
 
-    <div class="absolute inset-0 z-0 opacity-20" style="background: radial-gradient(circle at 50% 0%, #3b82f6 0%, transparent 70%);"></div>
+    <!-- Efeitos de Fundo (Verde PIX) -->
+    <div class="fixed top-[-10%] left-[-10%] w-[300px] h-[300px] bg-emerald-600 rounded-full mix-blend-multiply filter blur-[100px] opacity-20 pointer-events-none"></div>
+    <div class="fixed bottom-[-10%] right-[-10%] w-[300px] h-[300px] bg-blue-600 rounded-full mix-blend-multiply filter blur-[100px] opacity-10 pointer-events-none"></div>
 
-    <main class="glass-card w-full max-w-sm rounded-[3rem] p-10 text-center relative z-10 animate-up shadow-2xl border-t-4 border-blue-500">
-        <i class="fa-solid fa-file-invoice-dollar text-5xl text-blue-500 mb-4 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]"></i>
-        <h1 class="text-3xl font-black-italic tracking-tighter uppercase mb-8">Meu Extrato</h1>
-
-        <!-- Passo 1: Validação Limpa -->
-        <div id="step1" class="space-y-6">
-            <p class="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Confirme sua identidade</p>
-            <input type="tel" id="cpfInput" placeholder="Seu CPF..." class="input-dark w-full rounded-2xl p-5 text-center text-xl font-black tracking-widest placeholder:text-slate-600 focus:border-blue-500 focus:shadow-[0_0_15px_rgba(59,130,246,0.3)]">
-            <button onclick="validarExtrato()" class="w-full bg-blue-600 hover:bg-blue-500 py-5 rounded-2xl font-black uppercase text-sm shadow-lg transition-all">Ver Débitos</button>
+    <main class="glass-card w-full max-w-lg rounded-[2rem] p-8 md:p-10 relative z-10 shadow-2xl transition-all duration-500">
+        
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-black italic text-emerald-500 tracking-tighter uppercase">CMS Ventures</h1>
+            <p class="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] mt-2">Portal de Pagamento Seguro</p>
         </div>
 
-        <!-- Passo 2: Resultado e Pagamento -->
-        <div id="step2" class="hidden space-y-8">
-            <div class="bg-slate-900/50 p-6 rounded-[2rem] border border-white/5 relative overflow-hidden">
-                <div class="absolute top-0 right-0 w-16 h-16 bg-blue-500/10 rounded-bl-[100px]"></div>
-                <p class="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Saldo Devedor Total</p>
-                <h2 id="saldoTotal" class="text-4xl font-black-italic text-white">R$ 0,00</h2>
-                <p id="vencimento" class="text-[9px] text-blue-400 font-black uppercase mt-2 tracking-widest">--</p>
+        <!-- PASSO 1: VALIDAÇÃO DE IDENTIDADE -->
+        <div id="step-auth" class="space-y-6">
+            <div class="text-center space-y-2 mb-6">
+                <i class="fa-solid fa-lock text-4xl text-emerald-500 mb-2"></i>
+                <h2 class="text-lg font-bold text-white uppercase">Acesse a sua Fatura</h2>
+                <p class="text-xs text-slate-400">Digite o seu CPF para consultar o saldo devedor e gerar a chave PIX de pagamento.</p>
             </div>
 
-            <div class="space-y-4 text-left">
-                <label class="text-[9px] uppercase font-black text-slate-400 tracking-widest ml-2">Quanto deseja pagar hoje?</label>
-                <input type="number" id="valorAbater" placeholder="R$ 0,00" class="input-dark w-full rounded-2xl p-5 text-center text-2xl font-black text-emerald-400 focus:border-emerald-500 focus:shadow-[0_0_15px_rgba(16,185,129,0.2)]">
-                
-                <button onclick="pagar()" class="w-full bg-emerald-600 hover:bg-emerald-500 py-6 rounded-[2rem] font-black uppercase text-xs shadow-xl transition-all flex items-center justify-center gap-2">
-                    <i class="fa-brands fa-pix text-lg"></i> Gerar Chave PIX
-                </button>
-            </div>
+            <input type="text" id="inputCpf" placeholder="000.000.000-00" class="input-field font-mono" maxlength="14">
             
-            <p class="text-[9px] text-slate-500 uppercase font-bold leading-relaxed px-2">
-                Qualquer valor pago que seja inferior ao total abaterá apenas o montante da dívida.
-            </p>
+            <button onclick="validarAcesso()" id="btnValidar" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase py-4 rounded-xl transition-all shadow-[0_10px_20px_rgba(16,185,129,0.2)]">
+                Consultar Fatura
+            </button>
         </div>
+
+        <!-- PASSO 2: FATURA E PAGAMENTO -->
+        <div id="step-pagamento" class="hidden space-y-6">
+            
+            <!-- Resumo da Fatura -->
+            <div class="bg-slate-900/50 p-5 rounded-2xl border border-slate-700 text-center relative overflow-hidden">
+                <div class="absolute -right-4 -bottom-4 opacity-5"><i class="fa-solid fa-file-invoice-dollar text-8xl text-emerald-500"></i></div>
+                <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Saldo Devedor Atual</p>
+                <h2 id="valorTotal" class="text-4xl font-black italic text-red-400">R$ 0,00</h2>
+                <p id="nomeCliente" class="text-sm font-bold text-white mt-2">...</p>
+                <p id="vencimentoTexto" class="text-xs text-orange-400 mt-1 font-bold">Vence em: ...</p>
+            </div>
+
+            <!-- Campo de Valor (Permite parcial) -->
+            <div class="bg-emerald-900/10 border border-emerald-500/20 p-5 rounded-2xl">
+                <label class="text-[10px] font-black uppercase text-slate-400 ml-2 block mb-2 text-center">Valor que deseja pagar (R$)</label>
+                <input type="number" step="0.01" id="valorAbater" class="input-field text-emerald-400 font-black text-2xl !bg-slate-900/80" placeholder="0.00">
+                <p class="text-[10px] text-slate-500 mt-3 text-center"><i class="fa-solid fa-circle-info mr-1"></i> Você pode pagar o total ou alterar para um valor parcial (sujeito a juros futuros).</p>
+            </div>
+
+            <!-- Botão de Ação -->
+            <button onclick="pagar()" id="btnPagar" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase py-4 rounded-xl transition-all shadow-[0_10px_20px_rgba(16,185,129,0.2)] flex items-center justify-center gap-2">
+                <i class="fa-brands fa-pix text-xl"></i> Gerar Chave PIX
+            </button>
+            
+            <div class="flex items-center justify-center gap-2 mt-4 text-[10px] text-slate-500 uppercase font-bold">
+                <i class="fa-solid fa-shield-check text-emerald-500"></i> Pagamento processado pela InfinitePay
+            </div>
+        </div>
+
+        <!-- PASSO 3: MENSAGEM DE QUITADO (O BUG DO ZERO RESOLVIDO) -->
+        <div id="step-quitado" class="hidden text-center py-8 space-y-4">
+            <i class="fa-solid fa-circle-check text-7xl text-emerald-500 mb-4 drop-shadow-[0_0_20px_rgba(16,185,129,0.5)]"></i>
+            <h2 class="text-2xl font-black text-white uppercase italic">Tudo Certo por aqui!</h2>
+            <p class="text-slate-400 text-sm">Este contrato já se encontra totalmente quitado no nosso sistema.</p>
+            
+            <div class="bg-emerald-900/20 border border-emerald-500/20 p-4 rounded-xl mt-6">
+                <p class="text-xs text-emerald-400 font-bold">Agradecemos a sua confiança na CMS Ventures.</p>
+            </div>
+        </div>
+
+        <!-- MENSAGEM DE ERRO (LINK INCOMPLETO) -->
+        <div id="step-erro" class="hidden text-center py-8 space-y-4">
+            <i class="fa-solid fa-link-slash text-6xl text-orange-500 mb-4"></i>
+            <h2 class="text-xl font-black text-white uppercase italic">Link Inválido</h2>
+            <p class="text-slate-400 text-sm">Este link de pagamento está incompleto ou expirado. Peça um novo link no WhatsApp.</p>
+        </div>
+
     </main>
 
     <script>
         const API_BASE = window.location.origin;
         const urlParams = new URLSearchParams(window.location.search);
-        const id = urlParams.get('id');
-        let devedor = null;
+        const idReal = urlParams.get('id');
+        
+        // Variáveis de Controlo de Segurança
+        window.valorMaximoPagar = 0;
+        let tentativasErradas = parseInt(localStorage.getItem('bloqueio_tentativas')) || 0;
+        let bloqueioAte = parseInt(localStorage.getItem('bloqueio_tempo')) || 0;
 
-        if (!id) {
-            document.body.innerHTML = "<h2 class='text-white text-center mt-20 font-black uppercase'>Acesso Negado. Use o link do WhatsApp.</h2>";
+        // Máscara de CPF simples
+        document.getElementById('inputCpf').addEventListener('input', function (e) {
+            let x = e.target.value.replace(/\D/g, '').match(/(\d{0,3})(\d{0,3})(\d{0,3})(\d{0,2})/);
+            e.target.value = !x[2] ? x[1] : x[1] + '.' + x[2] + (x[3] ? '.' + x[3] : '') + (x[4] ? '-' + x[4] : '');
+        });
+
+        if (!idReal) {
+            document.getElementById('step-auth').classList.add('hidden');
+            document.getElementById('step-erro').classList.remove('hidden');
         }
 
-        async function validarExtrato() {
-            const cpfRaw = document.getElementById('cpfInput').value;
-            if(!cpfRaw) return alert("Digite o CPF.");
+        async function validarAcesso() {
+            // Defesa contra Força Bruta (Rate Limit Local)
+            if (Date.now() < bloqueioAte) {
+                const restam = Math.ceil((bloqueioAte - Date.now()) / 1000);
+                return alert(`Muitas tentativas falhadas. Aguarde ${restam} segundos por segurança.`);
+            }
 
-            // LIMPEZA BLINDADA
-            const cpfLimpo = cpfRaw.replace(/\D/g, '');
+            const cpf = document.getElementById('inputCpf').value;
+            if (cpf.length < 14) return alert("Por favor, digite o CPF completo.");
 
-            const res = await fetch(`${API_BASE}/validar-extrato`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ id, cpf: cpfLimpo })
-            });
+            const btn = document.getElementById('btnValidar');
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Verificando...`;
+            btn.disabled = true;
 
-            if(res.ok) {
-                devedor = await res.json();
-                document.getElementById('step1').classList.add('hidden');
-                document.getElementById('step2').classList.remove('hidden');
-                document.getElementById('saldoTotal').innerText = Number(devedor.valor_total).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-                
-                // Formatação correta para fuso horário do Brasil
-                const dataVenc = new Date(devedor.data_vencimento + 'T12:00:00Z').toLocaleDateString('pt-BR');
-                document.getElementById('vencimento').innerText = `Vencimento: ${dataVenc}`;
-            } else {
-                alert("Link expirado ou CPF incorreto.");
+            try {
+                const res = await fetch(`${API_BASE}/validar-extrato`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: idReal, cpf: cpf })
+                });
+
+                const dev = await res.json();
+
+                if (res.ok && dev) {
+                    // Reset das tentativas caso sucesso
+                    localStorage.setItem('bloqueio_tentativas', 0);
+                    
+                    // Bloqueia o acesso se o contrato já estiver pago
+                    if(dev.status === 'QUITADO' || Number(dev.valor_total) <= 0 || dev.pago === true) {
+                        document.getElementById('step-auth').classList.add('hidden');
+                        document.getElementById('step-quitado').classList.remove('hidden');
+                        return;
+                    }
+
+                    // Preenche os dados do cliente e guarda o Limite de Pagamento
+                    document.getElementById('nomeCliente').innerText = dev.nome;
+                    const valorTotalFloat = parseFloat(dev.valor_total);
+                    window.valorMaximoPagar = valorTotalFloat;
+                    
+                    document.getElementById('valorTotal').innerText = valorTotalFloat.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    document.getElementById('valorAbater').value = valorTotalFloat.toFixed(2);
+
+                    // Formatação e aviso de atraso
+                    const dataVenc = new Date(dev.data_vencimento + 'T12:00:00Z');
+                    const hoje = new Date(); 
+                    hoje.setHours(0,0,0,0);
+                    
+                    const elVenc = document.getElementById('vencimentoTexto');
+                    elVenc.innerText = `Vencimento: ${dataVenc.toLocaleDateString('pt-BR')}`;
+                    
+                    if(dataVenc < hoje) {
+                        elVenc.classList.replace('text-orange-400', 'text-red-500');
+                        elVenc.innerText += " (EM ATRASO - COM MULTA)";
+                    }
+
+                    document.getElementById('step-auth').classList.add('hidden');
+                    document.getElementById('step-pagamento').classList.remove('hidden');
+                } else {
+                    // Incrementa tentativas em caso de erro
+                    tentativasErradas++;
+                    localStorage.setItem('bloqueio_tentativas', tentativasErradas);
+                    
+                    if(tentativasErradas >= 5) {
+                        const tempoBloqueio = Date.now() + 60000; // 1 minuto
+                        localStorage.setItem('bloqueio_tempo', tempoBloqueio);
+                        alert("Muitas tentativas incorretas. Acesso bloqueado por 1 minuto por razões de segurança.");
+                    } else {
+                        alert("CPF incorreto ou fatura não encontrada no sistema.");
+                    }
+                }
+            } catch (error) {
+                alert("Erro de comunicação com o servidor. Tente novamente.");
+            } finally {
+                btn.innerHTML = `Consultar Fatura`;
+                btn.disabled = false;
             }
         }
 
+        // 🚀 GERAÇÃO DO PIX INFINITEPAY
         async function pagar() {
-            const v = document.getElementById('valorAbater').value;
-            if(!v || v <= 0) return alert("Digite o valor que deseja pagar.");
+            const v = parseFloat(document.getElementById('valorAbater').value);
+            
+            // 🚨 VALIDAÇÃO DE SEGURANÇA: Impede Pagamento Negativo, Zero ou Excessivo
+            if(!v || v <= 0) {
+                return alert("O valor a pagar deve ser maior que zero.");
+            }
+            if(v > window.valorMaximoPagar) {
+                return alert(`Não é permitido pagar um valor superior à sua dívida total (R$ ${window.valorMaximoPagar.toFixed(2)}).`);
+            }
 
-            const res = await fetch(`${API_BASE}/cliente-gerar-pagamento`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ id: devedor.id, valorParaPagar: v })
-            });
-            
-            const data = await res.json();
-            
-            if(data.checkout_url) {
-                window.location.href = data.checkout_url;
-            } else {
-                alert("Erro ao gerar PIX. Tente novamente mais tarde.");
+            const btn = document.getElementById('btnPagar');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> A ligar ao Banco...`;
+
+            try {
+                const res = await fetch(`${API_BASE}/cliente-gerar-pagamento`, {
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ id: idReal, valorParaPagar: v })
+                });
+                
+                const data = await res.json();
+                
+                if(data.checkout_url) {
+                    window.location.href = data.checkout_url; 
+                } else {
+                    alert("Erro ao gerar a chave PIX. Tente novamente ou contacte o suporte.");
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fa-brands fa-pix text-xl mr-2"></i> Gerar Chave PIX`;
+                }
+            } catch(e) {
+                alert("Falha na rede. Verifique a sua ligação à internet.");
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-brands fa-pix text-xl mr-2"></i> Gerar Chave PIX`;
             }
         }
     </script>
