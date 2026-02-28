@@ -3,30 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
     <title>Solicitar Crédito | CMS Ventures</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        body { background-color: #020617; color: #f1f5f9; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        
+        :root { color-scheme: light only; }
+        html, body { background-color: #020617 !important; color: #f1f5f9 !important; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        
         .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.05); }
         .input-field { background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 1.25rem; padding: 1.25rem; width: 100%; outline: none; transition: 0.3s; }
         .input-field:focus { border-color: #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.3); }
+        .input-field:read-only { background: rgba(15, 23, 42, 0.4); border-color: rgba(16, 185, 129, 0.2); color: #94a3b8; }
         
-        .file-label { display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(15, 23, 42, 0.8); border: 1px dashed rgba(255,255,255,0.2); border-radius: 1.25rem; padding: 1.5rem; cursor: pointer; transition: 0.3s; text-align: center; }
+        /* 🚨 CORREÇÃO VISUAL: Força um fundo escuro sólido nas opções do Select para evitar texto invisível */
+        .input-field option { background-color: #0f172a; color: #f8fafc; font-weight: 600; }
+        
+        .file-label { display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(15, 23, 42, 0.8); border: 1px dashed rgba(255,255,255,0.2); border-radius: 1.25rem; padding: 1.5rem; cursor: pointer; transition: 0.3s; text-align: center; overflow: hidden; position: relative;}
         .file-label:hover { border-color: #3b82f6; background: rgba(59, 130, 246, 0.05); }
         
-        /* Oculta as setas de inputs number */
         input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4 relative" onload="inicializarFormulario()">
     
-    <!-- Efeitos de Fundo -->
     <div class="fixed top-[-10%] left-[-10%] w-[300px] h-[300px] bg-blue-600 rounded-full mix-blend-multiply filter blur-[100px] opacity-20 pointer-events-none"></div>
     <div class="fixed bottom-[-10%] right-[-10%] w-[300px] h-[300px] bg-emerald-600 rounded-full mix-blend-multiply filter blur-[100px] opacity-10 pointer-events-none"></div>
 
-    <!-- Toast Notification -->
     <div id="toast" class="fixed top-6 left-1/2 -translate-x-1/2 z-[200] hidden transition-all duration-300">
         <div class="bg-slate-900 border border-white/10 px-6 py-4 rounded-full shadow-2xl flex items-center gap-3">
             <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-500 text-xl"></i>
@@ -34,31 +39,40 @@
         </div>
     </div>
 
-    <!-- Tela de Carregamento (Loading) -->
     <div id="loadingOverlay" class="fixed inset-0 bg-black/90 backdrop-blur-sm z-[150] hidden flex flex-col items-center justify-center">
         <i class="fa-solid fa-circle-notch fa-spin text-6xl text-blue-500 mb-4"></i>
         <h2 class="text-xl font-black uppercase tracking-widest text-white">A processar...</h2>
-        <p class="text-slate-400 text-sm mt-2">A enviar os seus documentos em segurança.</p>
+        <p class="text-slate-400 text-sm mt-2">A otimizar ficheiros e validar dados.</p>
     </div>
 
     <main class="glass-card w-full max-w-4xl rounded-[2rem] p-8 md:p-12 relative z-10 my-8 shadow-2xl">
         
-        <!-- LOGOTIPO E CABEÇALHO -->
         <div class="text-center mb-10">
             <img src="/logo.png" alt="CMS Ventures" onerror="this.style.display='none'" class="h-20 mx-auto mb-4 object-contain drop-shadow-xl">
             <h1 class="text-3xl md:text-4xl font-black italic text-blue-500 tracking-tighter uppercase">CMS Ventures</h1>
             <p class="text-[10px] md:text-xs font-black uppercase text-slate-500 tracking-[0.2em] mt-2">Formulário de Análise de Crédito</p>
         </div>
 
-        <form id="formSolicitacao" class="space-y-8">
+        <form id="formSolicitacao" class="space-y-8" onsubmit="event.preventDefault(); enviarProposta();">
             
+            <div class="bg-blue-900/10 border border-blue-500/20 p-6 rounded-2xl mb-8 flex flex-col items-center justify-center">
+                <h3 class="text-sm font-black uppercase text-blue-400 mb-2"><i class="fa-solid fa-rotate mr-2"></i>Já é nosso cliente?</h3>
+                <p class="text-xs text-slate-400 mb-4 text-center">Informe o seu CPF para reaproveitarmos os seus dados.</p>
+                
+                <div class="flex gap-2 w-full max-w-md">
+                    <input type="text" id="cpf_busca" placeholder="Digite seu CPF..." class="input-field py-3 text-center text-sm" maxlength="14" oninput="mascaraCPF(this)">
+                    <button type="button" onclick="buscarClienteExistente()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-3 rounded-xl transition-all"><i class="fa-solid fa-magnifying-glass"></i></button>
+                    <button type="button" id="btn_limpar_busca" onclick="limparBusca()" class="hidden bg-slate-700 hover:bg-red-600 text-white font-bold px-4 py-3 rounded-xl transition-all" title="Limpar e recomeçar"><i class="fa-solid fa-eraser"></i></button>
+                </div>
+            </div>
+
             <!-- 1. Dados Pessoais -->
             <div class="space-y-4">
                 <h3 class="text-sm font-black uppercase text-blue-400 border-b border-slate-700 pb-2"><i class="fa-solid fa-user mr-2"></i>1. Dados Pessoais</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Nome Completo</label>
-                        <input type="text" id="nome" placeholder="Digite seu nome completo" class="input-field mt-1" required>
+                        <input type="text" id="nome" placeholder="Digite seu nome e apelido" class="input-field mt-1" maxlength="100" required>
                     </div>
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-500 ml-2">CPF</label>
@@ -66,22 +80,22 @@
                     </div>
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-500 ml-2">WhatsApp</label>
-                        <input type="tel" id="whatsapp" placeholder="(00) 00000-0000" class="input-field mt-1" oninput="mascaraTel(this)" required>
+                        <input type="tel" id="whatsapp" placeholder="(00) 00000-0000" class="input-field mt-1" maxlength="15" oninput="mascaraTel(this)" required>
                     </div>
                     <div>
-                        <label class="text-[10px] font-black uppercase text-slate-500 ml-2">CPF do Promotor (Indicação)</label>
-                        <input type="text" id="indicado_por" placeholder="000.000.000-00" class="input-field mt-1" maxlength="14" oninput="mascaraCPF(this)" required>
+                        <label class="text-[10px] font-black uppercase text-slate-500 ml-2">CPF do Promotor (Opcional)</label>
+                        <input type="text" id="indicado_por" placeholder="000.000.000-00" class="input-field mt-1" maxlength="14" oninput="mascaraCPF(this)">
                     </div>
                 </div>
             </div>
 
-            <!-- 2. Detalhes do Crédito & Simulador -->
+            <!-- 2. Detalhes do Crédito -->
             <div class="space-y-4">
-                <h3 class="text-sm font-black uppercase text-blue-400 border-b border-slate-700 pb-2"><i class="fa-solid fa-money-bill-wave mr-2"></i>2. Detalhes do Crédito</h3>
+                <h3 class="text-sm font-black uppercase text-blue-400 border-b border-slate-700 pb-2"><i class="fa-solid fa-money-bill-wave mr-2"></i>2. Estrutura Desejada</h3>
                 
                 <div class="bg-blue-900/10 border border-blue-500/20 p-6 rounded-2xl mb-4">
                     <label class="text-xs font-black uppercase text-slate-400 block mb-2">Valor Desejado (R$)</label>
-                    <input type="number" id="valor" placeholder="A carregar limites..." class="input-field font-black text-2xl text-emerald-400" required>
+                    <input type="number" id="valor" placeholder="A carregar limites..." class="input-field font-black text-2xl text-emerald-400" onkeydown="if(['e', 'E', '+', '-', ',', '.'].includes(event.key)) event.preventDefault();" oninput="limitarValor(this)" required>
                     <p id="texto-minimo" class="text-[10px] text-slate-500 mt-2"><i class="fa-solid fa-circle-info mr-1"></i> A carregar valor mínimo...</p>
                 </div>
 
@@ -102,99 +116,67 @@
                     </div>
                     <div id="box-parcelas" class="hidden">
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Nº de Parcelas</label>
-                        <select id="qtd_parcelas" class="input-field mt-1" onchange="calcularSimulacao()">
-                            <!-- Preenchido via JS (1 a 12 ou 1 a 24) -->
-                            <option value="1">1x Parcela</option>
-                        </select>
+                        <select id="qtd_parcelas" class="input-field mt-1" onchange="calcularSimulacao()"></select>
                     </div>
                 </div>
 
-                <!-- Resumo do Simulador Dinâmico -->
                 <div id="simuladorBox" class="bg-slate-900 border border-slate-700 rounded-2xl p-6 mt-4 hidden transition-all">
-                    <h4 class="text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-4 text-center">Resumo da Simulação</h4>
-                    <div class="flex justify-between items-center border-b border-slate-800 pb-2 mb-2">
-                        <span class="text-sm text-slate-400">Plano Selecionado:</span>
-                        <span id="sim_plano" class="font-bold text-white uppercase text-sm">--</span>
-                    </div>
-                    <div class="flex justify-between items-center border-b border-slate-800 pb-2 mb-2">
-                        <span class="text-sm text-slate-400">Valor Estimado da Parcela:</span>
-                        <span id="sim_parcela" class="font-black text-emerald-400 text-xl">R$ 0,00</span>
-                    </div>
-                    <div class="flex justify-between items-center pt-2">
-                        <span class="text-sm text-slate-400">Total Final (C/ Juros):</span>
-                        <span id="sim_total" class="font-black text-orange-400 text-2xl">R$ 0,00</span>
-                    </div>
-                    <p class="text-[9px] text-slate-600 mt-4 text-center">*Valores sujeitos a análise de crédito. A taxa de juros exata será apresentada no contrato final.</p>
+                    <h4 class="text-[10px] font-black uppercase tracking-widest text-blue-500 mb-2 text-center"><i class="fa-solid fa-clipboard-check mr-2"></i> Estrutura da Proposta</h4>
+                    <p class="text-center text-white text-lg font-black uppercase tracking-widest" id="sim_plano">--</p>
+                    <p class="text-[9px] text-slate-500 mt-3 text-center bg-slate-800/50 p-2 rounded-lg">*O valor exato das parcelas com as taxas aplicadas será apresentado a si pelo nosso Gestor após a análise de crédito.</p>
                 </div>
             </div>
 
-            <!-- 3. Referência Pessoal (Apenas 1 Visível e Obrigatória) -->
+            <!-- 3. Referência Pessoal -->
             <div class="space-y-4">
                 <h3 class="text-sm font-black uppercase text-blue-400 border-b border-slate-700 pb-2"><i class="fa-solid fa-address-book mr-2"></i>3. Referência Pessoal</h3>
-                <p class="text-xs text-slate-400 mb-2">Indique uma pessoa próxima (familiar ou amigo) que o conheça.</p>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Nome da Referência</label>
-                        <input type="text" id="ref1_nome" placeholder="Ex: Maria Silva (Mãe)" class="input-field mt-1" required>
+                        <input type="text" id="ref1_nome" placeholder="Ex: Maria Silva (Mãe)" class="input-field mt-1" maxlength="100" required>
                     </div>
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Telefone da Referência</label>
-                        <input type="tel" id="ref1_tel" placeholder="(00) 00000-0000" class="input-field mt-1" oninput="mascaraTel(this)" required>
+                        <input type="tel" id="ref1_tel" placeholder="(00) 00000-0000" class="input-field mt-1" maxlength="15" oninput="mascaraTel(this)" required>
                     </div>
                 </div>
             </div>
 
-            <!-- 4. Documentação Obrigatória (5 Fotos) -->
+            <!-- 4. Documentação Obrigatória -->
             <div class="space-y-4">
-                <h3 class="text-sm font-black uppercase text-blue-400 border-b border-slate-700 pb-2"><i class="fa-solid fa-file-shield mr-2"></i>4. Documentação Obrigatória</h3>
-                <p class="text-xs text-slate-400 mb-4 bg-red-500/10 border border-red-500/20 p-3 rounded-xl"><i class="fa-solid fa-triangle-exclamation text-red-500 mr-2"></i> Fotografias tremidas ou ilegíveis resultarão na reprovação automática do pedido.</p>
+                <h3 class="text-sm font-black uppercase text-blue-400 border-b border-slate-700 pb-2"><i class="fa-solid fa-file-shield mr-2"></i>4. Documentação</h3>
+                <p id="txt-documentacao" class="text-xs text-slate-400 mb-4 bg-slate-800/50 p-3 rounded-xl border border-slate-700">Envie fotos nítidas para não atrasar a análise.</p>
                 
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <label class="file-label">
                         <i class="fa-solid fa-camera text-3xl text-slate-400 mb-3 transition-colors"></i>
-                        <span class="text-[10px] font-black uppercase">Sua Selfie</span>
-                        <input type="file" id="img_selfie" accept="image/*" class="hidden" onchange="marcarUpload(this)" required>
+                        <span class="text-[10px] font-black uppercase" id="lbl_img_selfie">Sua Selfie</span>
+                        <input type="file" id="img_selfie" accept="image/*" class="hidden" onchange="marcarUpload(this)">
                     </label>
-                    <label class="file-label">
+                    <label class="file-label doc-antigo">
                         <i class="fa-solid fa-id-card text-3xl text-slate-400 mb-3 transition-colors"></i>
-                        <span class="text-[10px] font-black uppercase">Doc. Frente</span>
-                        <input type="file" id="img_frente" accept="image/*" class="hidden" onchange="marcarUpload(this)" required>
+                        <span class="text-[10px] font-black uppercase" id="lbl_img_frente">Doc. Frente</span>
+                        <input type="file" id="img_frente" accept="image/*" class="hidden" onchange="marcarUpload(this)">
                     </label>
-                    <label class="file-label">
+                    <label class="file-label doc-antigo">
                         <i class="fa-solid fa-id-card text-3xl text-slate-400 mb-3 transition-colors"></i>
-                        <span class="text-[10px] font-black uppercase">Doc. Verso</span>
-                        <input type="file" id="img_verso" accept="image/*" class="hidden" onchange="marcarUpload(this)" required>
+                        <span class="text-[10px] font-black uppercase" id="lbl_img_verso">Doc. Verso</span>
+                        <input type="file" id="img_verso" accept="image/*" class="hidden" onchange="marcarUpload(this)">
                     </label>
-                    <label class="file-label">
+                    <label class="file-label text-center col-span-2 md:col-span-1">
                         <i class="fa-solid fa-file-invoice text-3xl text-slate-400 mb-3 transition-colors"></i>
-                        <span class="text-[10px] font-black uppercase text-center">Comp. Residência</span>
-                        <input type="file" id="img_residencia" accept="image/*" class="hidden" onchange="marcarUpload(this)" required>
+                        <span class="text-[10px] font-black uppercase" id="lbl_img_residencia">Comp. Residência</span>
+                        <input type="file" id="img_residencia" accept="image/*" class="hidden" onchange="marcarUpload(this)">
                     </label>
-                    <label class="file-label col-span-2 md:col-span-2">
+                    <label class="file-label doc-antigo col-span-2 md:col-span-2">
                         <i class="fa-solid fa-house text-3xl text-slate-400 mb-3 transition-colors"></i>
-                        <span class="text-[10px] font-black uppercase">Fachada da Casa (Nº Visível)</span>
-                        <input type="file" id="img_casa" accept="image/*" class="hidden" onchange="marcarUpload(this)" required>
+                        <span class="text-[10px] font-black uppercase" id="lbl_img_casa">Fachada da Casa (Nº Visível)</span>
+                        <input type="file" id="img_casa" accept="image/*" class="hidden" onchange="marcarUpload(this)">
                     </label>
                 </div>
             </div>
 
-            <!-- 5. VERIFICAÇÃO DE SEGURANÇA (GPS OBRIGATÓRIO) -->
-            <div class="bg-slate-900/80 p-5 rounded-2xl border border-blue-500/30 flex items-center justify-between relative overflow-hidden">
-                <div class="absolute right-0 top-0 opacity-10"><i class="fa-solid fa-shield-halved text-8xl"></i></div>
-                <div class="relative z-10 w-full">
-                    <p class="text-[11px] font-black uppercase text-slate-400 tracking-widest mb-1">Verificação de Segurança (GPS)</p>
-                    <div class="flex items-center justify-between">
-                        <p id="gps-status-text" class="text-sm font-bold text-orange-400"><i class="fa-solid fa-location-crosshairs fa-spin mr-2"></i> A procurar localização...</p>
-                        <button type="button" onclick="obterLocalizacaoManual()" class="bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition-all border border-blue-500/30"><i class="fa-solid fa-rotate-right"></i></button>
-                    </div>
-                    <p class="text-[9px] text-slate-500 mt-2">Para evitar fraudes e proteger a sua conta, exigimos a autorização de localização no momento da solicitação.</p>
-                </div>
-            </div>
-
-            <input type="hidden" id="latitude"><input type="hidden" id="longitude">
-
-            <!-- Botão de Envio -->
-            <button type="button" id="btnEnviar" onclick="enviarProposta()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase py-5 rounded-[1.25rem] transition-all shadow-[0_10px_30px_rgba(59,130,246,0.3)] mt-8 text-lg flex items-center justify-center gap-3">
+            <button type="submit" id="btnEnviar" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase py-5 rounded-[1.25rem] transition-all shadow-[0_10px_30px_rgba(59,130,246,0.3)] mt-8 text-lg flex items-center justify-center gap-3">
                 <i class="fa-solid fa-paper-plane"></i> Submeter Solicitação
             </button>
             <p id="erroGeral" class="text-red-400 text-xs font-bold text-center hidden mt-2"></p>
@@ -204,24 +186,34 @@
     <script>
         const API_BASE = window.location.origin;
 
-        // Variáveis de Configuração Dinâmica (Buscadas da Base de Dados)
         let VALOR_MINIMO = 500;
-        let JUROS_UNICO = 0.30;
-        let JUROS_PARCELADO = 0.25;
-        let coordsGPS = { lat: null, lng: null };
         let imagensBase64 = {};
+        let isClienteRecorrente = false;
+        let uploadsEmAndamento = 0; 
 
-        // INICIALIZAÇÃO E GPS
+        function validarCPFReal(cpfStr) {
+            let str = cpfStr.replace(/\D/g, '');
+            if (str.length !== 11 || /^(\d)\1{10}$/.test(str)) return false;
+            let soma = 0, resto;
+            for (let i = 1; i <= 9; i++) soma += parseInt(str.substring(i-1, i)) * (11 - i);
+            resto = (soma * 10) % 11;
+            if (resto === 10 || resto === 11) resto = 0;
+            if (resto !== parseInt(str.substring(9, 10))) return false;
+            soma = 0;
+            for (let i = 1; i <= 10; i++) soma += parseInt(str.substring(i-1, i)) * (12 - i);
+            resto = (soma * 10) % 11;
+            if (resto === 10 || resto === 11) resto = 0;
+            if (resto !== parseInt(str.substring(10, 11))) return false;
+            return true;
+        }
+
         async function inicializarFormulario() {
-            obterLocalizacao();
             try {
                 const res = await fetch(`${API_BASE}/api/config-publica`);
                 if(res.ok) {
                     const confs = await res.json();
                     confs.forEach(c => {
                         if(c.chave === 'valor_minimo') VALOR_MINIMO = parseFloat(c.valor) || 500;
-                        if(c.chave === 'juros_unico') JUROS_UNICO = (parseFloat(c.valor) || 30) / 100;
-                        if(c.chave === 'juros_parcelado') JUROS_PARCELADO = (parseFloat(c.valor) || 25) / 100;
                     });
                 }
             } catch (e) { console.warn("A usar valores padrão do sistema."); }
@@ -230,38 +222,87 @@
             document.getElementById('texto-minimo').innerHTML = `<i class="fa-solid fa-circle-info mr-1"></i> O valor mínimo para solicitação é de R$ ${VALOR_MINIMO.toFixed(2)}.`;
         }
 
-        function obterLocalizacao() {
-            const statusTxt = document.getElementById('gps-status-text');
-            if (!navigator.geolocation) {
-                statusTxt.innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-2"></i> O seu navegador não suporta GPS';
-                statusTxt.className = "text-sm font-bold text-red-500";
-                return;
+        async function buscarClienteExistente() {
+            const cpfBusca = document.getElementById('cpf_busca').value.replace(/\D/g, '');
+            if (cpfBusca.length !== 11 || !validarCPFReal(cpfBusca)) return showToast("Digite um CPF matematicamente válido para buscar.", "error");
+
+            const loading = document.getElementById('loadingOverlay');
+            loading.classList.remove('hidden');
+
+            try {
+                const res = await fetch(`${API_BASE}/api/buscar-cliente-publico/${cpfBusca}`);
+                if (res.ok) {
+                    const cliente = await res.json();
+                    
+                    document.getElementById('nome').value = cliente.nome;
+                    document.getElementById('cpf').value = cpfBusca;
+                    document.getElementById('cpf').readOnly = true;
+                    document.getElementById('whatsapp').value = cliente.telefone;
+                    
+                    isClienteRecorrente = true;
+                    document.getElementById('btn_limpar_busca').classList.remove('hidden');
+
+                    delete imagensBase64.img_frente;
+                    delete imagensBase64.img_verso;
+                    delete imagensBase64.img_casa;
+
+                    const labelsAntigos = document.querySelectorAll('.doc-antigo');
+                    labelsAntigos.forEach(label => {
+                        label.style.display = 'none';
+                        if(label.querySelector('input')) label.querySelector('input').required = false; 
+                        
+                        label.style.opacity = '1';
+                        label.style.borderColor = 'rgba(255,255,255,0.2)';
+                        label.style.backgroundColor = 'rgba(15, 23, 42, 0.8)';
+                        label.querySelector('span').style.color = 'white';
+                        const originalSpanText = label.querySelector('input').id === 'img_frente' ? 'Doc. Frente' : (label.querySelector('input').id === 'img_verso' ? 'Doc. Verso' : 'Fachada da Casa (Nº Visível)');
+                        label.querySelector('span').innerText = originalSpanText;
+                        label.querySelector('i').className = 'fa-solid fa-id-card text-3xl text-slate-400 mb-3 transition-colors'; 
+                        if(label.querySelector('input')) label.querySelector('input').value = '';
+                    });
+
+                    document.getElementById('txt-documentacao').innerHTML = `<i class="fa-solid fa-check-circle text-emerald-500 mr-2"></i> <strong>Bem-vindo de volta!</strong> Reaproveitamos os seus documentos antigos. Anexe apenas uma Selfie e comprovante de morada.`;
+                    document.getElementById('txt-documentacao').className = "text-xs text-emerald-400 mb-4 bg-emerald-900/20 p-3 rounded-xl border border-emerald-500/20";
+
+                    showToast("Dados encontrados! Prossiga com o pedido.");
+                } else {
+                    showToast("Nenhum cliente antigo encontrado. Siga normalmente.", "error");
+                    isClienteRecorrente = false;
+                    
+                    const labelsAntigos = document.querySelectorAll('.doc-antigo');
+                    labelsAntigos.forEach(label => {
+                        label.style.display = 'flex';
+                        if(label.querySelector('input')) label.querySelector('input').required = true; 
+                    });
+                    document.getElementById('txt-documentacao').innerHTML = `Envie fotos nítidas para não atrasar a análise.`;
+                    document.getElementById('txt-documentacao').className = "text-xs text-slate-400 mb-4 bg-slate-800/50 p-3 rounded-xl border border-slate-700";
+                }
+            } catch (err) {
+                showToast("Erro na ligação com o servidor.", "error");
+            } finally {
+                loading.classList.add('hidden');
             }
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    coordsGPS.lat = pos.coords.latitude;
-                    coordsGPS.lng = pos.coords.longitude;
-                    document.getElementById('latitude').value = pos.coords.latitude;
-                    document.getElementById('longitude').value = pos.coords.longitude;
-                    statusTxt.innerHTML = '<i class="fa-solid fa-shield-check mr-2"></i> Localização Capturada com Sucesso';
-                    statusTxt.className = "text-sm font-bold text-emerald-400";
-                },
-                (err) => {
-                    statusTxt.innerHTML = '<i class="fa-solid fa-location-dot mr-2"></i> Autorização de GPS Negada';
-                    statusTxt.className = "text-sm font-bold text-red-500";
-                },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-            );
         }
 
-        function obterLocalizacaoManual() {
-            document.getElementById('gps-status-text').innerHTML = '<i class="fa-solid fa-location-crosshairs fa-spin mr-2"></i> A procurar localização...';
-            document.getElementById('gps-status-text').className = "text-sm font-bold text-orange-400";
-            coordsGPS = { lat: null, lng: null };
-            obterLocalizacao();
+        function limparBusca() {
+            isClienteRecorrente = false;
+            document.getElementById('cpf_busca').value = '';
+            document.getElementById('nome').value = '';
+            document.getElementById('cpf').value = '';
+            document.getElementById('cpf').readOnly = false;
+            document.getElementById('whatsapp').value = '';
+            document.getElementById('btn_limpar_busca').classList.add('hidden');
+
+            const labelsAntigos = document.querySelectorAll('.doc-antigo');
+            labelsAntigos.forEach(label => {
+                label.style.display = 'flex';
+                if(label.querySelector('input')) label.querySelector('input').required = true;
+            });
+            document.getElementById('txt-documentacao').innerHTML = `Envie fotos nítidas para não atrasar a análise.`;
+            document.getElementById('txt-documentacao').className = "text-xs text-slate-400 mb-4 bg-slate-800/50 p-3 rounded-xl border border-slate-700";
+            showToast("Pesquisa limpa. Pode preencher livremente.", "success");
         }
 
-        // Sistema de Toast
         function showToast(msg, type = 'success') {
             const toast = document.getElementById('toast');
             document.getElementById('toastMsg').innerText = msg;
@@ -270,30 +311,71 @@
             setTimeout(() => toast.classList.add('hidden'), 4500);
         }
 
-        // --- COMPRESSÃO DE IMAGENS ---
         function marcarUpload(input) {
             const file = input.files[0];
-            if (!file) return;
-
             const label = input.parentElement;
+
+            if (!file) {
+                delete imagensBase64[input.id];
+                label.style.opacity = '1';
+                label.style.borderColor = 'rgba(255,255,255,0.2)';
+                label.style.backgroundColor = 'rgba(15, 23, 42, 0.8)';
+                label.querySelector('span').style.color = 'white';
+                
+                const origText = document.getElementById(`lbl_${input.id}`).dataset.orig || document.getElementById(`lbl_${input.id}`).innerText;
+                if(!document.getElementById(`lbl_${input.id}`).dataset.orig) document.getElementById(`lbl_${input.id}`).dataset.orig = origText;
+                
+                label.querySelector('span').innerText = origText === 'ANEXADO' ? (input.id.replace('img_', '')) : origText;
+                
+                const iconMap = { 'img_selfie': 'fa-camera', 'img_frente': 'fa-id-card', 'img_verso': 'fa-id-card', 'img_residencia': 'fa-file-invoice', 'img_casa': 'fa-house' };
+                label.querySelector('i').className = `fa-solid ${iconMap[input.id] || 'fa-upload'} text-3xl text-slate-400 mb-3 transition-colors`;
+                return;
+            }
+
+            if (file.size > 15 * 1024 * 1024) {
+                showToast("Esta imagem é demasiado grande e pode travar o seu telemóvel. Por favor, escolha uma foto mais leve.", "error");
+                input.value = '';
+                return;
+            }
+
             label.style.opacity = '0.5';
+            label.querySelector('i').className = 'fa-solid fa-spinner fa-spin text-3xl mb-3 text-blue-500';
+            label.querySelector('span').innerText = 'A PROCESSAR...';
+            
+            uploadsEmAndamento++;
+            document.getElementById('btnEnviar').disabled = true;
 
             const reader = new FileReader();
             reader.readAsDataURL(file);
             reader.onload = (event) => {
                 const img = new Image();
                 img.src = event.target.result;
+                
+                img.onerror = () => {
+                    showToast("Ficheiro inválido ou corrompido. Escolha uma imagem válida.", "error");
+                    label.style.opacity = '1';
+                    label.querySelector('i').className = 'fa-solid fa-triangle-exclamation text-3xl mb-3 text-red-500';
+                    label.querySelector('span').innerText = 'ERRO - TENTE NOVAMENTE';
+                    label.querySelector('span').style.color = '#ef4444';
+                    input.value = ''; 
+                    
+                    uploadsEmAndamento--;
+                    if(uploadsEmAndamento === 0) document.getElementById('btnEnviar').disabled = false;
+                };
+
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
-                    
-                    const MAX_WIDTH = 1200;
-                    const scaleSize = MAX_WIDTH / img.width;
-                    canvas.width = MAX_WIDTH;
+                    const MAX_WIDTH = 800;
+                    const scaleSize = img.width > MAX_WIDTH ? MAX_WIDTH / img.width : 1;
+                    canvas.width = img.width * scaleSize;
                     canvas.height = img.height * scaleSize;
 
+                    ctx.fillStyle = "#FFFFFF";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    const base64Comprimido = canvas.toDataURL('image/jpeg', 0.7);
+                    const base64Comprimido = canvas.toDataURL('image/jpeg', 0.5);
                     
                     imagensBase64[input.id] = base64Comprimido;
                     
@@ -301,13 +383,20 @@
                     label.style.borderColor = '#10b981'; 
                     label.style.backgroundColor = 'rgba(16, 185, 129, 0.05)';
                     label.querySelector('span').style.color = '#10b981';
-                    label.querySelector('span').innerText = 'ENVIADO';
+                    label.querySelector('span').innerText = 'ANEXADO';
                     label.querySelector('i').className = 'fa-solid fa-check-circle text-3xl mb-3 text-emerald-500 transition-colors';
+                    
+                    uploadsEmAndamento--;
+                    if(uploadsEmAndamento === 0) document.getElementById('btnEnviar').disabled = false;
                 };
             };
         }
 
-        // --- SIMULADOR DINÂMICO DE PARCELAS ---
+        function limitarValor(i) {
+            if (i.value.length > 7) i.value = i.value.slice(0, 7);
+            calcularSimulacao();
+        }
+
         const vInput = document.getElementById('valor');
         const pSelect = document.getElementById('tipo_plano');
         const fSelect = document.getElementById('frequencia');
@@ -332,24 +421,22 @@
 
         function atualizarParcelas() {
             const freq = fSelect.value;
-            const valorAtual = qSelect.value;
+            const valorAtual = parseInt(qSelect.value);
             
             qSelect.innerHTML = '';
-            
-            // Regra: 12 parcelas mensais, 24 parcelas semanais
             const max = freq === 'MENSAL' ? 12 : 24;
             
-            for (let i = 1; i <= max; i++) {
+            for (let i = 2; i <= max; i++) {
                 const option = document.createElement('option');
                 option.value = i;
                 option.text = `${i}x Parcelas`;
                 qSelect.appendChild(option);
             }
             
-            if (valorAtual <= max) {
-                qSelect.value = valorAtual || 1;
+            if (valorAtual && valorAtual >= 2 && valorAtual <= max) {
+                qSelect.value = valorAtual;
             } else {
-                qSelect.value = 1;
+                qSelect.value = 2;
             }
             calcularSimulacao();
         }
@@ -362,37 +449,26 @@
 
             if (valorBase >= VALOR_MINIMO) {
                 simBox.classList.remove('hidden');
-                
                 if (plano === '30DIAS') {
-                    const totalEstimado = valorBase * (1 + JUROS_UNICO);
-                    
-                    document.getElementById('sim_plano').innerText = 'Única (30 Dias)';
-                    document.getElementById('sim_parcela').innerText = `1x de ${totalEstimado.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}`;
-                    document.getElementById('sim_total').innerText = totalEstimado.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+                    document.getElementById('sim_plano').innerText = 'Plano: Única Parcela (30 Dias)';
                 } else {
-                    document.getElementById('sim_plano').innerText = `${parcelas}x ${freq}`;
-                    
-                    const totalParcelado = valorBase * (1 + JUROS_PARCELADO); 
-                    const valorParcela = totalParcelado / parcelas;
-                    
-                    document.getElementById('sim_parcela').innerText = `${parcelas}x de ${valorParcela.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}`;
-                    document.getElementById('sim_total').innerText = totalParcelado.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+                    document.getElementById('sim_plano').innerText = `Plano: ${parcelas}x ${freq}`;
                 }
             } else {
                 simBox.classList.add('hidden');
             }
         }
 
-        // Listeners
         vInput.addEventListener('input', calcularSimulacao);
         pSelect.addEventListener('change', atualizarInterface);
         fSelect.addEventListener('change', atualizarParcelas);
         qSelect.addEventListener('change', calcularSimulacao);
 
-        // --- SUBMISSÃO DA PROPOSTA ---
         async function enviarProposta() {
             const form = document.getElementById('formSolicitacao');
             const erroEl = document.getElementById('erroGeral');
+            const btnEnviar = document.getElementById('btnEnviar');
+            
             erroEl.classList.add('hidden');
 
             if (!form.checkValidity()) {
@@ -400,59 +476,64 @@
                 return;
             }
 
+            const nomeLimpo = document.getElementById('nome').value.trim().replace(/\s+/g, ' ');
+            if (nomeLimpo.split(' ').length < 2) {
+                erroEl.innerText = "Por favor, insira o seu nome completo (com apelido).";
+                erroEl.classList.remove('hidden');
+                return;
+            }
+
+            const cpfLimpo = document.getElementById('cpf').value;
+            if (!validarCPFReal(cpfLimpo)) {
+                erroEl.innerText = "O CPF introduzido não é válido. Verifique os números.";
+                erroEl.classList.remove('hidden');
+                return;
+            }
+
             const valorDesejado = parseFloat(vInput.value) || 0;
-            
             if(valorDesejado < VALOR_MINIMO) {
                 erroEl.innerText = `O valor mínimo para solicitação é de R$ ${VALOR_MINIMO.toFixed(2)}.`;
                 erroEl.classList.remove('hidden');
                 return;
             }
 
-            if (!coordsGPS.lat || !coordsGPS.lng) {
-                erroEl.innerText = "ERRO: O acesso à localização (GPS) é obrigatório. Por favor, autorize no seu navegador e tente novamente.";
-                erroEl.classList.remove('hidden');
-                obterLocalizacaoManual();
-                window.scrollTo(0, document.body.scrollHeight);
-                return;
-            }
-
-            const fotosObrigatorias = ['img_selfie', 'img_frente', 'img_verso', 'img_residencia', 'img_casa'];
+            const fotosObrigatorias = isClienteRecorrente ? ['img_selfie', 'img_residencia'] : ['img_selfie', 'img_frente', 'img_verso', 'img_residencia', 'img_casa'];
+            
             for (let id of fotosObrigatorias) {
                 if (!imagensBase64[id]) {
-                    erroEl.innerText = `Falta processar a fotografia obrigatória. Verifique as fotos enviadas.`;
+                    erroEl.innerText = `Falta anexar uma ou mais fotografias obrigatórias.`;
                     erroEl.classList.remove('hidden');
                     return;
                 }
             }
+
+            const originalBtnHtml = btnEnviar.innerHTML;
+            btnEnviar.disabled = true;
+            btnEnviar.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> A ENVIAR DADOS...';
 
             const loading = document.getElementById('loadingOverlay');
             loading.classList.remove('hidden');
 
             try {
                 const dados = {
-                    nome: document.getElementById('nome').value,
-                    cpf: document.getElementById('cpf').value.replace(/\D/g, ''),
+                    is_recorrente: isClienteRecorrente,
+                    nome: nomeLimpo,
+                    cpf: cpfLimpo.replace(/\D/g, ''),
                     whatsapp: document.getElementById('whatsapp').value.replace(/\D/g, ''),
                     valor: valorDesejado,
                     tipo_plano: pSelect.value,
                     frequencia: fSelect.value,
                     qtd_parcelas: pSelect.value === '30DIAS' ? 1 : parseInt(qSelect.value),
-                    indicado_por: document.getElementById('indicado_por').value.replace(/\D/g, ''),
+                    indicado_por: document.getElementById('indicado_por').value.replace(/\D/g, '') || 'DIRETO',
                     
                     url_selfie: imagensBase64.img_selfie,
+                    url_residencia: imagensBase64.img_residencia,
                     url_frente: imagensBase64.img_frente,
                     url_verso: imagensBase64.img_verso,
-                    url_residencia: imagensBase64.img_residencia,
                     url_casa: imagensBase64.img_casa,
                     
-                    // Referências Limpas
-                    referencia1_nome: document.getElementById('ref1_nome').value,
-                    referencia1_tel: document.getElementById('ref1_tel').value,
-                    referencia2_nome: "N/A",
-                    referencia2_tel: "N/A",
-                    
-                    latitude: coordsGPS.lat,
-                    longitude: coordsGPS.lng,
+                    referencia1_nome: document.getElementById('ref1_nome').value.trim().replace(/\s+/g, ' '),
+                    referencia1_tel: document.getElementById('ref1_tel').value.replace(/\D/g, ''), 
                     status: 'PENDENTE'
                 };
 
@@ -464,41 +545,50 @@
 
                 if (res.ok) {
                     showToast("SOLICITAÇÃO ENVIADA COM SUCESSO!");
-                    
                     form.innerHTML = `
                         <div class="text-center py-12 space-y-4">
                             <i class="fa-solid fa-circle-check text-7xl text-emerald-500 mb-6 drop-shadow-[0_0_20px_rgba(16,185,129,0.5)]"></i>
                             <h2 class="text-3xl font-black text-white uppercase italic">Análise em Andamento!</h2>
-                            <p class="text-slate-400 font-bold text-lg">Os seus documentos foram enviados em segurança.</p>
-                            <p class="text-sm text-slate-500 mt-4 bg-slate-800/50 p-4 rounded-xl border border-slate-700">A nossa equipa entrará em contacto através do WhatsApp em breve com o resultado da análise.</p>
+                            <p class="text-slate-400 font-bold text-lg">Os seus documentos foram recebidos.</p>
+                            <p class="text-sm text-slate-500 mt-4 bg-slate-800/50 p-4 rounded-xl border border-slate-700">A nossa equipa validará o valor e as taxas para o seu perfil e entrará em contacto através do WhatsApp muito em breve.</p>
                         </div>
                     `;
                 } else {
-                    const err = await res.json();
-                    throw new Error(err.details || err.erro || "Falha ao processar a solicitação.");
+                    const errText = await res.text();
+                    try {
+                        const errObj = JSON.parse(errText);
+                        throw new Error(errObj.details || errObj.erro || "Falha ao processar a solicitação.");
+                    } catch(jsonErr) {
+                        if(jsonErr.message.includes("Falha")) throw jsonErr;
+                        throw new Error("O servidor está temporariamente indisponível. Tente de novo em instantes.");
+                    }
                 }
             } catch (err) { 
                 console.error(err);
                 erroEl.innerText = err.message;
                 erroEl.classList.remove('hidden');
+                
+                btnEnviar.disabled = false;
+                btnEnviar.innerHTML = originalBtnHtml;
             } finally {
                 loading.classList.add('hidden');
             }
         }
 
-        // --- MÁSCARAS ---
-        function mascaraCPF(i){
-            let v = i.value;
-            if(isNaN(v[v.length-1])){ i.value = v.substring(0, v.length-1); return; }
-            i.setAttribute("maxlength", "14");
-            if (v.length == 3 || v.length == 7) i.value += ".";
-            if (v.length == 11) i.value += "-";
+        function mascaraCPF(i) {
+            let v = i.value.replace(/\D/g, ''); 
+            if (v.length > 11) v = v.substring(0, 11);
+            v = v.replace(/(\d{3})(\d)/, '$1.$2');
+            v = v.replace(/(\d{3})(\d)/, '$1.$2');
+            v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            i.value = v;
         }
 
-        function mascaraTel(i){
-            let v = i.value.replace(/\D/g,"");
-            v = v.replace(/^(\d{2})(\d)/g,"($1) $2");
-            v = v.replace(/(\d)(\d{4})$/,"$1-$2");
+        function mascaraTel(i) {
+            let v = i.value.replace(/\D/g, '');
+            if (v.length > 11) v = v.substring(0, 11);
+            v = v.replace(/^(\d{2})(\d)/g, '($1) $2');
+            v = v.replace(/(\d)(\d{4})$/, '$1-$2');
             i.value = v;
         }
     </script>

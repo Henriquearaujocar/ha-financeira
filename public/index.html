@@ -3,15 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
     <title>CMS Ventures | Master Cockpit</title>
-    <!-- Resolve o erro 401 do favicon silenciosamente -->
     <link rel="icon" href="data:,">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
-        body { background-color: #020617; color: #f1f5f9; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        
+        :root { color-scheme: light only; }
+        html, body { background-color: #020617 !important; color: #f1f5f9 !important; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        
         .glass-card { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.05); }
         .tab-active { color: #3b82f6 !important; border-right: 4px solid #3b82f6; background: linear-gradient(to right, transparent, rgba(59, 130, 246, 0.1)); }
         .input-dark { background: rgba(2, 6, 23, 0.8); border: 1px solid rgba(255,255,255,0.1); outline: none; transition: 0.3s; color: white; width: 100%; padding: 0.75rem 1rem; border-radius: 0.75rem; }
@@ -24,12 +27,11 @@
 
         .dropdown-menu { display: none; }
         .dropdown-menu.show { display: block; animation: fadeIn 0.2s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden" onload="initApp()">
 
-    <!-- Toast Notification -->
     <div id="toast" class="fixed top-6 left-1/2 -translate-x-1/2 z-[200] hidden transition-all duration-300">
         <div class="bg-slate-900 border border-white/10 px-6 py-3 rounded-full shadow-2xl flex items-center gap-3">
             <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-500"></i>
@@ -137,12 +139,20 @@
 
         <!-- ABA: COBRANÇA ATIVA (EM ABERTO) -->
         <div id="aba-aberto" class="aba-content hidden">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-black uppercase tracking-tighter"><i class="fa-solid fa-wallet text-emerald-500 mr-2"></i> Cobrança Ativa</h2>
-                <input type="text" id="busca-aberto" placeholder="Buscar Cliente ou CPF..." class="input-dark w-64 text-sm" onkeyup="filtrarAberto()">
+            <div class="flex flex-col xl:flex-row justify-between items-center mb-6 gap-4">
+                <h2 class="text-2xl font-black uppercase tracking-tighter w-full xl:w-auto"><i class="fa-solid fa-wallet text-emerald-500 mr-2"></i> Cobrança Ativa</h2>
+                
+                <div class="flex gap-2 w-full xl:w-auto overflow-x-auto pb-2 xl:pb-0">
+                    <button onclick="aplicarFiltroAberto('TODOS', this)" class="filtro-aberto-btn px-4 py-2 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap shadow-lg shadow-blue-500/20 transition-all">Todos</button>
+                    <button onclick="aplicarFiltroAberto('EM_DIA', this)" class="filtro-aberto-btn px-4 py-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all">Em Dia</button>
+                    <button onclick="aplicarFiltroAberto('ATRASADO', this)" class="filtro-aberto-btn px-4 py-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all">Em Atraso</button>
+                    <button onclick="aplicarFiltroAberto('PENDENTE', this)" class="filtro-aberto-btn px-4 py-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all">Falta Assinar</button>
+                </div>
+
+                <input type="text" id="busca-aberto" placeholder="Buscar Cliente ou CPF..." class="input-dark w-full xl:w-64 text-sm" onkeyup="filtrarAberto()">
             </div>
             
-            <div class="glass-card rounded-3xl overflow-hidden border border-slate-700">
+            <div class="glass-card rounded-3xl overflow-visible border border-slate-700">
                 <table class="w-full text-left text-sm">
                     <thead class="bg-slate-800/50 text-[10px] uppercase font-black text-slate-400 tracking-wider">
                         <tr>
@@ -181,7 +191,6 @@
                         <p class="text-xs flex justify-between"><span class="text-slate-500">Dívida Total:</span> <span id="ext_divida" class="font-bold text-red-400">R$ 0,00</span></p>
                     </div>
 
-                    <!-- ESTATÍSTICAS HISTÓRICAS DO CLIENTE -->
                     <h3 class="text-[10px] font-black uppercase text-blue-400 mb-3">Histórico de Vida do Cliente</h3>
                     <div class="grid grid-cols-2 gap-2">
                         <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700 text-center">
@@ -198,7 +207,6 @@
                         </div>
                     </div>
                     
-                    <!-- 🚨 BOTÃO PARA VER O DOSSIÊ E FOTOS NO EXTRATO -->
                     <button onclick="abrirDossieCliente()" class="w-full bg-slate-800 hover:bg-blue-600 text-blue-400 hover:text-white py-3 rounded-xl font-black uppercase text-[10px] mt-4 transition-all shadow-lg border border-blue-500/20"><i class="fa-solid fa-address-card mr-2"></i> Ver Dados e Documentos</button>
                 </div>
 
@@ -218,10 +226,32 @@
             </div>
         </div>
 
-        <!-- ABA: CADASTRO MANUAL -->
+        <!-- ABA: CADASTRO MANUAL / PRÉ-CADASTRO -->
         <div id="aba-cadastro" class="aba-content hidden">
-            <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-user-plus text-blue-500 mr-2"></i> Cadastro Manual de Cliente</h2>
+            <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-user-plus text-blue-500 mr-2"></i> Cadastro Manual e Pré-Cadastro</h2>
+            
+            <div class="glass-card p-6 rounded-3xl border border-blue-500/20 mb-6 max-w-4xl flex gap-4 items-end bg-blue-900/10">
+                <div class="w-full">
+                    <label class="text-[10px] font-black uppercase text-blue-400 ml-2 block mb-1">Puxar Cliente Existente (Pré-cadastro ou Dívida Antiga)</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="busca_cliente_cad" placeholder="Digite o Nome ou CPF para autocompletar..." class="input-dark flex-1 text-sm border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.1)]">
+                        <button type="button" onclick="buscarParaCadastro()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-2 rounded-xl shadow-lg transition-all"><i class="fa-solid fa-magnifying-glass mr-2"></i> Puxar Dados</button>
+                    </div>
+                </div>
+            </div>
+
             <form id="formCadastroRapido" class="glass-card p-8 rounded-3xl space-y-6 max-w-4xl border border-slate-700">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-700 pb-4 gap-4">
+                    <h3 class="text-sm font-black uppercase text-white"><i class="fa-solid fa-id-card mr-2"></i> Dados Pessoais</h3>
+                    
+                    <label class="flex items-center gap-2 cursor-pointer bg-slate-900/50 px-4 py-3 rounded-xl border border-slate-700 hover:border-emerald-500 transition-colors">
+                        <input type="checkbox" id="check_precadastro" onchange="togglePreCadastro()" class="w-4 h-4 accent-emerald-500 rounded cursor-pointer">
+                        <span class="text-[10px] font-black uppercase text-emerald-400">Apenas Pré-Cadastro (Sem Valores)</span>
+                    </label>
+                </div>
+
+                <input type="hidden" id="cad_id_existente">
+
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Nome Completo</label>
@@ -237,7 +267,7 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-5 gap-4 border-t border-slate-700 pt-4">
+                <div class="area-financeira grid grid-cols-1 md:grid-cols-5 gap-4 border-t border-slate-700 pt-4 transition-all">
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Capital Original</label>
                         <input type="number" id="cad_capital" placeholder="Ex: 500" class="input-dark mt-1" required>
@@ -263,8 +293,7 @@
                     </div>
                 </div>
 
-                <!-- Secção de Histórico Financeiro Prévio (Migração Real) -->
-                <div class="bg-blue-900/10 border border-blue-500/20 p-4 rounded-xl mt-4">
+                <div class="area-financeira bg-blue-900/10 border border-blue-500/20 p-4 rounded-xl mt-4 transition-all">
                     <h3 class="text-[10px] font-black uppercase text-blue-400 mb-3"><i class="fa-solid fa-clock-rotate-left mr-1"></i> Histórico de Pagamentos (Opcional - Migração)</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -280,7 +309,7 @@
                 </div>
 
                 <div class="pt-4 border-t border-slate-700">
-                    <label class="text-[10px] font-black uppercase text-emerald-400 mb-4 block">Documentos (Opcional)</label>
+                    <label class="text-[10px] font-black uppercase text-emerald-400 mb-4 block">Documentos e Fotos (Opcional)</label>
                     <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
                         <label class="cursor-pointer bg-slate-900/50 p-4 rounded-xl border border-dashed border-slate-600 text-center hover:border-emerald-500 transition-colors">
                             <i class="fa-solid fa-user text-xl mb-2 text-slate-400"></i><p class="text-[9px] uppercase font-bold text-slate-300">Selfie</p>
@@ -520,7 +549,6 @@
                 </div>
                 <div class="text-right">
                     <p id="docData" class="text-xs font-bold text-slate-500 uppercase">...</p>
-                    <p class="text-[10px] mt-1 text-emerald-400 font-black"><i class="fa-solid fa-location-dot"></i> GPS Capturado</p>
                 </div>
             </div>
 
@@ -563,12 +591,12 @@
                             <input type="number" id="docNovoValor" class="input-dark text-sm font-bold text-emerald-400" oninput="recalcularSimulacao()">
                         </div>
                         <div>
-                            <label class="text-[9px] font-black uppercase text-slate-500 block mb-1">Juros (%)</label>
+                            <label class="text-[9px] font-black uppercase text-slate-500 block mb-1">Juros Base (%)</label>
                             <input type="number" id="docJuros" class="input-dark text-sm font-bold" oninput="recalcularSimulacao()">
                         </div>
                         <div>
                             <label class="text-[9px] font-black uppercase text-slate-500 block mb-1">Frequência</label>
-                            <select id="docNovaFreq" class="input-dark text-xs p-2 h-11" onchange="recalcularSimulacao()">
+                            <select id="docNovaFreq" class="input-dark text-xs p-2 h-11" onchange="atualizarContraPropostaFreq()">
                                 <option value="MENSAL">Mensal</option>
                                 <option value="SEMANAL">Semanal</option>
                             </select>
@@ -606,19 +634,66 @@
     </div>
 
     <!-- Modal: Registrar Pagamento -->
-    <div id="modalPagamento" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-        <div class="glass-card w-full max-w-md rounded-3xl border border-slate-700 p-8 relative">
-            <button onclick="fecharModal('modalPagamento')" class="absolute top-6 right-6 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-            <h2 class="text-xl font-black uppercase text-emerald-500 mb-2">Registrar Pagamento</h2>
-            <p class="text-[10px] font-bold text-slate-400 uppercase mb-6 leading-tight">Pagamentos menores que o valor total da dívida serão processados automaticamente como <span class="text-blue-400">Pagamento Parcial</span>.</p>
+    <div id="modalPagamento" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-[150] flex items-center justify-center p-4">
+        <div class="glass-card w-full max-w-3xl max-h-[95vh] overflow-y-auto rounded-3xl border border-slate-700 p-8 relative">
+            <button onclick="fecharModal('modalPagamento')" class="absolute top-6 right-6 text-slate-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+            <h2 class="text-2xl font-black uppercase text-emerald-500 mb-6"><i class="fa-solid fa-cash-register mr-2"></i> Baixa de Pagamento</h2>
+            
             <input type="hidden" id="pgtoDevedorId">
-            <div class="space-y-4">
-                <div>
-                    <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Valor Recebido (R$)</label>
-                    <input type="number" id="pgtoValor" class="input-dark mt-1 font-bold text-emerald-400 text-lg">
+            
+            <!-- Resumo do Cliente (Estatísticas) -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                    <p class="text-[9px] font-black uppercase text-slate-500">Data Empréstimo</p>
+                    <p id="pgtoData" class="text-sm font-bold text-white mt-1">--/--/----</p>
                 </div>
-                <button onclick="confirmarPagamento()" class="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-xl font-black uppercase text-sm shadow-lg shadow-emerald-500/20">Confirmar Baixa de Valor</button>
+                <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                    <p class="text-[9px] font-black uppercase text-slate-500">Dias em Atraso</p>
+                    <p id="pgtoAtraso" class="text-sm font-black text-orange-400 mt-1">0</p>
+                </div>
+                <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                    <p class="text-[9px] font-black uppercase text-slate-500">Total Já Pago</p>
+                    <p id="pgtoTotalPago" class="text-sm font-bold text-emerald-400 mt-1">R$ 0,00</p>
+                </div>
+                <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                    <p class="text-[9px] font-black uppercase text-slate-500">Saldo Atual</p>
+                    <p id="pgtoSaldo" class="text-sm font-black text-red-400 mt-1">R$ 0,00</p>
+                </div>
             </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Coluna Esquerda: Recebimento -->
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Valor Recebido (R$)</label>
+                        <input type="number" id="pgtoValor" class="input-dark mt-1 font-black text-emerald-400 text-3xl h-16" placeholder="0.00">
+                        <p class="text-[9px] text-slate-500 mt-1 ml-2">Pagamentos menores que a dívida abatem como rolagem/parcial.</p>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Observações / Histórico</label>
+                        <textarea id="pgtoObs" class="input-dark mt-1 h-28 resize-none text-sm" placeholder="Ex: Pagamento recebido em dinheiro físico. Prometeu quitar o restante amanhã..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Coluna Direita: Recálculo Dinâmico -->
+                <div class="bg-blue-900/10 border border-blue-500/20 p-5 rounded-2xl space-y-4">
+                    <h3 class="text-[10px] font-black uppercase text-blue-400 mb-2 border-b border-blue-500/20 pb-2"><i class="fa-solid fa-calculator mr-1"></i> Recálculo Pós-Baixa (Opcional)</h3>
+                    <div>
+                        <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Ajustar Saldo Restante (+/- R$)</label>
+                        <input type="number" id="pgtoAjuste" class="input-dark mt-1 text-sm font-bold" placeholder="Ex: -50 (Desconto) ou 50 (Acréscimo)">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Nova Taxa Juros (% / Próxima Cobrança)</label>
+                        <input type="number" id="pgtoNovaTaxa" class="input-dark mt-1 text-sm" placeholder="Ex: 20">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Novo Parcelamento (Qtd Parcelas)</label>
+                        <input type="number" id="pgtoNovoParcelamento" class="input-dark mt-1 text-sm" placeholder="Ex: 2 (Converte para 2x)">
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="confirmarPagamento()" id="btnConfirmarBaixa" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-xl font-black uppercase text-sm shadow-lg shadow-emerald-500/20 mt-8 transition-all"><i class="fa-solid fa-check-double mr-2"></i> Confirmar Baixa e Recalcular</button>
         </div>
     </div>
 
@@ -663,7 +738,17 @@
         const token = localStorage.getItem('token');
         const headersAuth = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 
-        // Prevenção XSS
+        // 🚨 VACINA 4: Escudo Global de Sessão Zumbi. Se o token morrer, o JS ejeta o gestor instantaneamente.
+        const fetchSeguro = async (url, options = {}) => {
+            const response = await fetch(url, options);
+            if (response.status === 401 || response.status === 403) {
+                showToast("Sessão Expirada ou Bloqueada. Redirecionando...", "error");
+                setTimeout(logout, 1500);
+                throw new Error("Sessão Expirada.");
+            }
+            return response;
+        };
+
         function escapeHTML(str) {
             if (!str) return '';
             return String(str).replace(/[&<>'"]/g, tag => ({
@@ -673,24 +758,11 @@
 
         async function initApp() {
             if (!token && window.location.hostname !== 'localhost') return logout();
-            
-            // Carrega a tela primeiro para não dar impressão de tela travada
             mudarAba('dashboard');
             carregarConfig(); 
-
             try {
-                // Valida a sessão de forma assíncrona (não bloqueia a tela)
-                const res = await fetch(`${API_BASE}/api/verify-session`, { headers: headersAuth });
-                
-                if (res.status === 401) {
-                    // O servidor rejeitou expressamente o token
-                    showToast("Sessão expirada. Faça login novamente.", "error");
-                    setTimeout(logout, 2000);
-                }
-            } catch (error) {
-                // Se der erro de fetch (ex: Node a reiniciar), NÃO desloga, apenas ignora.
-                console.warn("Servidor offline temporariamente. Sessão mantida localmente.");
-            }
+                await fetchSeguro(`${API_BASE}/api/verify-session`, { headers: headersAuth });
+            } catch (error) { console.warn("Servidor offline temporariamente."); }
         }
 
         function showToast(msg, type = 'success') {
@@ -727,70 +799,37 @@
         // =====================================
         async function carregarDash() {
             try {
-                const res = await fetch(`${API_BASE}/api/dashboard`, { headers: headersAuth });
+                const res = await fetchSeguro(`${API_BASE}/api/dashboard`, { headers: headersAuth });
                 const data = await res.json();
                 
-                const receber = parseFloat(data.totalAReceber) || 0;
-                const recebido = parseFloat(data.recebidoHoje) || 0;
-                const lucro = parseFloat(data.lucroEstimado) || 0;
-                const atrasos = parseInt(data.pendencias) || 0;
-                const capitalNaRua = parseFloat(data.capitalNaRua) || 0;
-                const caixaDisponivel = parseFloat(data.caixaDisponivel) || 0;
+                document.getElementById('dash-receber').innerText = (parseFloat(data.totalAReceber) || 0).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+                document.getElementById('dash-recebido').innerText = (parseFloat(data.recebidoHoje) || 0).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+                document.getElementById('dash-lucro').innerText = (parseFloat(data.lucroEstimado) || 0).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+                document.getElementById('dash-atrasos').innerText = parseInt(data.pendencias) || 0;
+                document.getElementById('dash-capital-rua').innerText = (parseFloat(data.capitalNaRua) || 0).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+                document.getElementById('dash-caixa-disponivel').innerText = (parseFloat(data.caixaDisponivel) || 0).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
 
-                document.getElementById('dash-receber').innerText = receber.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-                document.getElementById('dash-recebido').innerText = recebido.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-                document.getElementById('dash-lucro').innerText = lucro.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-                document.getElementById('dash-atrasos').innerText = atrasos;
-                document.getElementById('dash-capital-rua').innerText = capitalNaRua.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-                document.getElementById('dash-caixa-disponivel').innerText = caixaDisponivel.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-
-                // Busca logs para desenhar o gráfico com dados REAIS
-                const resLogs = await fetch(`${API_BASE}/api/logs-auditoria`, { headers: headersAuth });
+                const resLogs = await fetchSeguro(`${API_BASE}/api/logs-auditoria`, { headers: headersAuth });
                 const logsReais = resLogs.ok ? await resLogs.json() : [];
-
                 renderizarGraficoDash(logsReais);
             } catch (e) { console.error("Erro Dash", e); }
         }
 
         function renderizarGraficoDash(logs) {
-            // Algoritmo para agrupar os recebimentos dos últimos 7 dias
-            const ultimos7Dias = [];
-            const labels = [];
-            const hoje = new Date();
-            hoje.setHours(0,0,0,0);
-
-            // Varre de 6 dias atrás até hoje
+            const ultimos7Dias = []; const labels = []; const hoje = new Date(); hoje.setHours(0,0,0,0);
             for (let i = 6; i >= 0; i--) {
-                const d = new Date(hoje);
-                d.setDate(d.getDate() - i);
-                
-                // Formata o dia (Ex: 'Seg', 'Ter')
+                const d = new Date(hoje); d.setDate(d.getDate() - i);
                 labels.push(d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', ''));
-                
-                // Soma todos os logs de fluxo financeiro positivo que ocorreram neste dia específico
                 const somaDia = logs.filter(l => {
                     const dataLog = new Date(l.created_at);
-                    const isMesmoDia = dataLog.getDate() === d.getDate() && dataLog.getMonth() === d.getMonth();
-                    const valor = parseFloat(l.valor_fluxo) || 0;
-                    return isMesmoDia && valor > 0;
+                    return dataLog.getDate() === d.getDate() && dataLog.getMonth() === d.getMonth() && parseFloat(l.valor_fluxo) > 0;
                 }).reduce((acc, l) => acc + parseFloat(l.valor_fluxo), 0);
-                
                 ultimos7Dias.push(somaDia);
             }
-
             const ctx = document.getElementById('graficoDashboard').getContext('2d');
             if (chartInstanceDash) chartInstanceDash.destroy();
             chartInstanceDash = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Entradas de Caixa (R$)',
-                        data: ultimos7Dias,
-                        borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                        borderWidth: 2, tension: 0.4, fill: true
-                    }]
-                },
+                type: 'line', data: { labels: labels, datasets: [{ label: 'Entradas de Caixa (R$)', data: ultimos7Dias, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.2)', borderWidth: 2, tension: 0.4, fill: true }] },
                 options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { color: 'rgba(255,255,255,0.05)' } } } }
             });
         }
@@ -800,7 +839,7 @@
         // =====================================
         async function carregarSoli() {
             try {
-                const res = await fetch(`${API_BASE}/api/solicitacoes-pendentes?t=${Date.now()}`, { headers: headersAuth });
+                const res = await fetchSeguro(`${API_BASE}/api/solicitacoes-pendentes?t=${Date.now()}`, { headers: headersAuth });
                 const lista = await res.json();
                 const tbody = document.getElementById('lista-solicitacoes');
                 tbody.innerHTML = '';
@@ -822,12 +861,23 @@
             } catch(e) {}
         }
 
+        function atualizarContraPropostaFreq() {
+            const freq = document.getElementById('docNovaFreq').value;
+            const inputParc = document.getElementById('docNovasParcelas');
+            if(freq === 'MENSAL' || freq === 'SEMANAL') {
+                inputParc.min = "2";
+                if(parseInt(inputParc.value) < 2) inputParc.value = "2";
+            }
+            recalcularSimulacao();
+        }
+
         function recalcularSimulacao() {
             const valor = parseFloat(document.getElementById('docNovoValor').value) || 0;
-            const juros = parseFloat(document.getElementById('docJuros').value) || 0;
+            const jurosBase = parseFloat(document.getElementById('docJuros').value) || 0;
             const parcelas = parseInt(document.getElementById('docNovasParcelas').value) || 1;
             
-            const total = valor * (1 + (juros / 100));
+            const taxaCalculada = parcelas > 1 ? (jurosBase / 100) * parcelas : (jurosBase / 100);
+            const total = valor * (1 + taxaCalculada);
             const valorParcela = total / parcelas;
 
             document.getElementById('calcTotal').innerText = total.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
@@ -864,6 +914,8 @@
             document.getElementById('docNovasParcelas').value = qtdParcelas;
             document.getElementById('docJuros').value = jurosPadrao;
 
+            if(qtdParcelas > 1) document.getElementById('docNovasParcelas').min = "2";
+
             recalcularSimulacao();
 
             const p = "https://via.placeholder.com/300x200?text=Sem+Foto";
@@ -877,9 +929,6 @@
             document.getElementById('modalDocumentos').classList.remove('hidden');
         }
 
-        // =====================================
-        // MODO LEITURA DE DOSSIÊ (EXTRATO)
-        // =====================================
         function abrirDossieCliente() {
             if(!window.clienteAtualExtrato) return showToast("Selecione um cliente primeiro.", "error");
             const c = window.clienteAtualExtrato;
@@ -937,7 +986,7 @@
             const obs = document.getElementById('docObs').value;
 
             try {
-                const res = await fetch(`${API_BASE}/api/aprovar-solicitacao`, {
+                const res = await fetchSeguro(`${API_BASE}/api/aprovar-solicitacao`, {
                     method: 'POST', headers: headersAuth,
                     body: JSON.stringify({ 
                         id: solicitacaoAtualId, juros: parseFloat(juros), observacao: obs,
@@ -964,7 +1013,7 @@
             if(!confirm("Tem certeza que deseja rejeitar esta solicitação?")) return;
             const obs = document.getElementById('docObs').value;
             try {
-                const res = await fetch(`${API_BASE}/api/rejeitar-solicitacao`, {
+                const res = await fetchSeguro(`${API_BASE}/api/rejeitar-solicitacao`, {
                     method: 'POST', headers: headersAuth,
                     body: JSON.stringify({ id: solicitacaoAtualId, motivo: obs })
                 });
@@ -978,13 +1027,13 @@
         }
 
         // =====================================
-        // COBRANÇA ATIVA, PAGAMENTOS E EDIÇÃO
+        // COBRANÇA ATIVA E FILTROS INTELIGENTES
         // =====================================
         async function carregarAberto() {
             try {
-                const res = await fetch(`${API_BASE}/api/devedores-ativos`, { headers: headersAuth });
+                const res = await fetchSeguro(`${API_BASE}/api/devedores-ativos`, { headers: headersAuth });
                 listaDevedoresAtuais = await res.json();
-                renderizarAberto(listaDevedoresAtuais);
+                filtrarAberto(); 
             } catch(e) {}
         }
 
@@ -1012,8 +1061,8 @@
                         <td class="px-6 py-4 text-sm font-black text-red-400">${total.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</td>
                         <td class="px-6 py-4">${badge}</td>
                         <td class="px-6 py-4 text-center relative">
-                            <button onclick="toggleDropdown('menu-${d.id}')" class="text-slate-400 hover:text-white p-2 rounded hover:bg-slate-700 transition-colors"><i class="fa-solid fa-ellipsis-vertical"></i></button>
-                            <div id="menu-${d.id}" class="dropdown-menu absolute right-8 top-10 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-[60]">
+                            <button onclick="toggleDropdown('menu-${d.id}', this)" class="text-slate-400 hover:text-white p-2 rounded hover:bg-slate-700 transition-colors"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+                            <div id="menu-${d.id}" class="dropdown-menu absolute right-8 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-[60]">
                                 <button onclick="prepararPagamento('${d.id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-emerald-400"><i class="fa-solid fa-money-bill-wave mr-2"></i> Receber Pgto</button>
                                 <button onclick="enviarCobrancaManual('${d.id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-green-400"><i class="fa-solid fa-paper-plane mr-2"></i> Enviar Link Pgto</button>
                                 <button onclick='abrirEdicaoContrato(${JSON.stringify(d).replace(/'/g, "&#39;")})' class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-orange-400"><i class="fa-solid fa-pen-to-square mr-2"></i> Editar Contrato</button>
@@ -1029,43 +1078,144 @@
         document.addEventListener('click', function(e) {
             if (!e.target.closest('.relative')) document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
         });
-        function toggleDropdown(id) {
+
+        function toggleDropdown(id, btnElement) {
             document.querySelectorAll('.dropdown-menu').forEach(m => { if(m.id !== id) m.classList.remove('show') });
-            document.getElementById(id).classList.toggle('show');
+            const menu = document.getElementById(id);
+            menu.classList.toggle('show');
+            if (menu.classList.contains('show')) {
+                const rect = btnElement.getBoundingClientRect();
+                const menuHeight = 220; 
+                if (rect.bottom + menuHeight > window.innerHeight) {
+                    menu.style.top = 'auto'; menu.style.bottom = '100%'; menu.style.marginBottom = '5px';
+                } else {
+                    menu.style.bottom = 'auto'; menu.style.top = '100%'; menu.style.marginTop = '5px';
+                }
+            }
         }
+
+        let filtroStatusAberto = 'TODOS';
+        function aplicarFiltroAberto(status, btnElement) {
+            filtroStatusAberto = status;
+            document.querySelectorAll('.filtro-aberto-btn').forEach(b => {
+                b.className = "filtro-aberto-btn px-4 py-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all";
+            });
+            btnElement.className = "filtro-aberto-btn px-4 py-2 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap shadow-lg shadow-blue-500/20 transition-all";
+            filtrarAberto();
+        }
+
         function filtrarAberto() {
             const t = document.getElementById('busca-aberto').value.toLowerCase();
-            renderizarAberto(listaDevedoresAtuais.filter(d => d.nome.toLowerCase().includes(t) || d.cpf.includes(t)));
+            const hoje = new Date(); hoje.setHours(0,0,0,0);
+            
+            const filtrados = listaDevedoresAtuais.filter(d => {
+                const matchTexto = d.nome.toLowerCase().includes(t) || d.cpf.includes(t);
+                let matchStatus = true;
+                
+                let dt = new Date(d.data_vencimento + 'T12:00:00Z');
+                
+                if (filtroStatusAberto === 'PENDENTE') {
+                    matchStatus = d.status === 'APROVADO_AGUARDANDO_ACEITE';
+                } else if (filtroStatusAberto === 'ATRASADO') {
+                    matchStatus = (dt < hoje) && d.status !== 'APROVADO_AGUARDANDO_ACEITE';
+                } else if (filtroStatusAberto === 'EM_DIA') {
+                    matchStatus = (dt >= hoje) && d.status !== 'APROVADO_AGUARDANDO_ACEITE';
+                }
+
+                const isNotPreCadastro = d.status !== 'PRE_CADASTRO';
+
+                return matchTexto && matchStatus && isNotPreCadastro;
+            });
+            renderizarAberto(filtrados);
         }
 
-        function prepararPagamento(id) {
-            document.getElementById('pgtoDevedorId').value = id; document.getElementById('pgtoValor').value = '';
-            document.getElementById(`menu-${id}`).classList.remove('show'); document.getElementById('modalPagamento').classList.remove('hidden');
-        }
+    async function prepararPagamento(id) {
+        document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+        
+        document.getElementById('pgtoDevedorId').value = id; 
+        document.getElementById('pgtoValor').value = '';
+        document.getElementById('pgtoObs').value = '';
+        document.getElementById('pgtoAjuste').value = '';
+        document.getElementById('pgtoNovaTaxa').value = '';
+        document.getElementById('pgtoNovoParcelamento').value = '';
 
-        async function confirmarPagamento() {
-            const id = document.getElementById('pgtoDevedorId').value;
-            const v = parseFloat(document.getElementById('pgtoValor').value);
-            if(!v) return showToast("Informe o valor", "error");
-            try {
-                const res = await fetch(`${API_BASE}/api/baixar-manual`, { method: 'POST', headers: headersAuth, body: JSON.stringify({ id, valorPago: v }) });
-                if(res.ok) { showToast("Pagamento Registrado!"); fecharModal('modalPagamento'); carregarAberto(); carregarDash(); }
-            } catch(e) { showToast("Erro no servidor", "error"); }
-        }
+        document.getElementById('pgtoData').innerText = "A carregar...";
+        document.getElementById('pgtoAtraso').innerText = "...";
+        document.getElementById('pgtoTotalPago').innerText = "...";
+        document.getElementById('pgtoSaldo').innerText = "...";
 
-        // Função para disparar a cobrança via WhatsApp
-        async function enviarCobrancaManual(id) {
+        document.getElementById('modalPagamento').classList.remove('hidden');
+
+        try {
+            const res = await fetchSeguro(`${API_BASE}/api/estatisticas-pagamento/${id}`, { headers: headersAuth });
+            if(res.ok) {
+                const data = await res.json();
+                
+                document.getElementById('pgtoData').innerText = new Date(data.data_emprestimo).toLocaleDateString('pt-BR');
+                document.getElementById('pgtoAtraso').innerText = data.dias_atraso > 0 ? `${data.dias_atraso} Dias` : 'Em Dia';
+                document.getElementById('pgtoAtraso').className = data.dias_atraso > 0 ? "text-sm font-black text-red-500 mt-1" : "text-sm font-black text-emerald-500 mt-1";
+                
+                document.getElementById('pgtoTotalPago').innerText = (parseFloat(data.total_pago) || 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+                document.getElementById('pgtoSaldo').innerText = (parseFloat(data.saldo_atual) || 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+            }
+        } catch(e) {
+            console.error("Erro ao carregar estatísticas do cliente", e);
+        }
+    }
+
+    async function confirmarPagamento() {
+        const id = document.getElementById('pgtoDevedorId').value;
+        const v = parseFloat(document.getElementById('pgtoValor').value);
+        if(!v && v !== 0 && !document.getElementById('pgtoAjuste').value && !document.getElementById('pgtoNovaTaxa').value) return showToast("Informe valores para processar", "error");
+        
+        const obs = document.getElementById('pgtoObs').value;
+        const ajuste = document.getElementById('pgtoAjuste').value;
+        const taxa = document.getElementById('pgtoNovaTaxa').value;
+        const parcelas = document.getElementById('pgtoNovoParcelamento').value;
+
+        const btn = document.getElementById('btnConfirmarBaixa');
+        const oldText = btn.innerHTML;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Processando Baixa...`;
+        btn.disabled = true;
+
+        try {
+            const res = await fetchSeguro(`${API_BASE}/api/baixar-manual`, { 
+                method: 'POST', 
+                headers: headersAuth, 
+                body: JSON.stringify({ 
+                    id, 
+                    valorPago: v || 0,
+                    observacoes: obs,
+                    recalculoAjuste: ajuste,
+                    recalculoTaxa: taxa,
+                    recalculoParcelas: parcelas
+                }) 
+            });
+            
+            if(res.ok) { 
+                showToast("Pagamento Registrado e Dívida Recalculada!"); 
+                fecharModal('modalPagamento'); 
+                carregarAberto(); 
+                carregarDash(); 
+            } else {
+                const errorData = await res.json();
+                throw new Error(errorData.erro || "Erro na baixa");
+            }
+        } catch(e) { 
+            showToast(e.message, "error"); 
+        } finally {
+            btn.innerHTML = oldText;
+            btn.disabled = false;
+        }
+    }
+
+    async function enviarCobrancaManual(id) {
             document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
             showToast("A processar envio...", "success");
             try {
-                const res = await fetch(`${API_BASE}/api/enviar-cobranca-manual`, {
-                    method: 'POST', headers: headersAuth, body: JSON.stringify({ id })
-                });
-                if(res.ok) showToast("Link de cobrança enviado com sucesso!");
-                else throw new Error();
-            } catch(e) {
-                showToast("Falha ao enviar a cobrança.", "error");
-            }
+                const res = await fetchSeguro(`${API_BASE}/api/enviar-cobranca-manual`, { method: 'POST', headers: headersAuth, body: JSON.stringify({ id }) });
+                if(res.ok) showToast("Link de cobrança enviado com sucesso!"); else throw new Error();
+            } catch(e) { showToast("Falha ao enviar a cobrança.", "error"); }
         }
 
         function abrirEdicaoContrato(dev) {
@@ -1086,7 +1236,7 @@
             const novoTot = parseFloat(document.getElementById('editTotal').value);
 
             try {
-                const res = await fetch(`${API_BASE}/api/editar-contrato`, { 
+                const res = await fetchSeguro(`${API_BASE}/api/editar-contrato`, { 
                     method: 'POST', headers: headersAuth, 
                     body: JSON.stringify({ id, novoVencimento: novoVenc, novoCapital: novoCap, novoTotal: novoTot, novaFrequencia: novaFreq }) 
                 });
@@ -1095,7 +1245,7 @@
         }
 
         // =====================================
-        // GESTÃO DE CLIENTES & EXTRATO COM BUSCA FLEXÍVEL
+        // GESTÃO DE CLIENTES & EXTRATO
         // =====================================
         function abrirExtratoListagem(cpf) {
             document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
@@ -1109,8 +1259,7 @@
             if(busca.length < 3) return showToast("Digite pelo menos 3 caracteres para buscar", "error");
             
             try {
-                // 🚨 CORREÇÃO: Envia a busca genérica para o backend
-                const res = await fetch(`${API_BASE}/api/cliente-extrato/${encodeURIComponent(busca)}`, { headers: headersAuth });
+                const res = await fetchSeguro(`${API_BASE}/api/cliente-extrato/${encodeURIComponent(busca)}`, { headers: headersAuth });
                 if(!res.ok) throw new Error();
                 const data = await res.json();
                 
@@ -1146,7 +1295,6 @@
                             diasAtrasoVida++;
                         }
                         
-                        // Conta multas e os novos juros inseridos via migração
                         if(l.evento.includes('Atraso') || l.evento.includes('Recebimento (Migração)') || l.evento.includes('Rolagem')) {
                              const matchMulta = l.detalhes.match(/R\$\s?([\d.,]+)/);
                              if(matchMulta) {
@@ -1154,7 +1302,7 @@
                                  if(parseMulta) valorMultasPagas += parseMulta;
                              }
                              if(val > 0 && l.evento.includes('Migração')) {
-                                 valorMultasPagas += val; // Soma se foi inserido manualmente na migração
+                                 valorMultasPagas += val; 
                              }
                         }
 
@@ -1179,11 +1327,11 @@
         }
 
         // =====================================
-        // AUDITORIA (LOGS)
+        // AUDITORIA (LOGS), LISTA NEGRA E CONFIGURAÇÕES
         // =====================================
         async function carregarTodosLogs() {
             try {
-                const res = await fetch(`${API_BASE}/api/logs-auditoria`, { headers: headersAuth });
+                const res = await fetchSeguro(`${API_BASE}/api/logs-auditoria`, { headers: headersAuth });
                 if(!res.ok) return;
                 const lista = await res.json();
                 const tbody = document.getElementById('lista-todos-logs');
@@ -1202,97 +1350,53 @@
             } catch(e) {}
         }
 
-        // =====================================
-        // LISTA NEGRA
-        // =====================================
         async function carregarListaNegra() {
             try {
-                const res = await fetch(`${API_BASE}/api/lista-negra`, { headers: headersAuth });
+                const res = await fetchSeguro(`${API_BASE}/api/lista-negra`, { headers: headersAuth });
                 if(!res.ok) return;
                 const lista = await res.json();
                 const tbody = document.getElementById('lista-negra-body');
                 tbody.innerHTML = '';
                 lista.forEach(l => {
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-slate-800/30 border-b border-slate-800/50">
-                            <td class="px-6 py-3 font-mono font-bold text-red-400">${escapeHTML(l.cpf)}</td>
-                            <td class="px-6 py-3 text-xs text-slate-300">${escapeHTML(l.motivo)}</td>
-                            <td class="px-6 py-3 text-xs text-slate-500">${new Date(l.created_at).toLocaleDateString()}</td>
-                            <td class="px-6 py-3 text-center"><button onclick="removerListaNegra('${escapeHTML(l.cpf)}')" class="text-[10px] font-bold text-slate-400 hover:text-white uppercase"><i class="fa-solid fa-trash"></i> Remover</button></td>
-                        </tr>
-                    `;
+                    tbody.innerHTML += `<tr class="hover:bg-slate-800/30 border-b border-slate-800/50"><td class="px-6 py-3 font-mono font-bold text-red-400">${escapeHTML(l.cpf)}</td><td class="px-6 py-3 text-xs text-slate-300">${escapeHTML(l.motivo)}</td><td class="px-6 py-3 text-xs text-slate-500">${new Date(l.created_at).toLocaleDateString()}</td><td class="px-6 py-3 text-center"><button onclick="removerListaNegra('${escapeHTML(l.cpf)}')" class="text-[10px] font-bold text-slate-400 hover:text-white uppercase"><i class="fa-solid fa-trash"></i> Remover</button></td></tr>`;
                 });
             } catch(e) {}
         }
 
         async function adicionarListaNegra() {
-            const cpf = document.getElementById('ln_cpf').value.replace(/\D/g, '');
-            const motivo = document.getElementById('ln_motivo').value;
+            const cpf = document.getElementById('ln_cpf').value.replace(/\D/g, ''); const motivo = document.getElementById('ln_motivo').value;
             if(cpf.length !== 11 || !motivo) return showToast("CPF e Motivo são obrigatórios", "error");
             try {
-                const res = await fetch(`${API_BASE}/api/lista-negra`, { method: 'POST', headers: headersAuth, body: JSON.stringify({ cpf, motivo }) });
+                const res = await fetchSeguro(`${API_BASE}/api/lista-negra`, { method: 'POST', headers: headersAuth, body: JSON.stringify({ cpf, motivo }) });
                 if(res.ok) { showToast("CPF Bloqueado com sucesso!"); document.getElementById('ln_cpf').value = ''; document.getElementById('ln_motivo').value = ''; carregarListaNegra(); }
             } catch(e) { showToast("Erro", "error"); }
         }
 
         async function removerListaNegra(cpf) {
-            try {
-                const res = await fetch(`${API_BASE}/api/lista-negra/${cpf}`, { method: 'DELETE', headers: headersAuth });
-                if(res.ok) { showToast("CPF Desbloqueado"); carregarListaNegra(); }
-            } catch(e) {}
+            try { const res = await fetchSeguro(`${API_BASE}/api/lista-negra/${cpf}`, { method: 'DELETE', headers: headersAuth }); if(res.ok) { showToast("CPF Desbloqueado"); carregarListaNegra(); } } catch(e) {}
         }
 
-        // =====================================
-        // RELATÓRIOS (COM FILTRO AVANÇADO)
-        // =====================================
         function verificarFiltroData() {
             const val = document.getElementById('filtro-relatorio').value;
-            if (val === 'custom') {
-                document.getElementById('datas-customizadas').classList.remove('hidden');
-            } else {
-                document.getElementById('datas-customizadas').classList.add('hidden');
-            }
+            if (val === 'custom') document.getElementById('datas-customizadas').classList.remove('hidden'); else document.getElementById('datas-customizadas').classList.add('hidden');
         }
 
         async function carregarRelatorios() {
             try {
                 const val = document.getElementById('filtro-relatorio').value;
-                const hoje = new Date();
-                let dataInicio, dataFim;
-                
+                const hoje = new Date(); let dataInicio, dataFim;
                 dataFim = hoje.toISOString().split('T')[0];
+                if(val === 'mes') dataInicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
+                else if(val === 'semana') { const diaSemana = hoje.getDay(); const diff = hoje.getDate() - diaSemana + (diaSemana == 0 ? -6 : 1); dataInicio = new Date(hoje.setDate(diff)).toISOString().split('T')[0]; }
+                else if(val === 'semestre') { const mes = hoje.getMonth(); const inicioMes = mes < 6 ? 0 : 6; dataInicio = new Date(hoje.getFullYear(), inicioMes, 1).toISOString().split('T')[0]; }
+                else if(val === 'ano') dataInicio = new Date(hoje.getFullYear(), 0, 1).toISOString().split('T')[0];
+                else if(val === 'custom') { dataInicio = document.getElementById('data_inicio_rel').value; dataFim = document.getElementById('data_fim_rel').value; if(!dataInicio || !dataFim) return showToast("Preencha as datas de início e fim", "error"); }
 
-                if(val === 'mes') {
-                    dataInicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
-                } else if(val === 'semana') {
-                    const diaSemana = hoje.getDay();
-                    const diff = hoje.getDate() - diaSemana + (diaSemana == 0 ? -6 : 1);
-                    dataInicio = new Date(hoje.setDate(diff)).toISOString().split('T')[0];
-                } else if(val === 'semestre') {
-                    const mes = hoje.getMonth();
-                    const inicioMes = mes < 6 ? 0 : 6;
-                    dataInicio = new Date(hoje.getFullYear(), inicioMes, 1).toISOString().split('T')[0];
-                } else if(val === 'ano') {
-                    dataInicio = new Date(hoje.getFullYear(), 0, 1).toISOString().split('T')[0];
-                } else if(val === 'custom') {
-                    dataInicio = document.getElementById('data_inicio_rel').value;
-                    dataFim = document.getElementById('data_fim_rel').value;
-                    if(!dataInicio || !dataFim) return showToast("Preencha as datas de início e fim", "error");
-                }
-
-                const res = await fetch(`${API_BASE}/relatorio-periodo`, {
-                    method: 'POST',
-                    headers: headersAuth,
-                    body: JSON.stringify({ dataInicio, dataFim })
-                });
-                
+                const res = await fetchSeguro(`${API_BASE}/relatorio-periodo`, { method: 'POST', headers: headersAuth, body: JSON.stringify({ dataInicio, dataFim }) });
                 if (!res.ok) throw new Error();
                 const dados = await res.json();
 
-                const entradas = parseFloat(dados.totalRecebido) || 0; 
-                const saidas = parseFloat(dados.totalEmprestado) || 0; 
-                const emprestado = parseFloat(dados.totalEmprestado) || 0;
-                const liquido = entradas - emprestado;
+                const entradas = parseFloat(dados.totalRecebido) || 0; const saidas = parseFloat(dados.totalEmprestado) || 0; const emprestado = parseFloat(dados.totalEmprestado) || 0; const liquido = entradas - emprestado;
 
                 document.getElementById('rel_recebido').innerText = entradas.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
                 document.getElementById('rel_saida').innerText = saidas.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
@@ -1302,27 +1406,16 @@
 
                 const ctx = document.getElementById('graficoRelatorio1').getContext('2d');
                 if(chartInstanceRel) chartInstanceRel.destroy();
-                chartInstanceRel = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: { labels: ['Recebido', 'Emprestado'], datasets: [{ data: [entradas, emprestado], backgroundColor: ['#10b981', '#3b82f6'], borderWidth: 0 }] },
-                    options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8' } } } }
-                });
-            } catch(e) {
-                showToast("Erro ao carregar relatório.", "error");
-            }
+                chartInstanceRel = new Chart(ctx, { type: 'doughnut', data: { labels: ['Recebido', 'Emprestado'], datasets: [{ data: [entradas, emprestado], backgroundColor: ['#10b981', '#3b82f6'], borderWidth: 0 }] }, options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8' } } } } });
+            } catch(e) { showToast("Erro ao carregar relatório.", "error"); }
         }
 
-        // =====================================
-        // CONFIGURAÇÕES
-        // =====================================
         async function carregarConfig() {
             try {
-                const res = await fetch(`${API_BASE}/api/config`, { headers: headersAuth });
+                const res = await fetchSeguro(`${API_BASE}/api/config`, { headers: headersAuth });
                 if(!res.ok) return;
                 const confs = await res.json();
-                
                 window.sistemaConfig = { valor_minimo: 500, juros_unico: 30, juros_parcelado: 25 }; 
-
                 confs.forEach(c => {
                     if(c.chave === 'juros_unico') { document.getElementById('conf_juros_unico').value = c.valor; window.sistemaConfig.juros_unico = parseFloat(c.valor); }
                     if(c.chave === 'juros_parcelado') { document.getElementById('conf_juros_parcelado').value = c.valor; window.sistemaConfig.juros_parcelado = parseFloat(c.valor); }
@@ -1330,53 +1423,28 @@
                     if(c.chave === 'valor_minimo') { document.getElementById('conf_minimo').value = c.valor; window.sistemaConfig.valor_minimo = parseFloat(c.valor);  }
                     if(c.chave === 'caixa_total' || c.chave === 'conf_caixa_total') { document.getElementById('conf_caixa_total').value = c.valor; }
                 });
-
                 document.getElementById('cad_capital').placeholder = `Mínimo R$ ${window.sistemaConfig.valor_minimo}`;
             } catch(e) {}
         }
 
         async function salvarConfig() {
-            const jurosUnico = document.getElementById('conf_juros_unico').value;
-            const jurosParcelado = document.getElementById('conf_juros_parcelado').value;
-            const multa = document.getElementById('conf_multa').value;
-            const minimo = document.getElementById('conf_minimo').value;
-            const caixaGeral = document.getElementById('conf_caixa_total').value; 
-
+            const jurosUnico = document.getElementById('conf_juros_unico').value; const jurosParcelado = document.getElementById('conf_juros_parcelado').value; const multa = document.getElementById('conf_multa').value; const minimo = document.getElementById('conf_minimo').value; const caixaGeral = document.getElementById('conf_caixa_total').value; 
             try {
-                const res = await fetch(`${API_BASE}/api/config`, { 
-                    method: 'POST', headers: headersAuth, 
-                    body: JSON.stringify({ configs: [ 
-                        {chave: 'juros_unico', valor: jurosUnico}, 
-                        {chave: 'juros_parcelado', valor: jurosParcelado}, 
-                        {chave: 'multa_diaria', valor: multa},
-                        {chave: 'valor_minimo', valor: minimo || 500},
-                        {chave: 'caixa_total', valor: caixaGeral || 50000}
-                    ] }) 
-                });
-                if(res.ok) { showToast("Configurações atualizadas!"); carregarConfig(); carregarDash(); } 
-                else { throw new Error(); }
+                const res = await fetchSeguro(`${API_BASE}/api/config`, { method: 'POST', headers: headersAuth, body: JSON.stringify({ configs: [ {chave: 'juros_unico', valor: jurosUnico}, {chave: 'juros_parcelado', valor: jurosParcelado}, {chave: 'multa_diaria', valor: multa}, {chave: 'valor_minimo', valor: minimo || 500}, {chave: 'caixa_total', valor: caixaGeral || 50000} ] }) });
+                if(res.ok) { showToast("Configurações atualizadas!"); carregarConfig(); carregarDash(); } else { throw new Error(); }
             } catch(e) { showToast("Erro ao salvar configs.", "error"); }
         }
 
-        // =====================================
-        // SAÍDA DE CAIXA E PROMOTORES
-        // =====================================
         async function carregarSaidas() {
             try {
-                const res = await fetch(`${API_BASE}/api/extrato-caixa`, { headers: headersAuth });
+                const res = await fetchSeguro(`${API_BASE}/api/extrato-caixa`, { headers: headersAuth });
                 if(!res.ok) return;
                 const lista = await res.json();
                 const tbody = document.getElementById('lista-saidas');
                 tbody.innerHTML = '';
                 lista.forEach(s => {
                     const val = parseFloat(s.valor_fluxo) || 0;
-                    tbody.innerHTML += `
-                        <tr class="border-b border-slate-800/50">
-                            <td class="px-4 py-3 text-xs text-slate-400">${new Date(s.created_at).toLocaleDateString()}</td>
-                            <td class="px-4 py-3 text-xs font-bold text-white">${escapeHTML(s.detalhes)}</td>
-                            <td class="px-4 py-3 text-xs font-black text-red-400 text-right">- ${Math.abs(val).toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</td>
-                        </tr>
-                    `;
+                    tbody.innerHTML += `<tr class="border-b border-slate-800/50"><td class="px-4 py-3 text-xs text-slate-400">${new Date(s.created_at).toLocaleDateString()}</td><td class="px-4 py-3 text-xs font-bold text-white">${escapeHTML(s.detalhes)}</td><td class="px-4 py-3 text-xs font-black text-red-400 text-right">- ${Math.abs(val).toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</td></tr>`;
                 });
             } catch(e) {}
         }
@@ -1385,26 +1453,20 @@
             const m = document.getElementById('saida_motivo').value; const v = parseFloat(document.getElementById('saida_valor').value);
             if(!m || !v) return showToast("Preencha todos", "error");
             try {
-                const res = await fetch(`${API_BASE}/api/saida-caixa`, { method: 'POST', headers: headersAuth, body: JSON.stringify({ motivo: m, valor: v }) });
+                const res = await fetchSeguro(`${API_BASE}/api/saida-caixa`, { method: 'POST', headers: headersAuth, body: JSON.stringify({ motivo: m, valor: v }) });
                 if(res.ok) { showToast("Saída Registrada!"); document.getElementById('saida_motivo').value = ''; document.getElementById('saida_valor').value = ''; carregarSaidas(); carregarDash(); }
             } catch(e) {}
         }
 
         async function carregarPromotores() {
             try {
-                const res = await fetch(`${API_BASE}/api/promotores`, { headers: headersAuth });
+                const res = await fetchSeguro(`${API_BASE}/api/promotores`, { headers: headersAuth });
                 if(!res.ok) return;
                 const lista = await res.json();
                 const tbody = document.getElementById('lista-promotores');
                 tbody.innerHTML = '';
                 lista.forEach(p => {
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-slate-800/30 border-b border-slate-800/50">
-                            <td class="px-6 py-4 font-bold text-white">${escapeHTML(p.nome)}</td>
-                            <td class="px-6 py-4 font-mono text-purple-400">${escapeHTML(p.cpf)}</td>
-                            <td class="px-6 py-4 text-xs text-slate-400">${new Date(p.created_at).toLocaleDateString()}</td>
-                        </tr>
-                    `;
+                    tbody.innerHTML += `<tr class="hover:bg-slate-800/30 border-b border-slate-800/50"><td class="px-6 py-4 font-bold text-white">${escapeHTML(p.nome)}</td><td class="px-6 py-4 font-mono text-purple-400">${escapeHTML(p.cpf)}</td><td class="px-6 py-4 text-xs text-slate-400">${new Date(p.created_at).toLocaleDateString()}</td></tr>`;
                 });
             } catch(e) {}
         }
@@ -1413,14 +1475,12 @@
             const nome = document.getElementById('promo_nome').value; const cpf = document.getElementById('promo_cpf').value.replace(/\D/g, '');
             if(!nome || cpf.length !== 11) return showToast("Nome e CPF válidos são obrigatórios", "error");
             try {
-                const res = await fetch(`${API_BASE}/api/adicionar-promotor`, { method: 'POST', headers: headersAuth, body: JSON.stringify({ nome, cpf }) });
+                const res = await fetchSeguro(`${API_BASE}/api/adicionar-promotor`, { method: 'POST', headers: headersAuth, body: JSON.stringify({ nome, cpf }) });
                 if(res.ok) { showToast("Promotor Adicionado"); document.getElementById('promo_nome').value = ''; document.getElementById('promo_cpf').value = ''; carregarPromotores(); }
             } catch(e) {}
         }
 
-        // =====================================
-        // CADASTRO MANUAL E MIGRAÇÃO
-        // =====================================
+        // --- CADASTRO MANUAL, BUSCA E PRÉ-CADASTRO ---
         const getBase64 = (file) => new Promise((resolve) => { if(!file) return resolve(null); const r = new FileReader(); r.readAsDataURL(file); r.onload = () => resolve(r.result); });
         
         function marcarFicheiroCad(input) {
@@ -1432,37 +1492,92 @@
             }
         }
 
-        async function salvarCadastroRapido() {
-            const btn = event.target; btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Enviando...`;
+        function togglePreCadastro() {
+            const isPre = document.getElementById('check_precadastro').checked;
+            const areasDiv = document.querySelectorAll('.area-financeira');
+            areasDiv.forEach(el => isPre ? el.classList.add('hidden') : el.classList.remove('hidden'));
+            
+            document.getElementById('cad_capital').required = !isPre;
+            document.getElementById('cad_saldo').required = !isPre;
+            document.getElementById('cad_venc').required = !isPre;
+        }
+
+        async function buscarParaCadastro() {
+            const busca = document.getElementById('busca_cliente_cad').value;
+            if(busca.length < 3) return showToast("Digite pelo menos 3 caracteres", "error");
             try {
+                const res = await fetchSeguro(`${API_BASE}/api/cliente-extrato/${encodeURIComponent(busca)}`, { headers: headersAuth });
+                if(!res.ok) throw new Error();
+                const data = await res.json();
+                const c = data.cliente;
+                
+                document.getElementById('cad_id_existente').value = c.id;
+                document.getElementById('cad_nome').value = c.nome;
+                document.getElementById('cad_cpf').value = c.cpf;
+                document.getElementById('cad_zap').value = c.telefone;
+                
+                showToast("Dados do Cliente Puxados com Sucesso!");
+            } catch(e) {
+                showToast("Nenhum cliente antigo encontrado.", "error");
+                document.getElementById('cad_id_existente').value = '';
+            }
+        }
+
+        async function salvarCadastroRapido() {
+            const btn = event.target; 
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Enviando...`;
+            btn.disabled = true;
+            try {
+                const isPreCadastro = document.getElementById('check_precadastro').checked;
+                const idExistente = document.getElementById('cad_id_existente').value;
+
                 const dados = {
+                    id_existente: idExistente,
+                    is_precadastro: isPreCadastro,
                     nome: document.getElementById('cad_nome').value, 
                     cpf: document.getElementById('cad_cpf').value.replace(/\D/g,''),
                     whatsapp: document.getElementById('cad_zap').value.replace(/\D/g,''), 
-                    valor_emprestado: parseFloat(document.getElementById('cad_capital').value),
-                    valor_total: parseFloat(document.getElementById('cad_saldo').value), 
-                    data_vencimento: document.getElementById('cad_venc').value, 
-                    frequencia: document.getElementById('cad_freq').value,
-                    // 🚨 CORREÇÃO: Pega as parcelas e os juros já pagos da tela
-                    qtd_parcelas: parseInt(document.getElementById('cad_parcelas').value) || 1,
-                    juros_pagos: parseFloat(document.getElementById('cad_juros_pagos').value) || 0,
-                    capital_pago: parseFloat(document.getElementById('cad_capital_pago').value) || 0,
+                    valor_emprestado: isPreCadastro ? 0 : parseFloat(document.getElementById('cad_capital').value),
+                    valor_total: isPreCadastro ? 0 : parseFloat(document.getElementById('cad_saldo').value), 
+                    data_vencimento: isPreCadastro ? null : document.getElementById('cad_venc').value, 
+                    frequencia: isPreCadastro ? 'MENSAL' : document.getElementById('cad_freq').value,
+                    qtd_parcelas: isPreCadastro ? 1 : (parseInt(document.getElementById('cad_parcelas').value) || 1),
+                    juros_pagos: isPreCadastro ? 0 : (parseFloat(document.getElementById('cad_juros_pagos').value) || 0),
+                    capital_pago: isPreCadastro ? 0 : (parseFloat(document.getElementById('cad_capital_pago').value) || 0),
                     img_selfie: await getBase64(document.getElementById('cad_selfie').files[0]), 
                     img_frente: await getBase64(document.getElementById('cad_frente').files[0]),
                     img_verso: await getBase64(document.getElementById('cad_verso').files[0]), 
                     img_residencia: await getBase64(document.getElementById('cad_residencia').files[0]), 
                     img_casa: await getBase64(document.getElementById('cad_casa').files[0])
                 };
-                if(!dados.nome || !dados.cpf || !dados.valor_emprestado) throw new Error("Faltam dados obrigatórios");
+
+                if(!dados.nome || !dados.cpf) throw new Error("O Nome e o CPF são obrigatórios.");
                 
-                const valorMinimo = window.sistemaConfig?.valor_minimo || 500;
-                if(dados.valor_emprestado < valorMinimo) {
-                    throw new Error(`O valor mínimo permitido pelo sistema é de R$ ${valorMinimo}`);
+                if(!isPreCadastro) {
+                    const valorMinimo = window.sistemaConfig?.valor_minimo || 500;
+                    if(dados.valor_emprestado < valorMinimo) throw new Error(`O valor mínimo permitido pelo sistema é de R$ ${valorMinimo}`);
                 }
 
-                const res = await fetch(`${API_BASE}/api/migrar-cliente`, { method: 'POST', headers: headersAuth, body: JSON.stringify(dados) });
-                if(res.ok) { showToast("Cadastro Realizado/Migrado!"); document.getElementById('formCadastroRapido').reset(); mudarAba('aberto'); carregarDash(); } else { throw new Error("Erro de servidor"); }
-            } catch(e) { showToast(e.message, "error"); } finally { btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up mr-2"></i> Inserir no Sistema`; }
+                const res = await fetchSeguro(`${API_BASE}/api/cadastrar-cliente-manual`, { method: 'POST', headers: headersAuth, body: JSON.stringify(dados) });
+                if(res.ok) { 
+                    showToast(isPreCadastro ? "Pré-Cadastro Salvo com Sucesso!" : "Dívida Lançada com Sucesso!"); 
+                    document.getElementById('formCadastroRapido').reset(); 
+                    document.getElementById('cad_id_existente').value = '';
+                    document.getElementById('busca_cliente_cad').value = '';
+                    
+                    if(!isPreCadastro) mudarAba('aberto'); 
+                    carregarDash(); 
+                } else { 
+                    const erroBody = await res.json();
+                    throw new Error(erroBody.erro || "Erro interno do servidor."); 
+                }
+            } catch(e) { 
+                showToast(e.message, "error"); 
+            } finally { 
+                btn.innerHTML = originalText; 
+                btn.disabled = false;
+            }
         }
     </script>
 </body>
