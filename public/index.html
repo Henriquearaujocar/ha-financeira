@@ -12,7 +12,7 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
         
-        :root { color-scheme: light only; }
+        :root { color-scheme: light only; } 
         html, body { background-color: #020617 !important; color: #f1f5f9 !important; font-family: 'Inter', sans-serif; overflow-x: hidden; }
         
         .glass-card { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.05); }
@@ -20,12 +20,11 @@
         .input-dark { background: rgba(2, 6, 23, 0.8); border: 1px solid rgba(255,255,255,0.1); outline: none; transition: 0.3s; color: white; width: 100%; padding: 0.75rem 1rem; border-radius: 0.75rem; }
         .input-dark:focus { border-color: #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.2); }
         
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; } 
+        ::-webkit-scrollbar-track { background: #0f172a; } 
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #475569; }
-
-        .dropdown-menu { display: none; }
+        
+        .dropdown-menu { display: none; } 
         .dropdown-menu.show { display: block; animation: fadeIn 0.2s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
@@ -45,7 +44,6 @@
             <h1 class="text-2xl font-black italic text-blue-500 tracking-tighter uppercase drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]">CMS Ventures</h1>
             <p class="text-[8px] font-black uppercase text-slate-500 tracking-[0.3em] mt-1">Master Cockpit</p>
         </div>
-        
         <nav class="flex-1 overflow-y-auto py-4 space-y-1">
             <p class="text-[9px] font-black text-slate-600 uppercase tracking-widest px-6 mb-2 mt-2">Operacional</p>
             <button onclick="mudarAba('dashboard')" id="nav-dashboard" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all tab-active"><i class="fa-solid fa-chart-pie w-6"></i> Dashboard</button>
@@ -57,12 +55,11 @@
             <p class="text-[9px] font-black text-slate-600 uppercase tracking-widest px-6 mb-2 mt-6">Administração</p>
             <button onclick="mudarAba('caixa')" id="nav-caixa" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-money-bill-transfer w-6"></i> Saída de Caixa</button>
             <button onclick="mudarAba('ranking')" id="nav-ranking" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-handshake w-6"></i> Promotores</button>
-            <button onclick="mudarAba('relatorios')" id="nav-relatorios" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-file-invoice-dollar w-6"></i> Relatórios</button>
+            <button onclick="mudarAba('relatorios')" id="nav-relatorios" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-file-invoice-dollar w-6"></i> Relatórios Analíticos</button>
             <button onclick="mudarAba('logs')" id="nav-logs" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-clock-rotate-left w-6"></i> Auditoria (Logs)</button>
             <button onclick="mudarAba('lista-negra')" id="nav-lista-negra" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-user-slash w-6"></i> Lista Negra</button>
             <button onclick="mudarAba('config')" id="nav-config" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-gear w-6"></i> Configurações</button>
         </nav>
-
         <div class="p-4 border-t border-slate-800">
             <button onclick="logout()" class="w-full py-3 rounded-xl bg-red-500/10 text-red-500 font-bold text-xs uppercase hover:bg-red-500 hover:text-white transition-all"><i class="fa-solid fa-power-off mr-2"></i> Sair do Sistema</button>
         </div>
@@ -73,22 +70,19 @@
         <div class="fixed top-[-20%] left-[20%] w-[500px] h-[500px] bg-blue-600 rounded-full mix-blend-multiply filter blur-[150px] opacity-10 pointer-events-none"></div>
 
         <!-- ABA: DASHBOARD -->
-        <div id="aba-dashboard" class="aba-content">
+        <div id="aba-dashboard" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-chart-pie text-blue-500 mr-2"></i> Visão Geral Financeira</h2>
             
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div class="glass-card p-6 rounded-3xl border border-blue-500/50 shadow-[0_0_30px_rgba(59,130,246,0.1)] relative overflow-hidden bg-blue-600/10">
-                    <div class="absolute -right-4 -bottom-4 opacity-20"><i class="fa-solid fa-piggy-bank text-8xl text-blue-400"></i></div>
                     <p class="text-[10px] font-black uppercase tracking-widest text-blue-300">Caixa P/ Emprestar</p>
                     <h3 id="dash-caixa-disponivel" class="text-4xl font-black italic tracking-tighter mt-2 text-white">R$ 0,00</h3>
                 </div>
                 <div class="glass-card p-6 rounded-3xl border border-orange-500/20 relative overflow-hidden">
-                    <div class="absolute -right-4 -bottom-4 opacity-10"><i class="fa-solid fa-hand-holding-dollar text-8xl text-orange-500"></i></div>
                     <p class="text-[10px] font-black uppercase tracking-widest text-orange-400">Capital na Rua (Emprestado)</p>
                     <h3 id="dash-capital-rua" class="text-3xl font-black italic tracking-tighter mt-2">R$ 0,00</h3>
                 </div>
                 <div class="glass-card p-6 rounded-3xl border border-emerald-500/20 relative overflow-hidden">
-                    <div class="absolute -right-4 -bottom-4 opacity-10"><i class="fa-solid fa-vault text-8xl text-emerald-500"></i></div>
                     <p class="text-[10px] font-black uppercase tracking-widest text-emerald-400">Recebido Hoje</p>
                     <h3 id="dash-recebido" class="text-3xl font-black italic tracking-tighter mt-2">R$ 0,00</h3>
                 </div>
@@ -137,7 +131,7 @@
             </div>
         </div>
 
-        <!-- ABA: COBRANÇA ATIVA (EM ABERTO) -->
+        <!-- ABA: COBRANÇA ATIVA -->
         <div id="aba-aberto" class="aba-content hidden">
             <div class="flex flex-col xl:flex-row justify-between items-center mb-6 gap-4">
                 <h2 class="text-2xl font-black uppercase tracking-tighter w-full xl:w-auto"><i class="fa-solid fa-wallet text-emerald-500 mr-2"></i> Cobrança Ativa</h2>
@@ -149,7 +143,7 @@
                     <button onclick="aplicarFiltroAberto('PENDENTE', this)" class="filtro-aberto-btn px-4 py-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all">Falta Assinar</button>
                 </div>
 
-                <input type="text" id="busca-aberto" placeholder="Buscar Cliente ou CPF..." class="input-dark w-full xl:w-64 text-sm" onkeyup="filtrarAberto()">
+                <input type="text" id="busca-aberto" placeholder="Buscar Cliente..." class="input-dark w-full xl:w-64 text-sm" onkeyup="filtrarAberto()">
             </div>
             
             <div class="glass-card rounded-3xl overflow-visible border border-slate-700">
@@ -186,7 +180,6 @@
                     <h2 id="ext_nome" class="text-lg font-bold text-white mb-1">...</h2>
                     <p id="ext_cpf" class="text-xs font-mono text-slate-400 mb-4">...</p>
                     <div class="space-y-2 mb-4 pb-4 border-b border-slate-700">
-                        <p class="text-xs flex justify-between"><span class="text-slate-500">Score Interno:</span> <span id="ext_score" class="font-bold text-emerald-400">500</span></p>
                         <p class="text-xs flex justify-between"><span class="text-slate-500">Capital Ativo:</span> <span id="ext_capital" class="font-bold text-white">R$ 0,00</span></p>
                         <p class="text-xs flex justify-between"><span class="text-slate-500">Dívida Total:</span> <span id="ext_divida" class="font-bold text-red-400">R$ 0,00</span></p>
                     </div>
@@ -228,29 +221,17 @@
 
         <!-- ABA: CADASTRO MANUAL / PRÉ-CADASTRO -->
         <div id="aba-cadastro" class="aba-content hidden">
-            <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-user-plus text-blue-500 mr-2"></i> Cadastro Manual e Pré-Cadastro</h2>
+            <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-user-plus text-blue-500 mr-2"></i> Cadastro Manual</h2>
             
-            <div class="glass-card p-6 rounded-3xl border border-blue-500/20 mb-6 max-w-4xl flex gap-4 items-end bg-blue-900/10">
-                <div class="w-full">
-                    <label class="text-[10px] font-black uppercase text-blue-400 ml-2 block mb-1">Puxar Cliente Existente (Pré-cadastro ou Dívida Antiga)</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="busca_cliente_cad" placeholder="Digite o Nome ou CPF para autocompletar..." class="input-dark flex-1 text-sm border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.1)]">
-                        <button type="button" onclick="buscarParaCadastro()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-2 rounded-xl shadow-lg transition-all"><i class="fa-solid fa-magnifying-glass mr-2"></i> Puxar Dados</button>
-                    </div>
-                </div>
-            </div>
-
             <form id="formCadastroRapido" class="glass-card p-8 rounded-3xl space-y-6 max-w-4xl border border-slate-700">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-700 pb-4 gap-4">
                     <h3 class="text-sm font-black uppercase text-white"><i class="fa-solid fa-id-card mr-2"></i> Dados Pessoais</h3>
                     
                     <label class="flex items-center gap-2 cursor-pointer bg-slate-900/50 px-4 py-3 rounded-xl border border-slate-700 hover:border-emerald-500 transition-colors">
-                        <input type="checkbox" id="check_precadastro" onchange="togglePreCadastro()" class="w-4 h-4 accent-emerald-500 rounded cursor-pointer">
-                        <span class="text-[10px] font-black uppercase text-emerald-400">Apenas Pré-Cadastro (Sem Valores)</span>
+                        <input type="checkbox" id="cad_apenas_dinheiro" class="w-4 h-4 accent-emerald-500 rounded cursor-pointer">
+                        <span class="text-[10px] font-black uppercase text-emerald-400">Cliente Paga Só em Dinheiro (Sem Link de Cobrança PIX)</span>
                     </label>
                 </div>
-
-                <input type="hidden" id="cad_id_existente">
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
@@ -267,14 +248,14 @@
                     </div>
                 </div>
 
-                <div class="area-financeira grid grid-cols-1 md:grid-cols-5 gap-4 border-t border-slate-700 pt-4 transition-all">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 border-t border-slate-700 pt-4">
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Capital Original</label>
-                        <input type="number" id="cad_capital" placeholder="Ex: 500" class="input-dark mt-1" required>
+                        <input type="number" id="cad_capital" placeholder="Ex: 500" min="0" class="input-dark mt-1" required>
                     </div>
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Saldo da Dívida</label>
-                        <input type="number" id="cad_saldo" placeholder="Ex: 650" class="input-dark mt-1 text-red-400 font-bold" required>
+                        <input type="number" id="cad_saldo" placeholder="Ex: 650" min="0" class="input-dark mt-1 text-red-400 font-bold" required>
                     </div>
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Vencimento</label>
@@ -287,54 +268,9 @@
                             <option value="SEMANAL">Semanal</option>
                         </select>
                     </div>
-                    <div>
-                        <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Nº Parcelas</label>
-                        <input type="number" id="cad_parcelas" value="1" min="1" class="input-dark mt-1 font-bold text-blue-400" title="1 para rolagem única, >1 para parcelado fixo">
-                    </div>
                 </div>
 
-                <div class="area-financeira bg-blue-900/10 border border-blue-500/20 p-4 rounded-xl mt-4 transition-all">
-                    <h3 class="text-[10px] font-black uppercase text-blue-400 mb-3"><i class="fa-solid fa-clock-rotate-left mr-1"></i> Histórico de Pagamentos (Opcional - Migração)</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Total de Juros/Multas Já Pagos (R$)</label>
-                            <input type="number" id="cad_juros_pagos" class="input-dark mt-1" placeholder="Ex: 150">
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Total de Dívida (Capital) Já Abatida (R$)</label>
-                            <input type="number" id="cad_capital_pago" class="input-dark mt-1" placeholder="Ex: 0">
-                        </div>
-                    </div>
-                    <p class="text-[9px] text-slate-500 mt-2 ml-2">Esses valores serão somados ao extrato do cliente para não perder o histórico de pagamentos de sistemas antigos.</p>
-                </div>
-
-                <div class="pt-4 border-t border-slate-700">
-                    <label class="text-[10px] font-black uppercase text-emerald-400 mb-4 block">Documentos e Fotos (Opcional)</label>
-                    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-                        <label class="cursor-pointer bg-slate-900/50 p-4 rounded-xl border border-dashed border-slate-600 text-center hover:border-emerald-500 transition-colors">
-                            <i class="fa-solid fa-user text-xl mb-2 text-slate-400"></i><p class="text-[9px] uppercase font-bold text-slate-300">Selfie</p>
-                            <input type="file" id="cad_selfie" class="hidden" accept="image/*" onchange="marcarFicheiroCad(this)">
-                        </label>
-                        <label class="cursor-pointer bg-slate-900/50 p-4 rounded-xl border border-dashed border-slate-600 text-center hover:border-emerald-500 transition-colors">
-                            <i class="fa-solid fa-id-card text-xl mb-2 text-slate-400"></i><p class="text-[9px] uppercase font-bold text-slate-300">Frente</p>
-                            <input type="file" id="cad_frente" class="hidden" accept="image/*" onchange="marcarFicheiroCad(this)">
-                        </label>
-                        <label class="cursor-pointer bg-slate-900/50 p-4 rounded-xl border border-dashed border-slate-600 text-center hover:border-emerald-500 transition-colors">
-                            <i class="fa-solid fa-id-card text-xl mb-2 text-slate-400"></i><p class="text-[9px] uppercase font-bold text-slate-300">Verso</p>
-                            <input type="file" id="cad_verso" class="hidden" accept="image/*" onchange="marcarFicheiroCad(this)">
-                        </label>
-                        <label class="cursor-pointer bg-slate-900/50 p-4 rounded-xl border border-dashed border-slate-600 text-center hover:border-emerald-500 transition-colors">
-                            <i class="fa-solid fa-file-invoice text-xl mb-2 text-slate-400"></i><p class="text-[9px] uppercase font-bold text-slate-300">Residência</p>
-                            <input type="file" id="cad_residencia" class="hidden" accept="image/*" onchange="marcarFicheiroCad(this)">
-                        </label>
-                        <label class="cursor-pointer bg-slate-900/50 p-4 rounded-xl border border-dashed border-slate-600 text-center hover:border-emerald-500 transition-colors">
-                            <i class="fa-solid fa-house text-xl mb-2 text-slate-400"></i><p class="text-[9px] uppercase font-bold text-slate-300">Casa</p>
-                            <input type="file" id="cad_casa" class="hidden" accept="image/*" onchange="marcarFicheiroCad(this)">
-                        </label>
-                    </div>
-                </div>
-
-                <button type="button" onclick="salvarCadastroRapido()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase py-4 rounded-xl transition-all shadow-lg shadow-blue-500/20"><i class="fa-solid fa-cloud-arrow-up mr-2"></i> Inserir no Sistema</button>
+                <button id="btnSalvarCad" type="button" onclick="salvarCadastroRapido()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase py-4 rounded-xl transition-all shadow-lg shadow-blue-500/20"><i class="fa-solid fa-cloud-arrow-up mr-2"></i> Lançar Contrato no Sistema</button>
             </form>
         </div>
 
@@ -347,11 +283,11 @@
                     <div class="space-y-4">
                         <div>
                             <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Motivo / Descrição</label>
-                            <input type="text" id="saida_motivo" placeholder="Ex: Retirada Pró-labore, Promotor..." class="input-dark mt-1">
+                            <input type="text" id="saida_motivo" placeholder="Ex: Retirada Pró-labore, Pagamento Promotor..." class="input-dark mt-1">
                         </div>
                         <div>
                             <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Valor (R$)</label>
-                            <input type="number" id="saida_valor" placeholder="0.00" class="input-dark mt-1 font-bold text-red-400">
+                            <input type="number" id="saida_valor" min="0" placeholder="0.00" class="input-dark mt-1 font-bold text-red-400">
                         </div>
                         <button onclick="registrarSaidaCaixa()" class="w-full bg-red-600 hover:bg-red-500 text-white font-black uppercase py-3 rounded-xl transition-all shadow-lg shadow-red-500/20 mt-2"><i class="fa-solid fa-minus-circle mr-2"></i> Lançar Saída</button>
                     </div>
@@ -361,7 +297,11 @@
                     <div class="overflow-hidden rounded-xl border border-slate-800">
                         <table class="w-full text-left text-sm">
                             <thead class="bg-slate-800/50 text-[10px] uppercase font-black text-slate-500">
-                                <tr><th class="px-4 py-3">Data</th><th class="px-4 py-3">Motivo</th><th class="px-4 py-3 text-right">Valor</th></tr>
+                                <tr>
+                                    <th class="px-4 py-3">Data</th>
+                                    <th class="px-4 py-3">Motivo</th>
+                                    <th class="px-4 py-3 text-right">Valor</th>
+                                </tr>
                             </thead>
                             <tbody id="lista-saidas" class="divide-y divide-slate-800">
                                 <!-- JS -->
@@ -372,80 +312,135 @@
             </div>
         </div>
 
-        <!-- ABA: PROMOTORES / RANKING -->
-        <div id="aba-ranking" class="aba-content hidden">
-            <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-handshake text-purple-500 mr-2"></i> Gestão de Promotores</h2>
-            <div class="glass-card p-6 rounded-3xl border border-slate-700 max-w-2xl mb-6">
-                <h3 class="text-xs font-black uppercase text-slate-400 mb-4">Adicionar Novo Promotor</h3>
-                <div class="flex gap-4">
-                    <input type="text" id="promo_nome" placeholder="Nome do Promotor" class="input-dark w-1/2">
-                    <input type="text" id="promo_cpf" placeholder="CPF" class="input-dark w-1/3">
-                    <button onclick="adicionarPromotor()" class="bg-purple-600 hover:bg-purple-500 text-white font-bold px-6 py-2 rounded-xl">Adicionar</button>
-                </div>
-            </div>
-            <div class="glass-card rounded-3xl overflow-hidden border border-slate-700">
-                <table class="w-full text-left text-sm">
-                    <thead class="bg-slate-800/50 text-xs uppercase font-black text-slate-400 tracking-wider">
-                        <tr><th class="px-6 py-4">Promotor</th><th class="px-6 py-4">CPF (Código)</th><th class="px-6 py-4">Data Início</th></tr>
-                    </thead>
-                    <tbody id="lista-promotores" class="divide-y divide-slate-800">
-                        <!-- JS -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
         <!-- ABA: RELATÓRIOS -->
         <div id="aba-relatorios" class="aba-content hidden">
-            <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-file-invoice-dollar text-emerald-500 mr-2"></i> Relatórios Financeiros</h2>
+            <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-file-invoice-dollar text-emerald-500 mr-2"></i> Dashboard & Relatórios Analíticos</h2>
             
-            <div class="glass-card p-6 rounded-3xl border border-slate-700 mb-6 flex flex-wrap gap-4 items-end justify-between">
-                <div class="flex flex-wrap gap-4 items-end">
+            <!-- INÍCIO DO DASHBOARD FINANCEIRO -->
+            <div id="dashboard-section" class="glass-card p-6 rounded-3xl mb-8 border border-slate-700">
+                <h2 class="text-xl font-bold text-white mb-4"><i class="fa-solid fa-chart-pie text-blue-500 mr-2"></i> Painel de Desempenho e Lucratividade</h2>
+                
+                <!-- Filtros de Tempo -->
+                <div class="flex flex-wrap gap-4 items-end mb-6 bg-slate-900/50 p-4 rounded-xl border border-slate-700">
                     <div>
-                        <label class="text-[10px] font-black uppercase text-slate-500 ml-2 block mb-1">Período</label>
-                        <select id="filtro-relatorio" class="input-dark w-48 text-sm" onchange="verificarFiltroData()">
+                        <label class="text-[10px] text-slate-400 font-bold uppercase mb-1 block">Período de Análise</label>
+                        <select id="dash-periodo" class="input-dark text-sm w-48" onchange="mudarPeriodoDash()">
                             <option value="mes">Este Mês</option>
-                            <option value="semana">Esta Semana</option>
                             <option value="semestre">Este Semestre</option>
                             <option value="ano">Este Ano</option>
-                            <option value="custom">Personalizado</option>
+                            <option value="personalizado">Personalizado</option>
                         </select>
                     </div>
-                    <div id="datas-customizadas" class="hidden flex gap-2">
+                    <div id="dash-custom-dates" class="hidden flex gap-4">
                         <div>
-                            <label class="text-[10px] font-black uppercase text-slate-500 ml-2 block mb-1">Início</label>
-                            <input type="date" id="data_inicio_rel" class="input-dark w-36 text-sm">
+                            <label class="text-[10px] text-slate-400 font-bold uppercase mb-1 block">Data de Início</label>
+                            <input type="date" id="dash-inicio" class="input-dark text-sm w-40">
                         </div>
                         <div>
-                            <label class="text-[10px] font-black uppercase text-slate-500 ml-2 block mb-1">Fim</label>
-                            <input type="date" id="data_fim_rel" class="input-dark w-36 text-sm">
+                            <label class="text-[10px] text-slate-400 font-bold uppercase mb-1 block">Data de Fim</label>
+                            <input type="date" id="dash-fim" class="input-dark text-sm w-40">
                         </div>
                     </div>
-                    <button onclick="carregarRelatorios()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-xl transition-all shadow-lg"><i class="fa-solid fa-filter"></i> Gerar Relatório</button>
+                    <button onclick="carregarDashboard()" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-xl font-bold transition-all text-sm h-[46px] shadow-lg shadow-blue-500/20">
+                        <i class="fa-solid fa-filter mr-2"></i> Calcular Métricas
+                    </button>
                 </div>
-                <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded-xl transition-all"><i class="fa-solid fa-print"></i> Exportar / Imprimir</button>
+
+                <!-- Cards de Métricas -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700 relative overflow-hidden">
+                        <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-file-contract text-6xl text-white"></i></div>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Empréstimos Realizados</p>
+                        <h3 class="text-3xl font-black text-white mt-1" id="dash-feitos">0</h3>
+                    </div>
+                    
+                    <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700 relative overflow-hidden">
+                        <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-check-double text-6xl text-emerald-400"></i></div>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Finalizados / Liquidados</p>
+                        <h3 class="text-3xl font-black text-emerald-400 mt-1" id="dash-finalizados">0</h3>
+                    </div>
+
+                    <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700 relative overflow-hidden">
+                        <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-hand-holding-dollar text-6xl text-blue-400"></i></div>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Capital Emprestado</p>
+                        <h3 class="text-2xl font-black text-blue-400 mt-1 truncate" id="dash-emprestado">R$ 0,00</h3>
+                    </div>
+
+                    <div class="bg-slate-800/80 p-5 rounded-xl border border-emerald-900 relative overflow-hidden">
+                        <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-vault text-6xl text-emerald-500"></i></div>
+                        <p class="text-[10px] text-emerald-500 font-bold uppercase tracking-wider">Retorno para a Conta</p>
+                        <h3 class="text-2xl font-black text-emerald-400 mt-1 truncate" id="dash-retorno">R$ 0,00</h3>
+                    </div>
+
+                    <div class="bg-slate-800/80 p-5 rounded-xl border border-purple-900 relative overflow-hidden col-span-2 lg:col-span-1">
+                        <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-arrow-trend-up text-6xl text-purple-400"></i></div>
+                        <p class="text-[10px] text-purple-400 font-bold uppercase tracking-wider">Lucro Líquido</p>
+                        <h3 class="text-2xl font-black text-purple-400 mt-1 truncate" id="dash-lucro">R$ 0,00</h3>
+                    </div>
+
+                    <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700 relative overflow-hidden">
+                        <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-percent text-6xl text-yellow-400"></i></div>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Juros Pagos (Mensalidades)</p>
+                        <h3 class="text-2xl font-black text-yellow-400 mt-1 truncate" id="dash-juros">R$ 0,00</h3>
+                    </div>
+
+                    <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700 relative overflow-hidden col-span-2 lg:col-span-2">
+                        <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-clock text-6xl text-red-400"></i></div>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Multas Pagas (Atrasos)</p>
+                        <h3 class="text-2xl font-black text-red-400 mt-1 truncate" id="dash-multas">R$ 0,00</h3>
+                    </div>
+                </div>
+            </div>
+            <!-- FIM DO DASHBOARD FINANCEIRO -->
+
+            <!-- EXTRATO BANCÁRIO DETALHADO -->
+            <h3 class="text-lg font-bold text-white mb-4"><i class="fa-solid fa-list-ul text-blue-500 mr-2"></i> Relatório Analítico (Extrato)</h3>
+            <div class="glass-card p-6 rounded-3xl border border-slate-700 mb-6 flex flex-wrap gap-4 items-end">
+                <div>
+                    <label class="text-[10px] font-black uppercase text-slate-500 ml-2 block mb-1">Período de Extração</label>
+                    <select id="filtro-relatorio" class="input-dark w-48 text-sm" onchange="verificarFiltroData()">
+                        <option value="mes">Este Mês</option>
+                        <option value="custom">Personalizado</option>
+                    </select>
+                </div>
+                <div id="datas-customizadas" class="hidden flex gap-2">
+                    <div>
+                        <label class="text-[10px] font-black uppercase text-slate-500 ml-2 block mb-1">Início</label>
+                        <input type="date" id="data_inicio_rel" class="input-dark w-36 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black uppercase text-slate-500 ml-2 block mb-1">Fim</label>
+                        <input type="date" id="data_fim_rel" class="input-dark w-36 text-sm">
+                    </div>
+                </div>
+                <button onclick="carregarRelatorios()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-xl transition-all shadow-lg"><i class="fa-solid fa-list text-xs mr-2"></i> Listar Movimentações</button>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="glass-card p-6 rounded-3xl border border-slate-700">
-                    <h3 class="text-xs font-black uppercase text-slate-400 mb-4">Entradas vs Saídas no Período</h3>
-                    <canvas id="graficoRelatorio1"></canvas>
-                </div>
-                <div class="glass-card p-6 rounded-3xl border border-slate-700">
-                    <h3 class="text-xs font-black uppercase text-slate-400 mb-4">Resumo Consolidado</h3>
-                    <div class="space-y-4">
-                        <div class="flex justify-between border-b border-slate-700 pb-2"><span class="text-slate-400">Total Recebido (Caixa):</span> <span id="rel_recebido" class="font-bold text-emerald-400">R$ 0,00</span></div>
-                        <div class="flex justify-between border-b border-slate-700 pb-2"><span class="text-slate-400">Total de Despesas/Saídas:</span> <span id="rel_saida" class="font-bold text-red-400">R$ 0,00</span></div>
-                        <div class="flex justify-between border-b border-slate-700 pb-2"><span class="text-slate-400">Novos Empréstimos Realizados:</span> <span id="rel_emprestado" class="font-bold text-blue-400">R$ 0,00</span></div>
-                        <div class="flex justify-between pt-2"><span class="text-white font-black">LUCRO LÍQUIDO DO PERÍODO:</span> <span id="rel_liquido" class="font-black text-white text-lg">R$ 0,00</span></div>
-                    </div>
+            <!-- 🚨 TABELA EXTRATO BANCÁRIO DETALHADO -->
+            <div class="glass-card rounded-3xl overflow-hidden border border-slate-700 mt-6">
+                <h3 class="text-xs font-black uppercase text-white p-6 bg-slate-800/80 border-b border-slate-700">Fluxo Detalhado (Livro-Razão)</h3>
+                <div class="max-h-[500px] overflow-y-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-900/90 text-[10px] uppercase font-black text-slate-500 sticky top-0">
+                            <tr>
+                                <th class="px-6 py-3">Data/Hora</th>
+                                <th class="px-6 py-3">Entidade (Cliente / Saída)</th>
+                                <th class="px-6 py-3">Evento Registado</th>
+                                <th class="px-6 py-3">Detalhes</th>
+                                <th class="px-6 py-3 text-right">Impacto no Caixa (R$)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lista-relatorio-detalhado" class="divide-y divide-slate-800/50">
+                            <!-- JS -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
 
         <!-- ABA: AUDITORIA / LOGS -->
         <div id="aba-logs" class="aba-content hidden">
-            <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-clock-rotate-left text-orange-500 mr-2"></i> Auditoria de Logs</h2>
+            <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-clock-rotate-left text-orange-500 mr-2"></i> Auditoria de Logs (Nível Sistema)</h2>
             <div class="glass-card rounded-3xl overflow-hidden border border-slate-700">
                 <div class="max-h-[70vh] overflow-y-auto">
                     <table class="w-full text-left text-xs">
@@ -485,9 +480,41 @@
             <div class="glass-card rounded-3xl overflow-hidden border border-slate-700">
                 <table class="w-full text-left text-sm">
                     <thead class="bg-slate-800/50 text-xs uppercase font-black text-slate-400 tracking-wider">
-                        <tr><th class="px-6 py-4">CPF Bloqueado</th><th class="px-6 py-4">Motivo / Detalhes</th><th class="px-6 py-4">Data Inclusão</th><th class="px-6 py-4 text-center">Ação</th></tr>
+                        <tr>
+                            <th class="px-6 py-4">CPF Bloqueado</th>
+                            <th class="px-6 py-4">Motivo / Detalhes</th>
+                            <th class="px-6 py-4">Data Inclusão</th>
+                            <th class="px-6 py-4 text-center">Ação</th>
+                        </tr>
                     </thead>
                     <tbody id="lista-negra-body" class="divide-y divide-slate-800">
+                        <!-- JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ABA: PROMOTORES / RANKING -->
+        <div id="aba-ranking" class="aba-content hidden">
+            <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-handshake text-purple-500 mr-2"></i> Gestão de Promotores</h2>
+            <div class="glass-card p-6 rounded-3xl border border-slate-700 max-w-2xl mb-6">
+                <h3 class="text-xs font-black uppercase text-slate-400 mb-4">Adicionar Novo Promotor</h3>
+                <div class="flex gap-4">
+                    <input type="text" id="promo_nome" placeholder="Nome do Promotor" class="input-dark w-1/2">
+                    <input type="text" id="promo_cpf" placeholder="CPF do Promotor" class="input-dark w-1/3">
+                    <button onclick="adicionarPromotor()" class="bg-purple-600 hover:bg-purple-500 text-white font-bold px-6 py-2 rounded-xl">Adicionar</button>
+                </div>
+            </div>
+            <div class="glass-card rounded-3xl overflow-hidden border border-slate-700">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-800/50 text-xs uppercase font-black text-slate-400 tracking-wider">
+                        <tr>
+                            <th class="px-6 py-4">Promotor</th>
+                            <th class="px-6 py-4">CPF (Código)</th>
+                            <th class="px-6 py-4">Data Início</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lista-promotores" class="divide-y divide-slate-800">
                         <!-- JS -->
                     </tbody>
                 </table>
@@ -503,7 +530,7 @@
                     <h3 class="text-xs font-black uppercase text-blue-400 mb-2 border-b border-slate-700 pb-2">Controlo do Cofre (Capital da Empresa)</h3>
                     <div class="mb-4">
                         <label class="text-[10px] font-black uppercase text-emerald-500 ml-2">Tamanho do Caixa Geral (R$)</label>
-                        <input type="number" id="conf_caixa_total" class="input-dark mt-1 border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.1)]" placeholder="Ex: 50000">
+                        <input type="number" id="conf_caixa_total" class="input-dark mt-1 border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.1)]" placeholder="Ex: 50000" min="0">
                         <p class="text-[9px] text-slate-500 mt-1 ml-2">Este valor será usado para calcular o quanto tem disponível para emprestar no Dashboard.</p>
                     </div>
 
@@ -511,20 +538,20 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Juros Única Parcela (%)</label>
-                            <input type="number" id="conf_juros_unico" class="input-dark mt-1" placeholder="Ex: 30">
+                            <input type="number" id="conf_juros_unico" class="input-dark mt-1" placeholder="Ex: 30" min="0">
                         </div>
                         <div>
                             <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Juros Parcelado (%)</label>
-                            <input type="number" id="conf_juros_parcelado" class="input-dark mt-1" placeholder="Ex: 25">
+                            <input type="number" id="conf_juros_parcelado" class="input-dark mt-1" placeholder="Ex: 25" min="0">
                         </div>
                     </div>
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Multa Diária Atraso (%)</label>
-                        <input type="number" id="conf_multa" class="input-dark mt-1">
+                        <input type="number" id="conf_multa" class="input-dark mt-1" min="0">
                     </div>
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Valor Mínimo para Crédito (R$)</label>
-                        <input type="number" id="conf_minimo" class="input-dark mt-1" placeholder="Ex: 500">
+                        <input type="number" id="conf_minimo" class="input-dark mt-1" placeholder="Ex: 500" min="0">
                     </div>
                     <button onclick="salvarConfig()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase py-3 rounded-xl shadow-lg mt-4"><i class="fa-solid fa-save mr-2"></i> Guardar Alterações</button>
                 </div>
@@ -533,10 +560,10 @@
 
     </main>
 
-    <!-- MODAIS -->
+    <!-- MODAIS DE OPERAÇÃO DA EQUIPA -->
 
-    <!-- Modal: Documentos Completos e Contra-Proposta -->
-    <div id="modalDocumentos" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <!-- Modal: Documentos e Aprovação -->
+    <div id="modalDocumentos" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
         <div class="glass-card w-full max-w-6xl max-h-[95vh] overflow-y-auto rounded-3xl border border-slate-700 p-8 relative">
             <button onclick="fecharModal('modalDocumentos')" class="absolute top-6 right-6 text-slate-400 hover:text-white text-2xl"><i class="fa-solid fa-xmark"></i></button>
             
@@ -552,13 +579,13 @@
                 </div>
             </div>
 
-            <!-- Grade de 5 Fotos -->
+            <!-- Grade de Fotos -->
             <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-                <div class="space-y-2"><p class="text-[10px] font-black uppercase text-center text-slate-400">Selfie</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgSelfie" class="w-full h-32 object-contain cursor-pointer transition-colors" onclick="zoomImg(this.src)"></div></div>
-                <div class="space-y-2"><p class="text-[10px] font-black uppercase text-center text-slate-400">Doc. Frente</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgFrente" class="w-full h-32 object-contain cursor-pointer transition-colors" onclick="zoomImg(this.src)"></div></div>
-                <div class="space-y-2"><p class="text-[10px] font-black uppercase text-center text-slate-400">Doc. Verso</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgVerso" class="w-full h-32 object-contain cursor-pointer transition-colors" onclick="zoomImg(this.src)"></div></div>
-                <div class="space-y-2"><p class="text-[10px] font-black uppercase text-center text-slate-400">Residência</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgResidencia" class="w-full h-32 object-contain cursor-pointer transition-colors" onclick="zoomImg(this.src)"></div></div>
-                <div class="space-y-2 col-span-2 md:col-span-1"><p class="text-[10px] font-black uppercase text-center text-slate-400">Fachada Casa</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgCasa" class="w-full h-32 object-contain cursor-pointer transition-colors" onclick="zoomImg(this.src)"></div></div>
+                <div class="space-y-2"><p class="text-[10px] font-black uppercase text-center text-slate-400">Selfie</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgSelfie" class="w-full h-32 object-contain cursor-pointer transition-colors" onerror="this.src='https://via.placeholder.com/300x200?text=Erro+na+Foto'" onclick="zoomImg(this.src)"></div></div>
+                <div class="space-y-2"><p class="text-[10px] font-black uppercase text-center text-slate-400">Doc. Frente</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgFrente" class="w-full h-32 object-contain cursor-pointer transition-colors" onerror="this.src='https://via.placeholder.com/300x200?text=Erro+na+Foto'" onclick="zoomImg(this.src)"></div></div>
+                <div class="space-y-2"><p class="text-[10px] font-black uppercase text-center text-slate-400">Doc. Verso</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgVerso" class="w-full h-32 object-contain cursor-pointer transition-colors" onerror="this.src='https://via.placeholder.com/300x200?text=Erro+na+Foto'" onclick="zoomImg(this.src)"></div></div>
+                <div class="space-y-2"><p class="text-[10px] font-black uppercase text-center text-slate-400">Residência</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgResidencia" class="w-full h-32 object-contain cursor-pointer transition-colors" onerror="this.src='https://via.placeholder.com/300x200?text=Erro+na+Foto'" onclick="zoomImg(this.src)"></div></div>
+                <div class="space-y-2 col-span-2 md:col-span-1"><p class="text-[10px] font-black uppercase text-center text-slate-400">Fachada Casa</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgCasa" class="w-full h-32 object-contain cursor-pointer transition-colors" onerror="this.src='https://via.placeholder.com/300x200?text=Erro+na+Foto'" onclick="zoomImg(this.src)"></div></div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -585,14 +612,20 @@
                 <div class="bg-slate-900/50 p-5 rounded-2xl border border-slate-700 flex flex-col justify-between" id="box-simulador-cp">
                     <h3 class="text-[10px] font-black uppercase text-emerald-400 mb-3 border-b border-slate-700 pb-2">Simulador & Contra-Proposta</h3>
                     
+                    <!-- 🚨 FLAG PARA DINHEIRO NA APROVAÇÃO -->
+                    <label class="flex items-center gap-2 cursor-pointer bg-slate-800 px-3 py-2 rounded-lg mb-3 border border-slate-600">
+                        <input type="checkbox" id="docApenasDinheiro" class="w-4 h-4 accent-emerald-500">
+                        <span class="text-[9px] font-black uppercase text-emerald-400">Apenas Dinheiro Físico (S/ Link PIX)</span>
+                    </label>
+
                     <div class="grid grid-cols-2 gap-3 mb-3">
                         <div>
                             <label class="text-[9px] font-black uppercase text-slate-500 block mb-1">Valor Aprovado (R$)</label>
-                            <input type="number" id="docNovoValor" class="input-dark text-sm font-bold text-emerald-400" oninput="recalcularSimulacao()">
+                            <input type="number" id="docNovoValor" class="input-dark text-sm font-bold text-emerald-400" min="0" oninput="if(this.value<0)this.value=0; recalcularSimulacaoDoc()">
                         </div>
                         <div>
                             <label class="text-[9px] font-black uppercase text-slate-500 block mb-1">Juros Base (%)</label>
-                            <input type="number" id="docJuros" class="input-dark text-sm font-bold" oninput="recalcularSimulacao()">
+                            <input type="number" id="docJuros" class="input-dark text-sm font-bold" min="0" oninput="if(this.value<0)this.value=0; recalcularSimulacaoDoc()">
                         </div>
                         <div>
                             <label class="text-[9px] font-black uppercase text-slate-500 block mb-1">Frequência</label>
@@ -603,7 +636,7 @@
                         </div>
                         <div>
                             <label class="text-[9px] font-black uppercase text-slate-500 block mb-1">Nº Parcelas</label>
-                            <input type="number" id="docNovasParcelas" class="input-dark text-sm font-bold" min="1" oninput="recalcularSimulacao()">
+                            <input type="number" id="docNovasParcelas" class="input-dark text-sm font-bold" min="1" oninput="recalcularSimulacaoDoc()">
                         </div>
                     </div>
 
@@ -629,71 +662,93 @@
     </div>
 
     <!-- Modal: Imagem Fullscreen -->
-    <div id="modalZoom" class="fixed inset-0 bg-black/95 z-[100] hidden flex items-center justify-center p-4 cursor-pointer" onclick="this.classList.add('hidden')">
+    <div id="modalZoom" class="fixed inset-0 bg-black/95 z-[200] hidden flex items-center justify-center p-4 cursor-pointer" onclick="this.classList.add('hidden')">
         <img id="zoomSource" src="" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl">
     </div>
 
-    <!-- Modal: Registrar Pagamento -->
+    <!-- Modal: Registrar Pagamento / Terminal -->
     <div id="modalPagamento" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-[150] flex items-center justify-center p-4">
-        <div class="glass-card w-full max-w-3xl max-h-[95vh] overflow-y-auto rounded-3xl border border-slate-700 p-8 relative">
+        <div class="glass-card w-full max-w-4xl max-h-[95vh] overflow-y-auto rounded-3xl border border-slate-700 p-8 relative">
             <button onclick="fecharModal('modalPagamento')" class="absolute top-6 right-6 text-slate-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
-            <h2 class="text-2xl font-black uppercase text-emerald-500 mb-6"><i class="fa-solid fa-cash-register mr-2"></i> Baixa de Pagamento</h2>
+            <h2 class="text-2xl font-black uppercase text-emerald-500 mb-2"><i class="fa-solid fa-cash-register mr-2"></i> Terminal de Recebimento</h2>
+            
+            <div class="mb-6 pb-4 border-b border-slate-700 flex justify-between items-end">
+                <div>
+                    <h3 id="pgtoNome" class="text-xl font-black text-white uppercase tracking-tight">NOME DO CLIENTE</h3>
+                    <p id="pgtoCpf" class="text-xs text-slate-400 font-mono mt-1">CPF: 000</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-[9px] font-black uppercase text-slate-500">Data de Início do Contrato</p>
+                    <p id="pgtoData" class="text-sm font-bold text-white mt-1">--/--/----</p>
+                </div>
+            </div>
             
             <input type="hidden" id="pgtoDevedorId">
             
-            <!-- Resumo do Cliente (Estatísticas) -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
-                    <p class="text-[9px] font-black uppercase text-slate-500">Data Empréstimo</p>
-                    <p id="pgtoData" class="text-sm font-bold text-white mt-1">--/--/----</p>
-                </div>
                 <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
                     <p class="text-[9px] font-black uppercase text-slate-500">Dias em Atraso</p>
                     <p id="pgtoAtraso" class="text-sm font-black text-orange-400 mt-1">0</p>
                 </div>
                 <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                    <p class="text-[9px] font-black uppercase text-slate-500">Capital Original</p>
+                    <p id="pgtoTotalCapital" class="text-sm font-bold text-white mt-1">R$ 0,00</p>
+                </div>
+                <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
                     <p class="text-[9px] font-black uppercase text-slate-500">Total Já Pago</p>
                     <p id="pgtoTotalPago" class="text-sm font-bold text-emerald-400 mt-1">R$ 0,00</p>
                 </div>
-                <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
-                    <p class="text-[9px] font-black uppercase text-slate-500">Saldo Atual</p>
-                    <p id="pgtoSaldo" class="text-sm font-black text-red-400 mt-1">R$ 0,00</p>
+                <div class="bg-slate-900/50 p-4 rounded-xl border border-red-500/20">
+                    <p class="text-[9px] font-black uppercase text-red-400">Dívida Total Atual</p>
+                    <p id="pgtoSaldo" class="text-sm font-black text-red-500 mt-1">R$ 0,00</p>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <!-- Coluna Esquerda: Recebimento -->
                 <div class="space-y-4">
-                    <div>
-                        <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Valor Recebido (R$)</label>
-                        <input type="number" id="pgtoValor" class="input-dark mt-1 font-black text-emerald-400 text-3xl h-16" placeholder="0.00">
-                        <p class="text-[9px] text-slate-500 mt-1 ml-2">Pagamentos menores que a dívida abatem como rolagem/parcial.</p>
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Observações / Histórico</label>
-                        <textarea id="pgtoObs" class="input-dark mt-1 h-28 resize-none text-sm" placeholder="Ex: Pagamento recebido em dinheiro físico. Prometeu quitar o restante amanhã..."></textarea>
+                    <div class="bg-emerald-900/10 border border-emerald-500/20 p-4 rounded-xl">
+                        <label class="text-[10px] font-black uppercase text-emerald-500 block mb-2">Valor Recebido (R$)</label>
+                        <input type="number" id="pgtoValor" class="input-dark font-black text-emerald-400 text-4xl h-20 w-full text-center shadow-inner" placeholder="0.00" min="0" oninput="if(this.value<0)this.value=0;">
+                        
+                        <!-- 🚨 Mostra o Juros como Valor Mínimo para o Gestor -->
+                        <div class="mt-4 p-3 bg-slate-900 rounded-lg border border-slate-800 text-center">
+                            <p class="text-[10px] text-slate-400 uppercase font-bold">Juros/Multas Atuais (Mínimo para Rolagem)</p>
+                            <p id="pgtoMinimoJuros" class="text-lg text-orange-400 font-black mt-1">R$ 0,00</p>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Coluna Direita: Recálculo Dinâmico -->
-                <div class="bg-blue-900/10 border border-blue-500/20 p-5 rounded-2xl space-y-4">
-                    <h3 class="text-[10px] font-black uppercase text-blue-400 mb-2 border-b border-blue-500/20 pb-2"><i class="fa-solid fa-calculator mr-1"></i> Recálculo Pós-Baixa (Opcional)</h3>
+                <!-- Coluna Direita: Regras de Pagamento -->
+                <div class="bg-slate-800/30 border border-slate-700 p-5 rounded-2xl space-y-4">
                     <div>
-                        <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Ajustar Saldo Restante (+/- R$)</label>
-                        <input type="number" id="pgtoAjuste" class="input-dark mt-1 text-sm font-bold" placeholder="Ex: -50 (Desconto) ou 50 (Acréscimo)">
+                        <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Forma de Pagamento</label>
+                        <select id="pgtoForma" class="input-dark mt-1 text-sm font-bold text-white">
+                            <option value="DINHEIRO">Dinheiro Vivo (Espécie)</option>
+                            <option value="CONTA">PIX / Transferência Bancária</option>
+                        </select>
                     </div>
                     <div>
-                        <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Nova Taxa Juros (% / Próxima Cobrança)</label>
-                        <input type="number" id="pgtoNovaTaxa" class="input-dark mt-1 text-sm" placeholder="Ex: 20">
+                        <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Data do Recebimento (Se foi no passado)</label>
+                        <input type="date" id="pgtoDataRecebimento" class="input-dark mt-1 text-sm font-bold text-white">
                     </div>
                     <div>
-                        <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Novo Parcelamento (Qtd Parcelas)</label>
-                        <input type="number" id="pgtoNovoParcelamento" class="input-dark mt-1 text-sm" placeholder="Ex: 2 (Converte para 2x)">
+                        <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Observações (Opcional)</label>
+                        <input type="text" id="pgtoObs" class="input-dark mt-1 text-sm" placeholder="Ex: Deu desconto de R$ 50 no capital...">
+                    </div>
+                    
+                    <div class="pt-2 border-t border-slate-700">
+                        <p class="text-[9px] font-black uppercase text-blue-400 mb-2">Recálculo Manual de Estrutura</p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="number" id="pgtoNovaTaxa" class="input-dark text-xs" placeholder="Nova Taxa (%)">
+                            <input type="number" id="pgtoNovoParcelamento" class="input-dark text-xs" placeholder="Novo nº Parcelas">
+                            <input type="number" id="pgtoAjuste" class="input-dark text-xs col-span-2" placeholder="Ajustar Saldo Restante (+ ou - R$)">
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <button onclick="confirmarPagamento()" id="btnConfirmarBaixa" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-xl font-black uppercase text-sm shadow-lg shadow-emerald-500/20 mt-8 transition-all"><i class="fa-solid fa-check-double mr-2"></i> Confirmar Baixa e Recalcular</button>
+            <button onclick="confirmarPagamento()" id="btnConfirmarBaixa" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-5 rounded-xl font-black uppercase text-sm shadow-lg shadow-emerald-500/20 mt-8 transition-all"><i class="fa-solid fa-check-double mr-2"></i> Confirmar Baixa e Recalcular Contrato</button>
         </div>
     </div>
 
@@ -701,8 +756,16 @@
     <div id="modalEditarContrato" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
         <div class="glass-card w-full max-w-lg rounded-3xl border border-slate-700 p-8 relative">
             <button onclick="fecharModal('modalEditarContrato')" class="absolute top-6 right-6 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-            <h2 class="text-xl font-black uppercase text-blue-500 mb-6"><i class="fa-solid fa-pen-to-square mr-2"></i> Editar Contrato em Aberto</h2>
+            <h2 class="text-xl font-black uppercase text-blue-500 mb-6"><i class="fa-solid fa-pen-to-square mr-2"></i> Editar Contrato</h2>
+            
             <input type="hidden" id="editDevedorId">
+            
+            <!-- 🚨 FLAG PARA DINHEIRO NA EDIÇÃO -->
+            <label class="flex items-center gap-2 cursor-pointer bg-slate-900/50 px-4 py-3 rounded-xl border border-slate-700 hover:border-emerald-500 transition-colors mb-4">
+                <input type="checkbox" id="editApenasDinheiro" class="w-4 h-4 accent-emerald-500 rounded cursor-pointer">
+                <span class="text-[10px] font-black uppercase text-emerald-400">Cliente Paga Só em Dinheiro (Bloqueia Link PIX)</span>
+            </label>
+
             <div class="grid grid-cols-2 gap-4 mb-6">
                 <div>
                     <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Novo Vencimento</label>
@@ -717,28 +780,32 @@
                 </div>
                 <div>
                     <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Capital Original (R$)</label>
-                    <input type="number" id="editCapital" class="input-dark mt-1 font-bold text-white">
+                    <input type="number" id="editCapital" class="input-dark mt-1 font-bold text-white" min="0">
                 </div>
                 <div>
                     <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Saldo Devedor Atual (R$)</label>
-                    <input type="number" id="editTotal" class="input-dark mt-1 font-bold text-red-400">
+                    <input type="number" id="editTotal" class="input-dark mt-1 font-bold text-red-400" min="0">
                 </div>
             </div>
             <button onclick="salvarEdicaoContrato()" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-black uppercase text-sm shadow-lg shadow-blue-500/20">Salvar Alterações</button>
         </div>
     </div>
 
+    <!-- JAVASCRIPT GLOBAL (Descomprimido) -->
     <script>
         const API_BASE = window.location.origin; 
+        
         let solicitacaoAtualId = null;
         let listaDevedoresAtuais = [];
+        let listaSolicitacoesAtuais = [];
+        
         let chartInstanceDash = null;
         let chartInstanceRel = null;
 
         const token = localStorage.getItem('token');
         const headersAuth = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 
-        // 🚨 VACINA 4: Escudo Global de Sessão Zumbi. Se o token morrer, o JS ejeta o gestor instantaneamente.
+        // Proteção de Sessão contra requisições órfãs
         const fetchSeguro = async (url, options = {}) => {
             const response = await fetch(url, options);
             if (response.status === 401 || response.status === 403) {
@@ -762,7 +829,9 @@
             carregarConfig(); 
             try {
                 await fetchSeguro(`${API_BASE}/api/verify-session`, { headers: headersAuth });
-            } catch (error) { console.warn("Servidor offline temporariamente."); }
+            } catch (error) { 
+                console.warn("Servidor offline temporariamente."); 
+            }
         }
 
         function showToast(msg, type = 'success') {
@@ -776,8 +845,10 @@
         function mudarAba(aba) {
             document.querySelectorAll('.aba-content').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('nav button').forEach(el => el.classList.remove('tab-active'));
+            
             document.getElementById(`aba-${aba}`).classList.remove('hidden');
-            document.getElementById(`nav-${aba}`).classList.add('tab-active');
+            const navBtn = document.getElementById(`nav-${aba}`);
+            if (navBtn) navBtn.classList.add('tab-active');
             
             if (aba === 'dashboard') carregarDash();
             if (aba === 'solicitacoes') carregarSoli();
@@ -786,20 +857,103 @@
             if (aba === 'ranking') carregarPromotores();
             if (aba === 'logs') carregarTodosLogs();
             if (aba === 'lista-negra') carregarListaNegra();
-            if (aba === 'relatorios') carregarRelatorios();
+            if (aba === 'relatorios') {
+                carregarRelatorios();
+                carregarDashboard(); // Inicia o dashboard financeiro também
+            }
             if (aba === 'config') carregarConfig();
         }
 
-        function fecharModal(id) { document.getElementById(id).classList.add('hidden'); }
-        function zoomImg(src) { document.getElementById('zoomSource').src = src; document.getElementById('modalZoom').classList.remove('hidden'); }
-        function logout() { localStorage.removeItem('token'); window.location.href = '/login.html'; }
+        function fecharModal(id) { 
+            document.getElementById(id).classList.add('hidden'); 
+        }
+        
+        function zoomImg(src) { 
+            document.getElementById('zoomSource').src = src; 
+            document.getElementById('modalZoom').classList.remove('hidden'); 
+        }
+        
+        function logout() { 
+            localStorage.removeItem('token'); 
+            window.location.href = '/login.html'; 
+        }
 
         // =====================================
-        // DASHBOARD & GRÁFICOS
+        // DASHBOARD FINANCEIRO (DENTRO DE RELATÓRIOS)
+        // =====================================
+        function mudarPeriodoDash() {
+            const val = document.getElementById('dash-periodo').value;
+            const custom = document.getElementById('dash-custom-dates');
+            if (val === 'personalizado') {
+                custom.classList.remove('hidden');
+            } else {
+                custom.classList.add('hidden');
+            }
+        }
+
+        async function carregarDashboard() {
+            const periodo = document.getElementById('dash-periodo').value;
+            let inicio = '';
+            let fim = '';
+            const hoje = new Date();
+
+            if (periodo === 'mes') {
+                inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString();
+                fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0, 23, 59, 59).toISOString();
+            } else if (periodo === 'semestre') {
+                const semestre = Math.floor(hoje.getMonth() / 6);
+                inicio = new Date(hoje.getFullYear(), semestre * 6, 1).toISOString();
+                fim = new Date(hoje.getFullYear(), (semestre + 1) * 6, 0, 23, 59, 59).toISOString();
+            } else if (periodo === 'ano') {
+                inicio = new Date(hoje.getFullYear(), 0, 1).toISOString();
+                fim = new Date(hoje.getFullYear(), 11, 31, 23, 59, 59).toISOString();
+            } else if (periodo === 'personalizado') {
+                inicio = document.getElementById('dash-inicio').value;
+                fim = document.getElementById('dash-fim').value;
+                if (inicio) inicio = new Date(inicio + "T00:00:00").toISOString();
+                if (fim) fim = new Date(fim + "T23:59:59").toISOString();
+            }
+
+            try {
+                // 1. Muda para POST e aponta para o NOVO MOTOR ANALÍTICO que você criou no backend
+                const res = await fetchSeguro(`${API_BASE}/api/relatorio-periodo`, {
+                    method: 'POST',
+                    headers: headersAuth,
+                    body: JSON.stringify({ dataInicio: inicio, dataFim: fim })
+                });
+                
+                if (!res.ok) throw new Error("Erro ao buscar dados do dashboard.");
+                const data = await res.json();
+
+                // 2. Mapeia os dados usando os nomes EXATOS das variáveis do backend
+                document.getElementById('dash-feitos').innerText = data.qtdCadastros || 0;
+                document.getElementById('dash-finalizados').innerText = data.qtdQuitados || 0;
+                
+                const formatarDash = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
+                
+                document.getElementById('dash-emprestado').innerText = formatarDash(data.totalEmprestado || 0);
+                document.getElementById('dash-retorno').innerText = formatarDash(data.totalRecebido || 0);
+                document.getElementById('dash-lucro').innerText = formatarDash(data.lucro || 0);
+                document.getElementById('dash-juros').innerText = formatarDash(data.jurosMensalidade || 0);
+                document.getElementById('dash-multas').innerText = formatarDash(data.jurosAtrasoGerado || 0);
+
+            } catch (error) {
+                console.error('Erro no Dashboard:', error);
+            }
+        }
+
+        // =====================================
+        // DASHBOARD PRINCIPAL
         // =====================================
         async function carregarDash() {
             try {
-                const res = await fetchSeguro(`${API_BASE}/api/dashboard`, { headers: headersAuth });
+                const res = await fetchSeguro(`${API_BASE}/api/dashboard-master`, { headers: headersAuth });
+                
+                if (!res.ok) {
+                    const errObj = await res.json();
+                    throw new Error(errObj.erro || "Falha na base de dados");
+                }
+                
                 const data = await res.json();
                 
                 document.getElementById('dash-receber').innerText = (parseFloat(data.totalAReceber) || 0).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
@@ -812,66 +966,97 @@
                 const resLogs = await fetchSeguro(`${API_BASE}/api/logs-auditoria`, { headers: headersAuth });
                 const logsReais = resLogs.ok ? await resLogs.json() : [];
                 renderizarGraficoDash(logsReais);
-            } catch (e) { console.error("Erro Dash", e); }
+            } catch (e) { 
+                console.error("Erro Dash", e); 
+                if(e.message.includes('obter_resumo_dashboard') || e.message.includes('SQL')) {
+                    showToast("ATENÇÃO: Execute o script SQL no Supabase para ativar o Dashboard!", "error");
+                } else {
+                    showToast("Erro ao carregar Dashboard.", "error");
+                }
+            }
         }
 
         function renderizarGraficoDash(logs) {
-            const ultimos7Dias = []; const labels = []; const hoje = new Date(); hoje.setHours(0,0,0,0);
+            const ultimos7Dias = []; 
+            const labels = []; 
+            const hoje = new Date(); 
+            hoje.setHours(0,0,0,0);
+            
             for (let i = 6; i >= 0; i--) {
-                const d = new Date(hoje); d.setDate(d.getDate() - i);
+                const d = new Date(hoje); 
+                d.setDate(d.getDate() - i);
                 labels.push(d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', ''));
+                
                 const somaDia = logs.filter(l => {
                     const dataLog = new Date(l.created_at);
-                    return dataLog.getDate() === d.getDate() && dataLog.getMonth() === d.getMonth() && parseFloat(l.valor_fluxo) > 0;
+                    return dataLog.getDate() === d.getDate() && dataLog.getMonth() === d.getMonth() && parseFloat(l.valor_fluxo) > 0 && l.evento !== 'SAÍDA DE CAIXA';
                 }).reduce((acc, l) => acc + parseFloat(l.valor_fluxo), 0);
+                
                 ultimos7Dias.push(somaDia);
             }
+            
             const ctx = document.getElementById('graficoDashboard').getContext('2d');
             if (chartInstanceDash) chartInstanceDash.destroy();
             chartInstanceDash = new Chart(ctx, {
-                type: 'line', data: { labels: labels, datasets: [{ label: 'Entradas de Caixa (R$)', data: ultimos7Dias, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.2)', borderWidth: 2, tension: 0.4, fill: true }] },
+                type: 'line', 
+                data: { 
+                    labels: labels, 
+                    datasets: [{ 
+                        label: 'Entradas de Caixa (R$)', 
+                        data: ultimos7Dias, 
+                        borderColor: '#3b82f6', 
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)', 
+                        borderWidth: 2, 
+                        tension: 0.4, 
+                        fill: true 
+                    }] 
+                },
                 options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { color: 'rgba(255,255,255,0.05)' } } } }
             });
         }
 
         // =====================================
-        // SOLICITAÇÕES E DOCUMENTOS
+        // SOLICITAÇÕES (Fila de Entrada)
         // =====================================
         async function carregarSoli() {
             try {
                 const res = await fetchSeguro(`${API_BASE}/api/solicitacoes-pendentes?t=${Date.now()}`, { headers: headersAuth });
-                const lista = await res.json();
+                listaSolicitacoesAtuais = await res.json(); 
+                
                 const tbody = document.getElementById('lista-solicitacoes');
                 tbody.innerHTML = '';
-                lista.forEach(s => {
+                
+                listaSolicitacoesAtuais.forEach(s => {
                     const valor = parseFloat(s.valor) || 0;
                     tbody.innerHTML += `
-                        <tr id="tr-soli-${s.id}" class="hover:bg-slate-800/50 transition-colors">
+                        <tr id="tr-soli-${s.id}" class="hover:bg-slate-800/50 transition-colors border-b border-slate-800/50">
                             <td class="px-6 py-4 font-bold text-white">${escapeHTML(s.nome)}</td>
                             <td class="px-6 py-4 font-mono text-slate-400">${escapeHTML(s.cpf)}</td>
                             <td class="px-6 py-4 text-emerald-400 font-bold">${valor.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</td>
-                            <td class="px-6 py-4 text-slate-300 text-xs">${escapeHTML(s.tipo_plano)}</td>
+                            <td class="px-6 py-4 text-slate-300 text-xs uppercase">${escapeHTML(s.tipo_plano)}</td>
                             <td class="px-6 py-4 text-slate-500 text-xs">${new Date(s.created_at).toLocaleDateString()}</td>
                             <td class="px-6 py-4 text-center">
-                                <button onclick='abrirDocumentos(${JSON.stringify(s).replace(/'/g, "&#39;")})' class="bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors">Ver Documentos</button>
+                                <button onclick="abrirDocumentos('${s.id}')" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors shadow-lg">Ver Ficha</button>
                             </td>
                         </tr>
                     `;
                 });
-            } catch(e) {}
+            } catch(e) {
+                showToast("Falha ao puxar novas solicitações.", "error");
+            }
         }
 
         function atualizarContraPropostaFreq() {
             const freq = document.getElementById('docNovaFreq').value;
             const inputParc = document.getElementById('docNovasParcelas');
-            if(freq === 'MENSAL' || freq === 'SEMANAL') {
+            if (freq === 'MENSAL' || freq === 'SEMANAL') {
                 inputParc.min = "2";
                 if(parseInt(inputParc.value) < 2) inputParc.value = "2";
             }
-            recalcularSimulacao();
+            recalcularSimulacaoDoc();
         }
 
-        function recalcularSimulacao() {
+        function recalcularSimulacaoDoc() {
             const valor = parseFloat(document.getElementById('docNovoValor').value) || 0;
             const jurosBase = parseFloat(document.getElementById('docJuros').value) || 0;
             const parcelas = parseInt(document.getElementById('docNovasParcelas').value) || 1;
@@ -884,7 +1069,10 @@
             document.getElementById('calcParcela').innerText = valorParcela.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
         }
 
-        function abrirDocumentos(s) {
+        function abrirDocumentos(idSolicitacao) {
+            const s = listaSolicitacoesAtuais.find(x => x.id === idSolicitacao);
+            if (!s) return;
+            
             solicitacaoAtualId = s.id;
             document.getElementById('docNomeCliente').textContent = s.nome;
             document.getElementById('docCpf').textContent = s.cpf;
@@ -904,6 +1092,9 @@
             document.getElementById('docObs').value = s.observacoes || "";
             document.getElementById('docObs').readOnly = false; 
 
+            // Reseta a checkbox de dinheiro físico
+            document.getElementById('docApenasDinheiro').checked = false;
+
             document.getElementById('docNovoValor').dataset.original = valor;
             document.getElementById('docJuros').dataset.original = jurosPadrao;
             document.getElementById('docNovaFreq').dataset.original = s.frequencia || 'MENSAL';
@@ -914,9 +1105,9 @@
             document.getElementById('docNovasParcelas').value = qtdParcelas;
             document.getElementById('docJuros').value = jurosPadrao;
 
-            if(qtdParcelas > 1) document.getElementById('docNovasParcelas').min = "2";
+            if (qtdParcelas > 1) document.getElementById('docNovasParcelas').min = "2";
 
-            recalcularSimulacao();
+            recalcularSimulacaoDoc();
 
             const p = "https://via.placeholder.com/300x200?text=Sem+Foto";
             document.getElementById('imgSelfie').src = s.url_selfie || p;
@@ -926,39 +1117,6 @@
             document.getElementById('imgCasa').src = s.url_casa || p;
 
             document.getElementById('box-simulador-cp').classList.remove('hidden');
-            document.getElementById('modalDocumentos').classList.remove('hidden');
-        }
-
-        function abrirDossieCliente() {
-            if(!window.clienteAtualExtrato) return showToast("Selecione um cliente primeiro.", "error");
-            const c = window.clienteAtualExtrato;
-            
-            document.getElementById('docNomeCliente').textContent = c.nome;
-            document.getElementById('docCpf').textContent = c.cpf;
-            document.getElementById('docData').innerText = new Date(c.created_at).toLocaleString();
-            
-            const valor = parseFloat(c.valor_emprestado) || 0;
-            document.getElementById('docValor').innerText = valor.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
-            document.getElementById('docZap').textContent = c.telefone || 'Não informado';
-            document.getElementById('docPlano').textContent = `${c.tipo_plano || 'N/A'} / ${c.frequencia} / ${c.qtd_parcelas || 1}x`;
-            document.getElementById('docIndicacao').textContent = c.indicado_por || 'DIRETO';
-            document.getElementById('docRef1').textContent = `${c.referencia1_nome || 'N/A'} - ${c.referencia1_tel || ''}`;
-            document.getElementById('docRef2').textContent = `${c.referencia2_nome || 'N/A'} - ${c.referencia2_tel || ''}`;
-            
-            document.getElementById('docObs').value = c.observacoes || "Nenhuma observação registada na proposta original.";
-            document.getElementById('docObs').readOnly = true; 
-
-            const p = "https://via.placeholder.com/300x200?text=Sem+Foto";
-            document.getElementById('imgSelfie').src = c.url_selfie || p;
-            document.getElementById('imgFrente').src = c.url_frente || p; 
-            document.getElementById('imgVerso').src = c.url_verso || p;
-            document.getElementById('imgResidencia').src = c.url_residencia || p;
-            document.getElementById('imgCasa').src = c.url_casa || p;
-
-            document.getElementById('docNumContrato').classList.remove('hidden');
-            document.getElementById('docNumContrato').innerHTML = `Contrato ID: <span class="text-white">${c.uuid || c.id}</span>`;
-
-            document.getElementById('box-simulador-cp').classList.add('hidden');
             document.getElementById('modalDocumentos').classList.remove('hidden');
         }
 
@@ -984,19 +1142,25 @@
             }
 
             const obs = document.getElementById('docObs').value;
+            const cobrarDinheiro = document.getElementById('docApenasDinheiro').checked;
 
             try {
                 const res = await fetchSeguro(`${API_BASE}/api/aprovar-solicitacao`, {
                     method: 'POST', headers: headersAuth,
                     body: JSON.stringify({ 
-                        id: solicitacaoAtualId, juros: parseFloat(juros), observacao: obs,
-                        novoValor: parseFloat(novoValor), novaFreq: novaFreq, novasParcelas: parseInt(novasParcelas)
+                        id: solicitacaoAtualId, 
+                        juros: parseFloat(juros), 
+                        observacao: obs,
+                        novoValor: parseFloat(novoValor), 
+                        novaFreq: novaFreq, 
+                        novasParcelas: parseInt(novasParcelas),
+                        cobrarSoEmDinheiro: cobrarDinheiro
                     })
                 });
                 
                 const data = await res.json();
                 
-                if(res.ok) { 
+                if (res.ok) { 
                     showToast(isContraProposta ? "Contra-Proposta enviada ao cliente!" : "Proposta aprovada com sucesso!"); 
                     const tr = document.getElementById(`tr-soli-${solicitacaoAtualId}`);
                     if(tr) tr.remove();
@@ -1006,11 +1170,16 @@
                 } else {
                     throw new Error(data.erro || "Erro interno do servidor.");
                 }
-            } catch(e) { showToast(e.message, "error"); } finally { btn.innerHTML = btnOriginalText; btn.disabled = false; }
+            } catch(e) { 
+                showToast(e.message, "error"); 
+            } finally { 
+                btn.innerHTML = btnOriginalText; 
+                btn.disabled = false; 
+            }
         }
 
         async function rejeitarSolicitacao() {
-            if(!confirm("Tem certeza que deseja rejeitar esta solicitação?")) return;
+            if (!confirm("Tem certeza que deseja rejeitar esta solicitação? A ação é irreversível.")) return;
             const obs = document.getElementById('docObs').value;
             try {
                 const res = await fetchSeguro(`${API_BASE}/api/rejeitar-solicitacao`, {
@@ -1018,16 +1187,21 @@
                     body: JSON.stringify({ id: solicitacaoAtualId, motivo: obs })
                 });
                 if(res.ok) { 
-                    showToast("Solicitação Rejeitada."); 
+                    showToast("Ficha Rejeitada e Arquivada."); 
                     const tr = document.getElementById(`tr-soli-${solicitacaoAtualId}`);
                     if(tr) tr.remove();
                     fecharModal('modalDocumentos'); 
+                } else {
+                    const err = await res.json();
+                    showToast(err.erro, "error");
                 }
-            } catch(e) { showToast("Erro ao rejeitar.", "error"); }
+            } catch(e) { 
+                showToast("Erro ao rejeitar.", "error"); 
+            }
         }
 
         // =====================================
-        // COBRANÇA ATIVA E FILTROS INTELIGENTES
+        // COBRANÇA ATIVA E LISTAGEM
         // =====================================
         async function carregarAberto() {
             try {
@@ -1035,63 +1209,6 @@
                 listaDevedoresAtuais = await res.json();
                 filtrarAberto(); 
             } catch(e) {}
-        }
-
-        function renderizarAberto(lista) {
-            const tbody = document.getElementById('lista-aberto');
-            tbody.innerHTML = '';
-            lista.forEach(d => {
-                const capital = parseFloat(d.valor_emprestado) || 0;
-                const total = parseFloat(d.valor_total) || 0;
-                let dt = new Date(d.data_vencimento + 'T12:00:00Z');
-                let hoje = new Date(); hoje.setHours(0,0,0,0);
-                
-                let badge = "";
-                if (d.status === 'APROVADO_AGUARDANDO_ACEITE') {
-                    badge = '<span class="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-[9px] font-black">ASSINATURA PENDENTE</span>';
-                } else {
-                    badge = dt < hoje ? '<span class="bg-red-500/20 text-red-500 px-2 py-1 rounded text-[9px] font-black">ATRASADO</span>' : '<span class="bg-emerald-500/20 text-emerald-500 px-2 py-1 rounded text-[9px] font-black">EM DIA</span>';
-                }
-
-                tbody.innerHTML += `
-                    <tr class="hover:bg-slate-800/30 transition-colors border-b border-slate-800/50">
-                        <td class="px-6 py-4"><p class="font-bold text-white text-xs">${escapeHTML(d.nome)}</p><p class="text-[9px] font-mono text-slate-500">${escapeHTML(d.cpf)}</p></td>
-                        <td class="px-6 py-4 text-xs text-slate-300 font-bold">${dt.toLocaleDateString('pt-BR')}</td>
-                        <td class="px-6 py-4 text-xs text-slate-400">${capital.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</td>
-                        <td class="px-6 py-4 text-sm font-black text-red-400">${total.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</td>
-                        <td class="px-6 py-4">${badge}</td>
-                        <td class="px-6 py-4 text-center relative">
-                            <button onclick="toggleDropdown('menu-${d.id}', this)" class="text-slate-400 hover:text-white p-2 rounded hover:bg-slate-700 transition-colors"><i class="fa-solid fa-ellipsis-vertical"></i></button>
-                            <div id="menu-${d.id}" class="dropdown-menu absolute right-8 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-[60]">
-                                <button onclick="prepararPagamento('${d.id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-emerald-400"><i class="fa-solid fa-money-bill-wave mr-2"></i> Receber Pgto</button>
-                                <button onclick="enviarCobrancaManual('${d.id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-green-400"><i class="fa-solid fa-paper-plane mr-2"></i> Enviar Link Pgto</button>
-                                <button onclick='abrirEdicaoContrato(${JSON.stringify(d).replace(/'/g, "&#39;")})' class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-orange-400"><i class="fa-solid fa-pen-to-square mr-2"></i> Editar Contrato</button>
-                                <button onclick="abrirExtratoListagem('${d.cpf}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-blue-400"><i class="fa-solid fa-file-invoice mr-2"></i> Ver Extrato</button>
-                                <button onclick="window.open('https://wa.me/55${(d.telefone||'').replace(/\D/g,'')}', '_blank')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-slate-300"><i class="fa-brands fa-whatsapp mr-2"></i> WhatsApp</button>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        document.addEventListener('click', function(e) {
-            if (!e.target.closest('.relative')) document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
-        });
-
-        function toggleDropdown(id, btnElement) {
-            document.querySelectorAll('.dropdown-menu').forEach(m => { if(m.id !== id) m.classList.remove('show') });
-            const menu = document.getElementById(id);
-            menu.classList.toggle('show');
-            if (menu.classList.contains('show')) {
-                const rect = btnElement.getBoundingClientRect();
-                const menuHeight = 220; 
-                if (rect.bottom + menuHeight > window.innerHeight) {
-                    menu.style.top = 'auto'; menu.style.bottom = '100%'; menu.style.marginBottom = '5px';
-                } else {
-                    menu.style.bottom = 'auto'; menu.style.top = '100%'; menu.style.marginTop = '5px';
-                }
-            }
         }
 
         let filtroStatusAberto = 'TODOS';
@@ -1106,7 +1223,8 @@
 
         function filtrarAberto() {
             const t = document.getElementById('busca-aberto').value.toLowerCase();
-            const hoje = new Date(); hoje.setHours(0,0,0,0);
+            const hoje = new Date(); 
+            hoje.setHours(0,0,0,0);
             
             const filtrados = listaDevedoresAtuais.filter(d => {
                 const matchTexto = d.nome.toLowerCase().includes(t) || d.cpf.includes(t);
@@ -1126,105 +1244,231 @@
 
                 return matchTexto && matchStatus && isNotPreCadastro;
             });
+            
             renderizarAberto(filtrados);
         }
 
-    async function prepararPagamento(id) {
-        document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
-        
-        document.getElementById('pgtoDevedorId').value = id; 
-        document.getElementById('pgtoValor').value = '';
-        document.getElementById('pgtoObs').value = '';
-        document.getElementById('pgtoAjuste').value = '';
-        document.getElementById('pgtoNovaTaxa').value = '';
-        document.getElementById('pgtoNovoParcelamento').value = '';
-
-        document.getElementById('pgtoData').innerText = "A carregar...";
-        document.getElementById('pgtoAtraso').innerText = "...";
-        document.getElementById('pgtoTotalPago').innerText = "...";
-        document.getElementById('pgtoSaldo').innerText = "...";
-
-        document.getElementById('modalPagamento').classList.remove('hidden');
-
-        try {
-            const res = await fetchSeguro(`${API_BASE}/api/estatisticas-pagamento/${id}`, { headers: headersAuth });
-            if(res.ok) {
-                const data = await res.json();
-                
-                document.getElementById('pgtoData').innerText = new Date(data.data_emprestimo).toLocaleDateString('pt-BR');
-                document.getElementById('pgtoAtraso').innerText = data.dias_atraso > 0 ? `${data.dias_atraso} Dias` : 'Em Dia';
-                document.getElementById('pgtoAtraso').className = data.dias_atraso > 0 ? "text-sm font-black text-red-500 mt-1" : "text-sm font-black text-emerald-500 mt-1";
-                
-                document.getElementById('pgtoTotalPago').innerText = (parseFloat(data.total_pago) || 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
-                document.getElementById('pgtoSaldo').innerText = (parseFloat(data.saldo_atual) || 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
-            }
-        } catch(e) {
-            console.error("Erro ao carregar estatísticas do cliente", e);
-        }
-    }
-
-    async function confirmarPagamento() {
-        const id = document.getElementById('pgtoDevedorId').value;
-        const v = parseFloat(document.getElementById('pgtoValor').value);
-        if(!v && v !== 0 && !document.getElementById('pgtoAjuste').value && !document.getElementById('pgtoNovaTaxa').value) return showToast("Informe valores para processar", "error");
-        
-        const obs = document.getElementById('pgtoObs').value;
-        const ajuste = document.getElementById('pgtoAjuste').value;
-        const taxa = document.getElementById('pgtoNovaTaxa').value;
-        const parcelas = document.getElementById('pgtoNovoParcelamento').value;
-
-        const btn = document.getElementById('btnConfirmarBaixa');
-        const oldText = btn.innerHTML;
-        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Processando Baixa...`;
-        btn.disabled = true;
-
-        try {
-            const res = await fetchSeguro(`${API_BASE}/api/baixar-manual`, { 
-                method: 'POST', 
-                headers: headersAuth, 
-                body: JSON.stringify({ 
-                    id, 
-                    valorPago: v || 0,
-                    observacoes: obs,
-                    recalculoAjuste: ajuste,
-                    recalculoTaxa: taxa,
-                    recalculoParcelas: parcelas
-                }) 
-            });
+        function renderizarAberto(lista) {
+            const tbody = document.getElementById('lista-aberto');
+            tbody.innerHTML = '';
             
-            if(res.ok) { 
-                showToast("Pagamento Registrado e Dívida Recalculada!"); 
-                fecharModal('modalPagamento'); 
-                carregarAberto(); 
-                carregarDash(); 
-            } else {
-                const errorData = await res.json();
-                throw new Error(errorData.erro || "Erro na baixa");
+            const LIMIT_UI = 150; // Limite DOM
+            const listaVisual = lista.slice(0, LIMIT_UI);
+
+            listaVisual.forEach(d => {
+                const capital = parseFloat(d.valor_emprestado) || 0;
+                const total = parseFloat(d.valor_total) || 0;
+                let dt = new Date(d.data_vencimento + 'T12:00:00Z');
+                let hoje = new Date(); hoje.setHours(0,0,0,0);
+                
+                let badge = "";
+                if (d.status === 'APROVADO_AGUARDANDO_ACEITE') {
+                    badge = '<span class="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-[9px] font-black">ASSINATURA PENDENTE</span>';
+                } else {
+                    badge = dt < hoje ? '<span class="bg-red-500/20 text-red-500 px-2 py-1 rounded text-[9px] font-black">ATRASADO</span>' : '<span class="bg-emerald-500/20 text-emerald-500 px-2 py-1 rounded text-[9px] font-black">EM DIA</span>';
+                }
+
+                // Tag visual para clientes que só pagam em dinheiro físico
+                let tagDinheiro = d.cobrar_so_em_dinheiro ? '<i class="fa-solid fa-money-bill-1 text-emerald-500 ml-2" title="Paga só em dinheiro"></i>' : '';
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-800/30 transition-colors border-b border-slate-800/50">
+                        <td class="px-6 py-4">
+                            <p class="font-bold text-white text-xs flex items-center">${escapeHTML(d.nome)} ${tagDinheiro}</p>
+                            <p class="text-[9px] font-mono text-slate-500">${escapeHTML(d.cpf)}</p>
+                        </td>
+                        <td class="px-6 py-4 text-xs text-slate-300 font-bold">${dt.toLocaleDateString('pt-BR')}</td>
+                        <td class="px-6 py-4 text-xs text-slate-400">${capital.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</td>
+                        <td class="px-6 py-4 text-sm font-black text-red-400">${total.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</td>
+                        <td class="px-6 py-4">${badge}</td>
+                        <td class="px-6 py-4 text-center relative">
+                            <button onclick="toggleDropdown('menu-${d.id}', this)" class="text-slate-400 hover:text-white p-2 rounded hover:bg-slate-700 transition-colors"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+                            <div id="menu-${d.id}" class="dropdown-menu absolute right-8 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-[60]">
+                                <button onclick="prepararPagamento('${d.id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-emerald-400"><i class="fa-solid fa-money-bill-wave mr-2"></i> Receber Pgto</button>
+                                <button onclick="enviarCobrancaManual('${d.id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-green-400"><i class="fa-solid fa-paper-plane mr-2"></i> Enviar Cobrança</button>
+                                <button onclick="abrirEdicaoContrato('${d.id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-orange-400"><i class="fa-solid fa-pen-to-square mr-2"></i> Editar Contrato</button>
+                                <button onclick="abrirExtratoListagem('${d.cpf}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-blue-400"><i class="fa-solid fa-file-invoice mr-2"></i> Ver Extrato</button>
+                                <button onclick="window.open('https://wa.me/55${(d.telefone||'').replace(/\D/g,'')}', '_blank')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-slate-300"><i class="fa-brands fa-whatsapp mr-2"></i> WhatsApp</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            if (lista.length > LIMIT_UI) {
+                 tbody.innerHTML += `<tr><td colspan="6" class="text-center py-6 text-xs text-slate-500 font-bold bg-slate-800/20">A mostrar os primeiros ${LIMIT_UI} clientes de ${lista.length}. Use a pesquisa acima para encontrar um específico.</td></tr>`;
             }
-        } catch(e) { 
-            showToast(e.message, "error"); 
-        } finally {
-            btn.innerHTML = oldText;
-            btn.disabled = false;
         }
-    }
 
-    async function enviarCobrancaManual(id) {
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.relative')) {
+                document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+            }
+        });
+
+        function toggleDropdown(id, btnElement) {
+            document.querySelectorAll('.dropdown-menu').forEach(m => { if(m.id !== id) m.classList.remove('show') });
+            const menu = document.getElementById(id);
+            menu.classList.toggle('show');
+            if (menu.classList.contains('show')) {
+                const rect = btnElement.getBoundingClientRect();
+                const menuHeight = 220; 
+                if (rect.bottom + menuHeight > window.innerHeight) {
+                    menu.style.top = 'auto'; menu.style.bottom = '100%'; menu.style.marginBottom = '5px';
+                } else {
+                    menu.style.bottom = 'auto'; menu.style.top = '100%'; menu.style.marginTop = '5px';
+                }
+            }
+        }
+
+        // =====================================
+        // TERMINAL DE RECEBIMENTO (BAIXA MANUAL)
+        // =====================================
+        async function prepararPagamento(idDevedor) {
+            const dev = listaDevedoresAtuais.find(x => String(x.id) === String(idDevedor));
+            if (!dev) return;
+
             document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
-            showToast("A processar envio...", "success");
+            
+            document.getElementById('pgtoDevedorId').value = dev.id; 
+            document.getElementById('pgtoValor').value = '';
+            document.getElementById('pgtoObs').value = '';
+            document.getElementById('pgtoAjuste').value = '';
+            document.getElementById('pgtoNovaTaxa').value = '';
+            document.getElementById('pgtoNovoParcelamento').value = '';
+
+            document.getElementById('pgtoNome').innerText = dev.nome;
+            document.getElementById('pgtoCpf').innerText = dev.cpf;
+            
+            // Auto-preenche a data de recebimento com o dia de hoje (Formato seguro ISO)
+            const brtDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+            document.getElementById('pgtoDataRecebimento').value = brtDateStr;
+
+            // Bloqueia interações antigas de tela
+            document.getElementById('pgtoData').innerText = "A carregar...";
+            document.getElementById('pgtoAtraso').innerText = "...";
+            document.getElementById('pgtoTotalPago').innerText = "...";
+            document.getElementById('pgtoSaldo').innerText = "...";
+
+            document.getElementById('modalPagamento').classList.remove('hidden');
+
             try {
-                const res = await fetchSeguro(`${API_BASE}/api/enviar-cobranca-manual`, { method: 'POST', headers: headersAuth, body: JSON.stringify({ id }) });
-                if(res.ok) showToast("Link de cobrança enviado com sucesso!"); else throw new Error();
-            } catch(e) { showToast("Falha ao enviar a cobrança.", "error"); }
+                const res = await fetchSeguro(`${API_BASE}/api/estatisticas-pagamento/${dev.id}`, { headers: headersAuth });
+                if(res.ok) {
+                    const data = await res.json();
+                    
+                    document.getElementById('pgtoData').innerText = new Date(data.data_emprestimo).toLocaleDateString('pt-BR');
+                    
+                    document.getElementById('pgtoAtraso').innerText = data.dias_atraso > 0 ? `${data.dias_atraso} Dias` : 'Em Dia';
+                    document.getElementById('pgtoAtraso').className = data.dias_atraso > 0 ? "text-sm font-black text-red-500 mt-1" : "text-sm font-black text-emerald-500 mt-1";
+                    
+                    const capitalOri = parseFloat(data.capital_original) || 0;
+                    const saldoAtual = parseFloat(data.saldo_atual) || 0;
+                    
+                    document.getElementById('pgtoTotalCapital').innerText = capitalOri.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+                    document.getElementById('pgtoTotalPago').innerText = (parseFloat(data.total_pago) || 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+                    document.getElementById('pgtoSaldo').innerText = saldoAtual.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+                    
+                    // 🚨 CALCULA O MÍNIMO EXIGIDO (JUROS ACUMULADOS) E MOSTRA AO GESTOR
+                    const jurosAcumulados = Math.max(0, saldoAtual - capitalOri);
+                    document.getElementById('pgtoMinimoJuros').innerText = jurosAcumulados.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+                }
+            } catch(e) {
+                console.error("Erro ao carregar estatísticas do cliente", e);
+            }
         }
 
-        function abrirEdicaoContrato(dev) {
+        async function confirmarPagamento() {
+            const id = document.getElementById('pgtoDevedorId').value;
+            const v = parseFloat(document.getElementById('pgtoValor').value);
+            
+            // Segurança: Impede enviar baixa vazia sem ajuste
+            if (!v && v !== 0 && !document.getElementById('pgtoAjuste').value && !document.getElementById('pgtoNovaTaxa').value) {
+                return showToast("Preencha um valor recebido ou um ajuste de estrutura.", "error");
+            }
+            
+            const obs = document.getElementById('pgtoObs').value;
+            const ajuste = document.getElementById('pgtoAjuste').value;
+            const taxa = document.getElementById('pgtoNovaTaxa').value;
+            const parcelas = document.getElementById('pgtoNovoParcelamento').value;
+            
+            const dataRec = document.getElementById('pgtoDataRecebimento').value;
+            const forma = document.getElementById('pgtoForma').value;
+
+            const btn = document.getElementById('btnConfirmarBaixa');
+            const oldText = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Processando Operação ACID...`;
+            btn.disabled = true;
+
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/baixar-manual`, { 
+                    method: 'POST', 
+                    headers: headersAuth, 
+                    body: JSON.stringify({ 
+                        id, 
+                        valorPago: v || 0,
+                        dataRecebimento: dataRec,
+                        formaPagamento: forma,
+                        observacoes: obs,
+                        recalculoAjuste: ajuste,
+                        recalculoTaxa: taxa,
+                        recalculoParcelas: parcelas
+                    }) 
+                });
+                
+                if(res.ok) { 
+                    showToast("Sucesso! Pagamento Registrado e Dívida Recalculada!"); 
+                    fecharModal('modalPagamento'); 
+                    carregarAberto(); 
+                    carregarDash(); 
+                } else {
+                    const errorData = await res.json();
+                    throw new Error(errorData.erro || "Erro na baixa no servidor");
+                }
+            } catch(e) { 
+                showToast(e.message, "error"); 
+            } finally {
+                btn.innerHTML = oldText;
+                btn.disabled = false;
+            }
+        }
+
+        // =====================================
+        // EDIÇÃO MANUAL E MENSAGENS ZAP
+        // =====================================
+        async function enviarCobrancaManual(idDevedor) {
             document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+            showToast("A engatilhar envio de WhatsApp...", "success");
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/enviar-cobranca-manual`, { 
+                    method: 'POST', 
+                    headers: headersAuth, 
+                    body: JSON.stringify({ id: idDevedor }) 
+                });
+                
+                if(res.ok) {
+                    showToast("Notificação de cobrança entregue com sucesso!"); 
+                } else {
+                    throw new Error("Falha no disparo");
+                }
+            } catch(e) { 
+                showToast("O cliente não recebeu o aviso. Verifique a conexão com o Z-API.", "error"); 
+            }
+        }
+
+        function abrirEdicaoContrato(idDevedor) {
+            const dev = listaDevedoresAtuais.find(x => String(x.id) === String(idDevedor));
+            if (!dev) return;
+            
+            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+            
             document.getElementById('editDevedorId').value = dev.id;
             document.getElementById('editVencimento').value = dev.data_vencimento;
             document.getElementById('editFrequencia').value = dev.frequencia || 'MENSAL';
             document.getElementById('editCapital').value = dev.valor_emprestado;
             document.getElementById('editTotal').value = dev.valor_total;
+            document.getElementById('editApenasDinheiro').checked = dev.cobrar_so_em_dinheiro || false;
+            
             document.getElementById('modalEditarContrato').classList.remove('hidden');
         }
 
@@ -1234,18 +1478,37 @@
             const novaFreq = document.getElementById('editFrequencia').value;
             const novoCap = parseFloat(document.getElementById('editCapital').value);
             const novoTot = parseFloat(document.getElementById('editTotal').value);
+            const apenasDinheiro = document.getElementById('editApenasDinheiro').checked;
 
             try {
                 const res = await fetchSeguro(`${API_BASE}/api/editar-contrato`, { 
-                    method: 'POST', headers: headersAuth, 
-                    body: JSON.stringify({ id, novoVencimento: novoVenc, novoCapital: novoCap, novoTotal: novoTot, novaFrequencia: novaFreq }) 
+                    method: 'POST', 
+                    headers: headersAuth, 
+                    body: JSON.stringify({ 
+                        id, 
+                        novoVencimento: novoVenc, 
+                        novoCapital: novoCap, 
+                        novoTotal: novoTot, 
+                        novaFrequencia: novaFreq,
+                        cobrarSoEmDinheiro: apenasDinheiro
+                    }) 
                 });
-                if(res.ok) { showToast("Contrato atualizado com sucesso!"); fecharModal('modalEditarContrato'); carregarAberto(); }
-            } catch(e) { showToast("Erro ao editar", "error"); }
+                
+                if (res.ok) { 
+                    showToast("Contrato reestruturado e salvo com sucesso!"); 
+                    fecharModal('modalEditarContrato'); 
+                    carregarAberto(); 
+                } else {
+                    const err = await res.json();
+                    throw new Error(err.erro);
+                }
+            } catch(e) { 
+                showToast(e.message || "Erro crasso ao editar contrato", "error"); 
+            }
         }
 
         // =====================================
-        // GESTÃO DE CLIENTES & EXTRATO
+        // EXTRATO E VIDA DO CLIENTE
         // =====================================
         function abrirExtratoListagem(cpf) {
             document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
@@ -1256,7 +1519,11 @@
 
         async function buscarExtrato() {
             const busca = document.getElementById('extrato-busca').value.trim();
-            if(busca.length < 3) return showToast("Digite pelo menos 3 caracteres para buscar", "error");
+            if(busca.length < 3) return showToast("Digite pelo menos 3 caracteres para iniciar varredura", "error");
+            
+            // 🚨 Limpa fantasmas de memória imediatamente
+            document.getElementById('box-extrato').classList.add('hidden');
+            window.clienteAtualExtrato = null;
             
             try {
                 const res = await fetchSeguro(`${API_BASE}/api/cliente-extrato/${encodeURIComponent(busca)}`, { headers: headersAuth });
@@ -1268,7 +1535,6 @@
                 document.getElementById('box-extrato').classList.remove('hidden');
                 document.getElementById('ext_nome').innerText = data.cliente.nome;
                 document.getElementById('ext_cpf').innerText = data.cliente.cpf;
-                document.getElementById('ext_score').innerText = data.cliente.score || 500;
                 
                 const capital = parseFloat(data.cliente.valor_emprestado) || 0;
                 const total = parseFloat(data.cliente.valor_total) || 0;
@@ -1286,22 +1552,23 @@
 
                 const tbody = document.getElementById('lista-extrato-movimentacoes');
                 tbody.innerHTML = '';
+                
                 if(data.logs && data.logs.length > 0) {
                     data.logs.forEach(l => {
                         const val = parseFloat(l.valor_fluxo) || 0;
                         let corValor = val > 0 ? "text-emerald-400" : (val < 0 ? "text-red-400" : "text-slate-500");
                         
-                        if(l.evento.includes('Atraso')) {
+                        if (l.evento.includes('Atraso')) {
                             diasAtrasoVida++;
                         }
                         
-                        if(l.evento.includes('Atraso') || l.evento.includes('Recebimento (Migração)') || l.evento.includes('Rolagem')) {
+                        if (l.evento.includes('Atraso') || l.evento.includes('Recebimento (Migração)') || l.evento.includes('Rolagem')) {
                              const matchMulta = l.detalhes.match(/R\$\s?([\d.,]+)/);
-                             if(matchMulta) {
+                             if (matchMulta) {
                                  const parseMulta = parseFloat(matchMulta[1].replace(',', '.'));
-                                 if(parseMulta) valorMultasPagas += parseMulta;
+                                 if (parseMulta) valorMultasPagas += parseMulta;
                              }
-                             if(val > 0 && l.evento.includes('Migração')) {
+                             if (val > 0 && l.evento.includes('Migração')) {
                                  valorMultasPagas += val; 
                              }
                         }
@@ -1323,172 +1590,65 @@
                 document.getElementById('ext_vida_dias').innerText = diasAtrasoVida;
                 document.getElementById('ext_vida_multas').innerText = valorMultasPagas.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
 
-            } catch(e) { showToast("Nenhum cliente encontrado", "error"); }
+            } catch(e) { 
+                showToast("Dossiê não encontrado no banco de dados.", "error"); 
+            }
+        }
+
+        function abrirDossieCliente() {
+            if (!window.clienteAtualExtrato) return showToast("Ação ilegal. Selecione um cliente primeiro.", "error");
+            const c = window.clienteAtualExtrato;
+            
+            document.getElementById('docNomeCliente').textContent = c.nome;
+            document.getElementById('docCpf').textContent = c.cpf;
+            document.getElementById('docData').innerText = new Date(c.created_at).toLocaleString();
+            
+            const valor = parseFloat(c.valor_emprestado) || 0;
+            document.getElementById('docValor').innerText = valor.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+            document.getElementById('docZap').textContent = c.telefone || 'Não informado';
+            document.getElementById('docPlano').textContent = `${c.tipo_plano || 'N/A'} / ${c.frequencia} / ${c.qtd_parcelas || 1}x`;
+            document.getElementById('docIndicacao').textContent = c.indicado_por || 'DIRETO';
+            document.getElementById('docRef1').textContent = `${c.referencia1_nome || 'N/A'} - ${c.referencia1_tel || ''}`;
+            document.getElementById('docRef2').textContent = `${c.referencia2_nome || 'N/A'} - ${c.referencia2_tel || ''}`;
+            
+            document.getElementById('docObs').value = c.observacoes || "Sem notas iniciais registadas.";
+            document.getElementById('docObs').readOnly = true; 
+
+            const p = "https://via.placeholder.com/300x200?text=Indisponivel";
+            document.getElementById('imgSelfie').src = c.url_selfie || p;
+            document.getElementById('imgFrente').src = c.url_frente || p; 
+            document.getElementById('imgVerso').src = c.url_verso || p;
+            document.getElementById('imgResidencia').src = c.url_residencia || p;
+            document.getElementById('imgCasa').src = c.url_casa || p;
+
+            document.getElementById('docNumContrato').classList.remove('hidden');
+            document.getElementById('docNumContrato').innerHTML = `Selo UUID: <span class="text-white">${c.uuid || c.id}</span>`;
+
+            document.getElementById('box-simulador-cp').classList.add('hidden');
+            document.getElementById('modalDocumentos').classList.remove('hidden');
         }
 
         // =====================================
-        // AUDITORIA (LOGS), LISTA NEGRA E CONFIGURAÇÕES
+        // CADASTRO MANUAL DE DÍVIDAS
         // =====================================
-        async function carregarTodosLogs() {
-            try {
-                const res = await fetchSeguro(`${API_BASE}/api/logs-auditoria`, { headers: headersAuth });
-                if(!res.ok) return;
-                const lista = await res.json();
-                const tbody = document.getElementById('lista-todos-logs');
-                tbody.innerHTML = '';
-                lista.forEach(l => {
-                    const val = parseFloat(l.valor_fluxo) || 0;
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-slate-800/30 border-b border-slate-800/50">
-                            <td class="px-6 py-3 font-mono text-[10px] text-slate-400">${new Date(l.created_at).toLocaleString()}</td>
-                            <td class="px-6 py-3 font-bold text-[10px] text-orange-400">${escapeHTML(l.evento)}</td>
-                            <td class="px-6 py-3 text-[10px] text-slate-300">${escapeHTML(l.detalhes)}</td>
-                            <td class="px-6 py-3 text-right font-black text-slate-300">${val !== 0 ? val.toLocaleString('pt-BR', {style:'currency', currency:'BRL'}) : '-'}</td>
-                        </tr>
-                    `;
-                });
-            } catch(e) {}
-        }
-
-        async function carregarListaNegra() {
-            try {
-                const res = await fetchSeguro(`${API_BASE}/api/lista-negra`, { headers: headersAuth });
-                if(!res.ok) return;
-                const lista = await res.json();
-                const tbody = document.getElementById('lista-negra-body');
-                tbody.innerHTML = '';
-                lista.forEach(l => {
-                    tbody.innerHTML += `<tr class="hover:bg-slate-800/30 border-b border-slate-800/50"><td class="px-6 py-3 font-mono font-bold text-red-400">${escapeHTML(l.cpf)}</td><td class="px-6 py-3 text-xs text-slate-300">${escapeHTML(l.motivo)}</td><td class="px-6 py-3 text-xs text-slate-500">${new Date(l.created_at).toLocaleDateString()}</td><td class="px-6 py-3 text-center"><button onclick="removerListaNegra('${escapeHTML(l.cpf)}')" class="text-[10px] font-bold text-slate-400 hover:text-white uppercase"><i class="fa-solid fa-trash"></i> Remover</button></td></tr>`;
-                });
-            } catch(e) {}
-        }
-
-        async function adicionarListaNegra() {
-            const cpf = document.getElementById('ln_cpf').value.replace(/\D/g, ''); const motivo = document.getElementById('ln_motivo').value;
-            if(cpf.length !== 11 || !motivo) return showToast("CPF e Motivo são obrigatórios", "error");
-            try {
-                const res = await fetchSeguro(`${API_BASE}/api/lista-negra`, { method: 'POST', headers: headersAuth, body: JSON.stringify({ cpf, motivo }) });
-                if(res.ok) { showToast("CPF Bloqueado com sucesso!"); document.getElementById('ln_cpf').value = ''; document.getElementById('ln_motivo').value = ''; carregarListaNegra(); }
-            } catch(e) { showToast("Erro", "error"); }
-        }
-
-        async function removerListaNegra(cpf) {
-            try { const res = await fetchSeguro(`${API_BASE}/api/lista-negra/${cpf}`, { method: 'DELETE', headers: headersAuth }); if(res.ok) { showToast("CPF Desbloqueado"); carregarListaNegra(); } } catch(e) {}
-        }
-
-        function verificarFiltroData() {
-            const val = document.getElementById('filtro-relatorio').value;
-            if (val === 'custom') document.getElementById('datas-customizadas').classList.remove('hidden'); else document.getElementById('datas-customizadas').classList.add('hidden');
-        }
-
-        async function carregarRelatorios() {
-            try {
-                const val = document.getElementById('filtro-relatorio').value;
-                const hoje = new Date(); let dataInicio, dataFim;
-                dataFim = hoje.toISOString().split('T')[0];
-                if(val === 'mes') dataInicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
-                else if(val === 'semana') { const diaSemana = hoje.getDay(); const diff = hoje.getDate() - diaSemana + (diaSemana == 0 ? -6 : 1); dataInicio = new Date(hoje.setDate(diff)).toISOString().split('T')[0]; }
-                else if(val === 'semestre') { const mes = hoje.getMonth(); const inicioMes = mes < 6 ? 0 : 6; dataInicio = new Date(hoje.getFullYear(), inicioMes, 1).toISOString().split('T')[0]; }
-                else if(val === 'ano') dataInicio = new Date(hoje.getFullYear(), 0, 1).toISOString().split('T')[0];
-                else if(val === 'custom') { dataInicio = document.getElementById('data_inicio_rel').value; dataFim = document.getElementById('data_fim_rel').value; if(!dataInicio || !dataFim) return showToast("Preencha as datas de início e fim", "error"); }
-
-                const res = await fetchSeguro(`${API_BASE}/relatorio-periodo`, { method: 'POST', headers: headersAuth, body: JSON.stringify({ dataInicio, dataFim }) });
-                if (!res.ok) throw new Error();
-                const dados = await res.json();
-
-                const entradas = parseFloat(dados.totalRecebido) || 0; const saidas = parseFloat(dados.totalEmprestado) || 0; const emprestado = parseFloat(dados.totalEmprestado) || 0; const liquido = entradas - emprestado;
-
-                document.getElementById('rel_recebido').innerText = entradas.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
-                document.getElementById('rel_saida').innerText = saidas.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
-                document.getElementById('rel_emprestado').innerText = emprestado.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
-                document.getElementById('rel_liquido').innerText = liquido.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
-                document.getElementById('rel_liquido').className = liquido > 0 ? "font-black text-emerald-400 text-lg" : "font-black text-red-400 text-lg";
-
-                const ctx = document.getElementById('graficoRelatorio1').getContext('2d');
-                if(chartInstanceRel) chartInstanceRel.destroy();
-                chartInstanceRel = new Chart(ctx, { type: 'doughnut', data: { labels: ['Recebido', 'Emprestado'], datasets: [{ data: [entradas, emprestado], backgroundColor: ['#10b981', '#3b82f6'], borderWidth: 0 }] }, options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8' } } } } });
-            } catch(e) { showToast("Erro ao carregar relatório.", "error"); }
-        }
-
-        async function carregarConfig() {
-            try {
-                const res = await fetchSeguro(`${API_BASE}/api/config`, { headers: headersAuth });
-                if(!res.ok) return;
-                const confs = await res.json();
-                window.sistemaConfig = { valor_minimo: 500, juros_unico: 30, juros_parcelado: 25 }; 
-                confs.forEach(c => {
-                    if(c.chave === 'juros_unico') { document.getElementById('conf_juros_unico').value = c.valor; window.sistemaConfig.juros_unico = parseFloat(c.valor); }
-                    if(c.chave === 'juros_parcelado') { document.getElementById('conf_juros_parcelado').value = c.valor; window.sistemaConfig.juros_parcelado = parseFloat(c.valor); }
-                    if(c.chave === 'multa_diaria') document.getElementById('conf_multa').value = c.valor;
-                    if(c.chave === 'valor_minimo') { document.getElementById('conf_minimo').value = c.valor; window.sistemaConfig.valor_minimo = parseFloat(c.valor);  }
-                    if(c.chave === 'caixa_total' || c.chave === 'conf_caixa_total') { document.getElementById('conf_caixa_total').value = c.valor; }
-                });
-                document.getElementById('cad_capital').placeholder = `Mínimo R$ ${window.sistemaConfig.valor_minimo}`;
-            } catch(e) {}
-        }
-
-        async function salvarConfig() {
-            const jurosUnico = document.getElementById('conf_juros_unico').value; const jurosParcelado = document.getElementById('conf_juros_parcelado').value; const multa = document.getElementById('conf_multa').value; const minimo = document.getElementById('conf_minimo').value; const caixaGeral = document.getElementById('conf_caixa_total').value; 
-            try {
-                const res = await fetchSeguro(`${API_BASE}/api/config`, { method: 'POST', headers: headersAuth, body: JSON.stringify({ configs: [ {chave: 'juros_unico', valor: jurosUnico}, {chave: 'juros_parcelado', valor: jurosParcelado}, {chave: 'multa_diaria', valor: multa}, {chave: 'valor_minimo', valor: minimo || 500}, {chave: 'caixa_total', valor: caixaGeral || 50000} ] }) });
-                if(res.ok) { showToast("Configurações atualizadas!"); carregarConfig(); carregarDash(); } else { throw new Error(); }
-            } catch(e) { showToast("Erro ao salvar configs.", "error"); }
-        }
-
-        async function carregarSaidas() {
-            try {
-                const res = await fetchSeguro(`${API_BASE}/api/extrato-caixa`, { headers: headersAuth });
-                if(!res.ok) return;
-                const lista = await res.json();
-                const tbody = document.getElementById('lista-saidas');
-                tbody.innerHTML = '';
-                lista.forEach(s => {
-                    const val = parseFloat(s.valor_fluxo) || 0;
-                    tbody.innerHTML += `<tr class="border-b border-slate-800/50"><td class="px-4 py-3 text-xs text-slate-400">${new Date(s.created_at).toLocaleDateString()}</td><td class="px-4 py-3 text-xs font-bold text-white">${escapeHTML(s.detalhes)}</td><td class="px-4 py-3 text-xs font-black text-red-400 text-right">- ${Math.abs(val).toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</td></tr>`;
-                });
-            } catch(e) {}
-        }
-
-        async function registrarSaidaCaixa() {
-            const m = document.getElementById('saida_motivo').value; const v = parseFloat(document.getElementById('saida_valor').value);
-            if(!m || !v) return showToast("Preencha todos", "error");
-            try {
-                const res = await fetchSeguro(`${API_BASE}/api/saida-caixa`, { method: 'POST', headers: headersAuth, body: JSON.stringify({ motivo: m, valor: v }) });
-                if(res.ok) { showToast("Saída Registrada!"); document.getElementById('saida_motivo').value = ''; document.getElementById('saida_valor').value = ''; carregarSaidas(); carregarDash(); }
-            } catch(e) {}
-        }
-
-        async function carregarPromotores() {
-            try {
-                const res = await fetchSeguro(`${API_BASE}/api/promotores`, { headers: headersAuth });
-                if(!res.ok) return;
-                const lista = await res.json();
-                const tbody = document.getElementById('lista-promotores');
-                tbody.innerHTML = '';
-                lista.forEach(p => {
-                    tbody.innerHTML += `<tr class="hover:bg-slate-800/30 border-b border-slate-800/50"><td class="px-6 py-4 font-bold text-white">${escapeHTML(p.nome)}</td><td class="px-6 py-4 font-mono text-purple-400">${escapeHTML(p.cpf)}</td><td class="px-6 py-4 text-xs text-slate-400">${new Date(p.created_at).toLocaleDateString()}</td></tr>`;
-                });
-            } catch(e) {}
-        }
-
-        async function adicionarPromotor() {
-            const nome = document.getElementById('promo_nome').value; const cpf = document.getElementById('promo_cpf').value.replace(/\D/g, '');
-            if(!nome || cpf.length !== 11) return showToast("Nome e CPF válidos são obrigatórios", "error");
-            try {
-                const res = await fetchSeguro(`${API_BASE}/api/adicionar-promotor`, { method: 'POST', headers: headersAuth, body: JSON.stringify({ nome, cpf }) });
-                if(res.ok) { showToast("Promotor Adicionado"); document.getElementById('promo_nome').value = ''; document.getElementById('promo_cpf').value = ''; carregarPromotores(); }
-            } catch(e) {}
-        }
-
-        // --- CADASTRO MANUAL, BUSCA E PRÉ-CADASTRO ---
-        const getBase64 = (file) => new Promise((resolve) => { if(!file) return resolve(null); const r = new FileReader(); r.readAsDataURL(file); r.onload = () => resolve(r.result); });
+        const getBase64 = (file) => new Promise((resolve) => { 
+            if(!file) return resolve(null); 
+            const r = new FileReader(); 
+            r.readAsDataURL(file); 
+            r.onload = () => resolve(r.result); 
+        });
         
         function marcarFicheiroCad(input) {
+            const label = input.parentElement;
             if(input.files && input.files[0]) {
-                const label = input.parentElement;
                 label.style.borderColor = '#10b981'; 
                 label.querySelector('p').style.color = '#10b981';
                 label.querySelector('i').className = 'fa-solid fa-check-circle text-xl mb-2 text-emerald-500 transition-colors';
+            } else {
+                label.style.borderColor = '#475569';
+                label.querySelector('p').style.color = '#cbd5e1';
+                const iconMap = { 'cad_selfie': 'fa-user', 'cad_frente': 'fa-id-card', 'cad_verso': 'fa-id-card', 'cad_residencia': 'fa-file-invoice', 'cad_casa': 'fa-house' };
+                label.querySelector('i').className = `fa-solid ${iconMap[input.id]} text-xl mb-2 text-slate-400 transition-colors`;
             }
         }
 
@@ -1516,21 +1676,27 @@
                 document.getElementById('cad_cpf').value = c.cpf;
                 document.getElementById('cad_zap').value = c.telefone;
                 
-                showToast("Dados do Cliente Puxados com Sucesso!");
+                showToast("Dados Pessoais Clonados com Sucesso!");
             } catch(e) {
-                showToast("Nenhum cliente antigo encontrado.", "error");
+                showToast("Sem histórico. Cliente 100% novo.", "error");
                 document.getElementById('cad_id_existente').value = '';
             }
         }
 
         async function salvarCadastroRapido() {
-            const btn = event.target; 
+            const form = document.getElementById('formCadastroRapido');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            const btn = document.getElementById('btnSalvarCad'); 
             const originalText = btn.innerHTML;
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Enviando...`;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Gravando Matriz...`;
             btn.disabled = true;
             try {
-                const isPreCadastro = document.getElementById('check_precadastro').checked;
-                const idExistente = document.getElementById('cad_id_existente').value;
+                const isPreCadastro = document.getElementById('check_precadastro')?.checked || false;
+                const idExistente = document.getElementById('cad_id_existente')?.value || '';
 
                 const dados = {
                     id_existente: idExistente,
@@ -1542,41 +1708,314 @@
                     valor_total: isPreCadastro ? 0 : parseFloat(document.getElementById('cad_saldo').value), 
                     data_vencimento: isPreCadastro ? null : document.getElementById('cad_venc').value, 
                     frequencia: isPreCadastro ? 'MENSAL' : document.getElementById('cad_freq').value,
-                    qtd_parcelas: isPreCadastro ? 1 : (parseInt(document.getElementById('cad_parcelas').value) || 1),
-                    juros_pagos: isPreCadastro ? 0 : (parseFloat(document.getElementById('cad_juros_pagos').value) || 0),
-                    capital_pago: isPreCadastro ? 0 : (parseFloat(document.getElementById('cad_capital_pago').value) || 0),
-                    img_selfie: await getBase64(document.getElementById('cad_selfie').files[0]), 
-                    img_frente: await getBase64(document.getElementById('cad_frente').files[0]),
-                    img_verso: await getBase64(document.getElementById('cad_verso').files[0]), 
-                    img_residencia: await getBase64(document.getElementById('cad_residencia').files[0]), 
-                    img_casa: await getBase64(document.getElementById('cad_casa').files[0])
+                    qtd_parcelas: isPreCadastro ? 1 : (parseInt(document.getElementById('cad_parcelas')?.value) || 1),
+                    juros_pagos: isPreCadastro ? 0 : (parseFloat(document.getElementById('cad_juros_pagos')?.value) || 0),
+                    capital_pago: isPreCadastro ? 0 : (parseFloat(document.getElementById('cad_capital_pago')?.value) || 0),
+                    cobrar_so_em_dinheiro: document.getElementById('cad_apenas_dinheiro').checked
                 };
 
-                if(!dados.nome || !dados.cpf) throw new Error("O Nome e o CPF são obrigatórios.");
+                if(!dados.nome || !dados.cpf) throw new Error("A integridade relacional exige Nome e CPF.");
                 
                 if(!isPreCadastro) {
                     const valorMinimo = window.sistemaConfig?.valor_minimo || 500;
-                    if(dados.valor_emprestado < valorMinimo) throw new Error(`O valor mínimo permitido pelo sistema é de R$ ${valorMinimo}`);
+                    if(dados.valor_emprestado < valorMinimo) throw new Error(`Trava de negócio: O valor mínimo é R$ ${valorMinimo}`);
                 }
 
-                const res = await fetchSeguro(`${API_BASE}/api/cadastrar-cliente-manual`, { method: 'POST', headers: headersAuth, body: JSON.stringify(dados) });
+                const res = await fetchSeguro(`${API_BASE}/api/cadastrar-cliente-manual`, { 
+                    method: 'POST', 
+                    headers: headersAuth, 
+                    body: JSON.stringify(dados) 
+                });
+                
                 if(res.ok) { 
-                    showToast(isPreCadastro ? "Pré-Cadastro Salvo com Sucesso!" : "Dívida Lançada com Sucesso!"); 
+                    showToast(isPreCadastro ? "Pré-Cadastro Salvo com Sucesso!" : "Contrato Manual Injetado com Sucesso!"); 
                     document.getElementById('formCadastroRapido').reset(); 
-                    document.getElementById('cad_id_existente').value = '';
-                    document.getElementById('busca_cliente_cad').value = '';
+                    if(document.getElementById('cad_id_existente')) document.getElementById('cad_id_existente').value = '';
+                    if(document.getElementById('busca_cliente_cad')) document.getElementById('busca_cliente_cad').value = '';
                     
                     if(!isPreCadastro) mudarAba('aberto'); 
                     carregarDash(); 
                 } else { 
                     const erroBody = await res.json();
-                    throw new Error(erroBody.erro || "Erro interno do servidor."); 
+                    throw new Error(erroBody.erro || "Colapso no servidor central."); 
                 }
             } catch(e) { 
                 showToast(e.message, "error"); 
             } finally { 
                 btn.innerHTML = originalText; 
                 btn.disabled = false;
+            }
+        }
+
+        // =====================================
+        // CAIXA E RELATÓRIOS ANALÍTICOS GERAIS
+        // =====================================
+        async function carregarSaidas() {
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/extrato-caixa`, { headers: headersAuth });
+                if(!res.ok) return;
+                const lista = await res.json();
+                const tbody = document.getElementById('lista-saidas');
+                tbody.innerHTML = '';
+                lista.forEach(s => {
+                    const val = parseFloat(s.valor_fluxo) || 0;
+                    tbody.innerHTML += `
+                    <tr class="border-b border-slate-800/50">
+                        <td class="px-4 py-3 text-xs text-slate-400">${new Date(s.created_at).toLocaleDateString()}</td>
+                        <td class="px-4 py-3 text-xs font-bold text-white">${escapeHTML(s.detalhes)}</td>
+                        <td class="px-4 py-3 text-xs font-black text-red-400 text-right">- ${Math.abs(val).toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</td>
+                    </tr>`;
+                });
+            } catch(e) {}
+        }
+
+        async function registrarSaidaCaixa() {
+            const m = document.getElementById('saida_motivo').value; 
+            const v = parseFloat(document.getElementById('saida_valor').value);
+            
+            if(!m || !v) return showToast("Auditoria requer motivo e valor.", "error");
+            
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/saida-caixa`, { 
+                    method: 'POST', headers: headersAuth, body: JSON.stringify({ motivo: m, valor: v }) 
+                });
+                
+                if(res.ok) { 
+                    showToast("Saída Consolidada!"); 
+                    document.getElementById('saida_motivo').value = ''; 
+                    document.getElementById('saida_valor').value = ''; 
+                    carregarSaidas(); 
+                    carregarDash(); 
+                }
+            } catch(e) {}
+        }
+
+        function verificarFiltroData() {
+            const val = document.getElementById('filtro-relatorio').value;
+            if (val === 'custom') {
+                document.getElementById('datas-customizadas').classList.remove('hidden'); 
+            } else {
+                document.getElementById('datas-customizadas').classList.add('hidden');
+            }
+        }
+
+        async function carregarRelatorios() {
+            try {
+                const val = document.getElementById('filtro-relatorio').value;
+                const hoje = new Date(); 
+                let dataInicio, dataFim;
+                dataFim = hoje.toISOString().split('T')[0];
+                
+                if(val === 'mes') {
+                    dataInicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
+                } else if (val === 'custom') { 
+                    dataInicio = document.getElementById('data_inicio_rel').value; 
+                    dataFim = document.getElementById('data_fim_rel').value; 
+                    if (!dataInicio || !dataFim) return showToast("Intervalo temporal exigido.", "error");
+                }
+
+                const res = await fetchSeguro(`${API_BASE}/api/relatorio-periodo`, { 
+                    method: 'POST', headers: headersAuth, body: JSON.stringify({ dataInicio, dataFim }) 
+                });
+                
+                if (!res.ok) throw new Error();
+                const dados = await res.json();
+
+                // 🚨 Tabela de Extrato Bancário Analítico (Entradas e Saídas Misturadas)
+                const tbody = document.getElementById('lista-relatorio-detalhado');
+                tbody.innerHTML = '';
+                
+                if (dados.movimentacoes && dados.movimentacoes.length > 0) {
+                    dados.movimentacoes.forEach(m => {
+                        const val = parseFloat(m.valor_fluxo);
+                        const isSaidaCaixa = m.evento === "SAÍDA DE CAIXA";
+                        
+                        // Se é dinheiro que entra (positivo e não é saída forçada)
+                        const isEntrada = val > 0 && !isSaidaCaixa; 
+                        
+                        const cor = isEntrada ? 'text-emerald-400' : 'text-red-400';
+                        const prefixo = isEntrada ? '+ ' : '- ';
+
+                        tbody.innerHTML += `
+                            <tr class="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
+                                <td class="px-6 py-4 font-mono text-[10px] text-slate-400 whitespace-nowrap">${new Date(m.created_at).toLocaleString('pt-BR')}</td>
+                                <td class="px-6 py-4 font-black text-white text-xs uppercase">${escapeHTML(m.cliente)}</td>
+                                <td class="px-6 py-4 font-bold text-blue-400 text-[10px] uppercase">${escapeHTML(m.evento)}</td>
+                                <td class="px-6 py-4 text-[10px] text-slate-300 italic min-w-[200px]">${escapeHTML(m.detalhes)}</td>
+                                <td class="px-6 py-4 text-right font-black ${cor} text-sm whitespace-nowrap">${prefixo}${Math.abs(val).toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</td>
+                            </tr>
+                        `;
+                    });
+                } else { 
+                    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-500 font-bold uppercase">Sem fluxo de caixa no período.</td></tr>`; 
+                }
+            } catch(e) { 
+                showToast("Erro na agregação matemática do relatório.", "error"); 
+            }
+        }
+
+        // =====================================
+        // AUDITORIA (LOGS), LISTA NEGRA E CONFIGURAÇÕES
+        // =====================================
+        async function carregarTodosLogs() {
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/logs-auditoria`, { headers: headersAuth });
+                if(!res.ok) return;
+                const lista = await res.json();
+                const tbody = document.getElementById('lista-todos-logs');
+                tbody.innerHTML = '';
+                lista.forEach(l => {
+                    const val = parseFloat(l.valor_fluxo) || 0;
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-800/30 border-b border-slate-800/50">
+                            <td class="px-6 py-3 font-mono text-[10px] text-slate-400">${new Date(l.created_at).toLocaleString()}</td>
+                            <td class="px-6 py-3 font-bold text-[10px] text-orange-400 uppercase">${escapeHTML(l.evento)}</td>
+                            <td class="px-6 py-3 text-[10px] text-slate-300">${escapeHTML(l.detalhes)}</td>
+                            <td class="px-6 py-3 text-right font-black text-slate-300">${val !== 0 ? val.toLocaleString('pt-BR', {style:'currency', currency:'BRL'}) : '-'}</td>
+                        </tr>
+                    `;
+                });
+            } catch(e) {}
+        }
+
+        async function carregarListaNegra() {
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/lista-negra`, { headers: headersAuth });
+                if(!res.ok) return;
+                const lista = await res.json();
+                const tbody = document.getElementById('lista-negra-body');
+                tbody.innerHTML = '';
+                lista.forEach(l => {
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-800/30 border-b border-slate-800/50">
+                            <td class="px-6 py-3 font-mono font-bold text-red-400">${escapeHTML(l.cpf)}</td>
+                            <td class="px-6 py-3 text-xs text-slate-300">${escapeHTML(l.motivo)}</td>
+                            <td class="px-6 py-3 text-xs text-slate-500">${new Date(l.created_at).toLocaleDateString()}</td>
+                            <td class="px-6 py-3 text-center">
+                                <button onclick="removerListaNegra('${escapeHTML(l.cpf)}')" class="text-[10px] font-bold text-slate-400 hover:text-white uppercase transition-colors"><i class="fa-solid fa-trash"></i> Remover</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch(e) {}
+        }
+
+        async function adicionarListaNegra() {
+            const cpf = document.getElementById('ln_cpf').value.replace(/\D/g, ''); 
+            const motivo = document.getElementById('ln_motivo').value;
+            
+            if(cpf.length !== 11 || !motivo) return showToast("Embargo requer CPF válido e Motivo legal.", "error");
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/lista-negra`, { 
+                    method: 'POST', headers: headersAuth, body: JSON.stringify({ cpf, motivo }) 
+                });
+                if(res.ok) { 
+                    showToast("Cliente Embargado (Lista Negra)!"); 
+                    document.getElementById('ln_cpf').value = ''; 
+                    document.getElementById('ln_motivo').value = ''; 
+                    carregarListaNegra(); 
+                }
+            } catch(e) { 
+                showToast("Falha ao blindar CPF.", "error"); 
+            }
+        }
+
+        async function removerListaNegra(cpf) {
+            try { 
+                const res = await fetchSeguro(`${API_BASE}/api/lista-negra/${cpf}`, { method: 'DELETE', headers: headersAuth }); 
+                if(res.ok) { 
+                    showToast("Ficha Limpa com sucesso."); 
+                    carregarListaNegra(); 
+                } 
+            } catch(e) {}
+        }
+
+        async function carregarPromotores() {
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/promotores`, { headers: headersAuth });
+                if(!res.ok) return;
+                const lista = await res.json();
+                const tbody = document.getElementById('lista-promotores');
+                tbody.innerHTML = '';
+                lista.forEach(p => {
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-800/30 border-b border-slate-800/50">
+                            <td class="px-6 py-4 font-bold text-white uppercase">${escapeHTML(p.nome)}</td>
+                            <td class="px-6 py-4 font-mono text-purple-400">${escapeHTML(p.cpf)}</td>
+                            <td class="px-6 py-4 text-xs text-slate-400">${new Date(p.created_at).toLocaleDateString()}</td>
+                        </tr>
+                    `;
+                });
+            } catch(e) {}
+        }
+
+        async function adicionarPromotor() {
+            const nome = document.getElementById('promo_nome').value; 
+            const cpf = document.getElementById('promo_cpf').value.replace(/\D/g, '');
+            if(!nome || cpf.length !== 11) return showToast("Dados vitais incompletos.", "error");
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/adicionar-promotor`, { 
+                    method: 'POST', headers: headersAuth, body: JSON.stringify({ nome, cpf }) 
+                });
+                if(res.ok) { 
+                    showToast("Promotor comissionado integrado."); 
+                    document.getElementById('promo_nome').value = ''; 
+                    document.getElementById('promo_cpf').value = ''; 
+                    carregarPromotores(); 
+                }
+            } catch(e) {}
+        }
+
+        async function carregarConfig() {
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/config`, { headers: headersAuth });
+                if(!res.ok) return;
+                const confs = await res.json();
+                window.sistemaConfig = { valor_minimo: 500, juros_unico: 30, juros_parcelado: 25 }; 
+                confs.forEach(c => {
+                    if(c.chave === 'juros_unico') { document.getElementById('conf_juros_unico').value = c.valor; window.sistemaConfig.juros_unico = parseFloat(c.valor); }
+                    if(c.chave === 'juros_parcelado') { document.getElementById('conf_juros_parcelado').value = c.valor; window.sistemaConfig.juros_parcelado = parseFloat(c.valor); }
+                    if(c.chave === 'multa_diaria') document.getElementById('conf_multa').value = c.valor;
+                    if(c.chave === 'valor_minimo') { document.getElementById('conf_minimo').value = c.valor; window.sistemaConfig.valor_minimo = parseFloat(c.valor);  }
+                    if(c.chave === 'caixa_total' || c.chave === 'conf_caixa_total') { document.getElementById('conf_caixa_total').value = c.valor; }
+                });
+                
+                if (document.getElementById('cad_capital')) {
+                    document.getElementById('cad_capital').placeholder = `Mínimo R$ ${window.sistemaConfig.valor_minimo}`;
+                }
+            } catch(e) {}
+        }
+
+        async function salvarConfig() {
+            const jurosUnico = document.getElementById('conf_juros_unico').value; 
+            const jurosParcelado = document.getElementById('conf_juros_parcelado').value; 
+            const multa = document.getElementById('conf_multa').value; 
+            const minimo = document.getElementById('conf_minimo').value; 
+            const caixaGeral = document.getElementById('conf_caixa_total').value; 
+            
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/config`, { 
+                    method: 'POST', 
+                    headers: headersAuth, 
+                    body: JSON.stringify({ 
+                        configs: [ 
+                            {chave: 'juros_unico', valor: jurosUnico}, 
+                            {chave: 'juros_parcelado', valor: jurosParcelado}, 
+                            {chave: 'multa_diaria', valor: multa}, 
+                            {chave: 'valor_minimo', valor: minimo || 500}, 
+                            {chave: 'caixa_total', valor: caixaGeral || 50000} 
+                        ] 
+                    }) 
+                });
+                if(res.ok) { 
+                    showToast("Configuração do Núcleo Financeiro Alterada."); 
+                    carregarConfig(); 
+                    carregarDash(); 
+                } else { 
+                    throw new Error(); 
+                }
+            } catch(e) { 
+                showToast("Erro ao gravar parâmetros no núcleo.", "error"); 
             }
         }
     </script>

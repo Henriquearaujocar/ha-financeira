@@ -18,7 +18,7 @@
         .input-field:focus { border-color: #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.3); }
         .input-field:read-only { background: rgba(15, 23, 42, 0.4); border-color: rgba(16, 185, 129, 0.2); color: #94a3b8; }
         
-        /* 🚨 CORREÇÃO VISUAL: Força um fundo escuro sólido nas opções do Select para evitar texto invisível */
+        /* 🚨 Força Fundo Escuro nas Opções (Fix Safari/Chrome nativo) */
         .input-field option { background-color: #0f172a; color: #f8fafc; font-weight: 600; }
         
         .file-label { display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(15, 23, 42, 0.8); border: 1px dashed rgba(255,255,255,0.2); border-radius: 1.25rem; padding: 1.5rem; cursor: pointer; transition: 0.3s; text-align: center; overflow: hidden; position: relative;}
@@ -55,6 +55,7 @@
 
         <form id="formSolicitacao" class="space-y-8" onsubmit="event.preventDefault(); enviarProposta();">
             
+            <!-- BUSCA RECORRENTE -->
             <div class="bg-blue-900/10 border border-blue-500/20 p-6 rounded-2xl mb-8 flex flex-col items-center justify-center">
                 <h3 class="text-sm font-black uppercase text-blue-400 mb-2"><i class="fa-solid fa-rotate mr-2"></i>Já é nosso cliente?</h3>
                 <p class="text-xs text-slate-400 mb-4 text-center">Informe o seu CPF para reaproveitarmos os seus dados.</p>
@@ -89,7 +90,7 @@
                 </div>
             </div>
 
-            <!-- 2. Detalhes do Crédito -->
+            <!-- 2. Estrutura Desejada -->
             <div class="space-y-4">
                 <h3 class="text-sm font-black uppercase text-blue-400 border-b border-slate-700 pb-2"><i class="fa-solid fa-money-bill-wave mr-2"></i>2. Estrutura Desejada</h3>
                 
@@ -120,10 +121,21 @@
                     </div>
                 </div>
 
-                <div id="simuladorBox" class="bg-slate-900 border border-slate-700 rounded-2xl p-6 mt-4 hidden transition-all">
-                    <h4 class="text-[10px] font-black uppercase tracking-widest text-blue-500 mb-2 text-center"><i class="fa-solid fa-clipboard-check mr-2"></i> Estrutura da Proposta</h4>
-                    <p class="text-center text-white text-lg font-black uppercase tracking-widest" id="sim_plano">--</p>
-                    <p class="text-[9px] text-slate-500 mt-3 text-center bg-slate-800/50 p-2 rounded-lg">*O valor exato das parcelas com as taxas aplicadas será apresentado a si pelo nosso Gestor após a análise de crédito.</p>
+                <!-- 🚨 CALCULADORA HÍBRIDA DO CLIENTE -->
+                <div id="simuladorBox" class="bg-slate-900 border border-slate-700 rounded-2xl p-6 mt-4 hidden transition-all shadow-xl">
+                    <h4 class="text-[10px] font-black uppercase tracking-widest text-blue-500 mb-4 text-center"><i class="fa-solid fa-clipboard-check mr-2"></i> Estrutura da Proposta</h4>
+                    
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-3 mb-3">
+                        <span class="text-xs text-slate-400 uppercase font-bold">Modalidade:</span>
+                        <span class="text-sm text-white font-black uppercase tracking-widest" id="sim_plano">--</span>
+                    </div>
+                    
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-slate-400 uppercase font-bold" id="sim_extra_label">--</span>
+                        <span id="sim_extra_valor" class="text-2xl font-black">--</span>
+                    </div>
+
+                    <p class="text-[9px] text-slate-500 mt-4 text-center bg-slate-800/50 p-2 rounded-lg">*Os valores exatos e taxas finais serão confirmados pelo nosso Gestor após a análise de crédito.</p>
                 </div>
             </div>
 
@@ -150,27 +162,27 @@
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <label class="file-label">
                         <i class="fa-solid fa-camera text-3xl text-slate-400 mb-3 transition-colors"></i>
-                        <span class="text-[10px] font-black uppercase" id="lbl_img_selfie">Sua Selfie</span>
+                        <span class="text-[10px] font-black uppercase" id="lbl_img_selfie" data-orig="Sua Selfie">Sua Selfie</span>
                         <input type="file" id="img_selfie" accept="image/*" class="hidden" onchange="marcarUpload(this)">
                     </label>
                     <label class="file-label doc-antigo">
                         <i class="fa-solid fa-id-card text-3xl text-slate-400 mb-3 transition-colors"></i>
-                        <span class="text-[10px] font-black uppercase" id="lbl_img_frente">Doc. Frente</span>
+                        <span class="text-[10px] font-black uppercase" id="lbl_img_frente" data-orig="Doc. Frente">Doc. Frente</span>
                         <input type="file" id="img_frente" accept="image/*" class="hidden" onchange="marcarUpload(this)">
                     </label>
                     <label class="file-label doc-antigo">
                         <i class="fa-solid fa-id-card text-3xl text-slate-400 mb-3 transition-colors"></i>
-                        <span class="text-[10px] font-black uppercase" id="lbl_img_verso">Doc. Verso</span>
+                        <span class="text-[10px] font-black uppercase" id="lbl_img_verso" data-orig="Doc. Verso">Doc. Verso</span>
                         <input type="file" id="img_verso" accept="image/*" class="hidden" onchange="marcarUpload(this)">
                     </label>
                     <label class="file-label text-center col-span-2 md:col-span-1">
                         <i class="fa-solid fa-file-invoice text-3xl text-slate-400 mb-3 transition-colors"></i>
-                        <span class="text-[10px] font-black uppercase" id="lbl_img_residencia">Comp. Residência</span>
+                        <span class="text-[10px] font-black uppercase" id="lbl_img_residencia" data-orig="Comp. Residência">Comp. Residência</span>
                         <input type="file" id="img_residencia" accept="image/*" class="hidden" onchange="marcarUpload(this)">
                     </label>
                     <label class="file-label doc-antigo col-span-2 md:col-span-2">
                         <i class="fa-solid fa-house text-3xl text-slate-400 mb-3 transition-colors"></i>
-                        <span class="text-[10px] font-black uppercase" id="lbl_img_casa">Fachada da Casa (Nº Visível)</span>
+                        <span class="text-[10px] font-black uppercase" id="lbl_img_casa" data-orig="Fachada da Casa">Fachada da Casa</span>
                         <input type="file" id="img_casa" accept="image/*" class="hidden" onchange="marcarUpload(this)">
                     </label>
                 </div>
@@ -187,9 +199,13 @@
         const API_BASE = window.location.origin;
 
         let VALOR_MINIMO = 500;
+        let JUROS_UNICO = 0.30;
+        let JUROS_PARCELADO = 0.25;
+        
         let imagensBase64 = {};
         let isClienteRecorrente = false;
         let uploadsEmAndamento = 0; 
+        let isSubmitting = false; 
 
         function validarCPFReal(cpfStr) {
             let str = cpfStr.replace(/\D/g, '');
@@ -214,17 +230,25 @@
                     const confs = await res.json();
                     confs.forEach(c => {
                         if(c.chave === 'valor_minimo') VALOR_MINIMO = parseFloat(c.valor) || 500;
+                        if(c.chave === 'juros_unico') JUROS_UNICO = (parseFloat(c.valor) / 100) || 0.30;
+                        if(c.chave === 'juros_parcelado') JUROS_PARCELADO = (parseFloat(c.valor) / 100) || 0.25;
                     });
                 }
-            } catch (e) { console.warn("A usar valores padrão do sistema."); }
+            } catch (e) {
+                console.warn("A usar valores padrão do sistema.");
+            }
             
             document.getElementById('valor').placeholder = `Min: R$ ${VALOR_MINIMO.toFixed(2)}`;
             document.getElementById('texto-minimo').innerHTML = `<i class="fa-solid fa-circle-info mr-1"></i> O valor mínimo para solicitação é de R$ ${VALOR_MINIMO.toFixed(2)}.`;
+            
+            atualizarInterface();
         }
 
         async function buscarClienteExistente() {
             const cpfBusca = document.getElementById('cpf_busca').value.replace(/\D/g, '');
-            if (cpfBusca.length !== 11 || !validarCPFReal(cpfBusca)) return showToast("Digite um CPF matematicamente válido para buscar.", "error");
+            if (cpfBusca.length !== 11 || !validarCPFReal(cpfBusca)) {
+                return showToast("Digite um CPF matematicamente válido para buscar.", "error");
+            }
 
             const loading = document.getElementById('loadingOverlay');
             loading.classList.remove('hidden');
@@ -255,8 +279,9 @@
                         label.style.borderColor = 'rgba(255,255,255,0.2)';
                         label.style.backgroundColor = 'rgba(15, 23, 42, 0.8)';
                         label.querySelector('span').style.color = 'white';
-                        const originalSpanText = label.querySelector('input').id === 'img_frente' ? 'Doc. Frente' : (label.querySelector('input').id === 'img_verso' ? 'Doc. Verso' : 'Fachada da Casa (Nº Visível)');
-                        label.querySelector('span').innerText = originalSpanText;
+                        
+                        const inputId = label.querySelector('input').id;
+                        label.querySelector('span').innerText = document.getElementById(`lbl_${inputId}`).dataset.orig;
                         label.querySelector('i').className = 'fa-solid fa-id-card text-3xl text-slate-400 mb-3 transition-colors'; 
                         if(label.querySelector('input')) label.querySelector('input').value = '';
                     });
@@ -322,10 +347,7 @@
                 label.style.backgroundColor = 'rgba(15, 23, 42, 0.8)';
                 label.querySelector('span').style.color = 'white';
                 
-                const origText = document.getElementById(`lbl_${input.id}`).dataset.orig || document.getElementById(`lbl_${input.id}`).innerText;
-                if(!document.getElementById(`lbl_${input.id}`).dataset.orig) document.getElementById(`lbl_${input.id}`).dataset.orig = origText;
-                
-                label.querySelector('span').innerText = origText === 'ANEXADO' ? (input.id.replace('img_', '')) : origText;
+                label.querySelector('span').innerText = document.getElementById(`lbl_${input.id}`).dataset.orig;
                 
                 const iconMap = { 'img_selfie': 'fa-camera', 'img_frente': 'fa-id-card', 'img_verso': 'fa-id-card', 'img_residencia': 'fa-file-invoice', 'img_casa': 'fa-house' };
                 label.querySelector('i').className = `fa-solid ${iconMap[input.id] || 'fa-upload'} text-3xl text-slate-400 mb-3 transition-colors`;
@@ -333,7 +355,7 @@
             }
 
             if (file.size > 15 * 1024 * 1024) {
-                showToast("Esta imagem é demasiado grande e pode travar o seu telemóvel. Por favor, escolha uma foto mais leve.", "error");
+                showToast("Esta imagem é demasiado grande e pode travar o telemóvel.", "error");
                 input.value = '';
                 return;
             }
@@ -352,12 +374,17 @@
                 img.src = event.target.result;
                 
                 img.onerror = () => {
-                    showToast("Ficheiro inválido ou corrompido. Escolha uma imagem válida.", "error");
+                    showToast("Ficheiro inválido ou corrompido.", "error");
                     label.style.opacity = '1';
                     label.querySelector('i').className = 'fa-solid fa-triangle-exclamation text-3xl mb-3 text-red-500';
-                    label.querySelector('span').innerText = 'ERRO - TENTE NOVAMENTE';
+                    label.querySelector('span').innerText = 'ERRO';
                     label.querySelector('span').style.color = '#ef4444';
                     input.value = ''; 
+                    
+                    // Prevenção Leak de Memória
+                    img.onload = null; 
+                    img.onerror = null; 
+                    img.src = '';
                     
                     uploadsEmAndamento--;
                     if(uploadsEmAndamento === 0) document.getElementById('btnEnviar').disabled = false;
@@ -373,11 +400,9 @@
 
                     ctx.fillStyle = "#FFFFFF";
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
-
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    const base64Comprimido = canvas.toDataURL('image/jpeg', 0.5);
                     
-                    imagensBase64[input.id] = base64Comprimido;
+                    imagensBase64[input.id] = canvas.toDataURL('image/jpeg', 0.5);
                     
                     label.style.opacity = '1';
                     label.style.borderColor = '#10b981'; 
@@ -385,6 +410,11 @@
                     label.querySelector('span').style.color = '#10b981';
                     label.querySelector('span').innerText = 'ANEXADO';
                     label.querySelector('i').className = 'fa-solid fa-check-circle text-3xl mb-3 text-emerald-500 transition-colors';
+                    
+                    // Prevenção Leak de Memória RAM Mobile
+                    img.onload = null; 
+                    img.onerror = null; 
+                    img.src = '';
                     
                     uploadsEmAndamento--;
                     if(uploadsEmAndamento === 0) document.getElementById('btnEnviar').disabled = false;
@@ -401,19 +431,15 @@
         const pSelect = document.getElementById('tipo_plano');
         const fSelect = document.getElementById('frequencia');
         const qSelect = document.getElementById('qtd_parcelas');
-        
-        const boxFreq = document.getElementById('box-frequencia');
-        const boxParc = document.getElementById('box-parcelas');
         const simBox = document.getElementById('simuladorBox');
         
         function atualizarInterface() {
-            const plano = pSelect.value;
-            if (plano === '30DIAS') {
-                boxFreq.classList.add('hidden');
-                boxParc.classList.add('hidden');
+            if (pSelect.value === '30DIAS') {
+                document.getElementById('box-frequencia').classList.add('hidden');
+                document.getElementById('box-parcelas').classList.add('hidden');
             } else {
-                boxFreq.classList.remove('hidden');
-                boxParc.classList.remove('hidden');
+                document.getElementById('box-frequencia').classList.remove('hidden');
+                document.getElementById('box-parcelas').classList.remove('hidden');
                 atualizarParcelas();
             }
             calcularSimulacao();
@@ -441,18 +467,35 @@
             calcularSimulacao();
         }
 
+        // 🚨 CÁLCULO INTELIGENTE E OCULTAÇÃO DE FINAL NO PARCELADO
         function calcularSimulacao() {
             const valorBase = parseFloat(vInput.value) || 0;
-            const plano = pSelect.value;
-            const freq = fSelect.value;
-            let parcelas = parseInt(qSelect.value) || 1;
-
+            
             if (valorBase >= VALOR_MINIMO) {
                 simBox.classList.remove('hidden');
-                if (plano === '30DIAS') {
-                    document.getElementById('sim_plano').innerText = 'Plano: Única Parcela (30 Dias)';
+                const valEl = document.getElementById('sim_extra_valor');
+                
+                if (pSelect.value === '30DIAS') {
+                    document.getElementById('sim_plano').innerText = 'Única Parcela (30 Dias)';
+                    document.getElementById('sim_extra_label').innerText = 'Total Estimado a Pagar:';
+                    
+                    const totalEstimado = valorBase * (1 + JUROS_UNICO);
+                    valEl.innerText = totalEstimado.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+                    valEl.className = 'text-2xl font-black text-orange-400 drop-shadow-md';
+                    
                 } else {
-                    document.getElementById('sim_plano').innerText = `Plano: ${parcelas}x ${freq}`;
+                    const parcelas = parseInt(qSelect.value) || 2;
+                    const freqTexto = fSelect.value === 'MENSAL' ? 'Mensal' : 'Semanal';
+                    
+                    document.getElementById('sim_plano').innerText = `${parcelas}x ${freqTexto}`;
+                    document.getElementById('sim_extra_label').innerText = `Valor da Parcela:`;
+                    
+                    const taxaFinal = JUROS_PARCELADO * parcelas;
+                    const totalParcelado = valorBase * (1 + taxaFinal); 
+                    const valorParcela = totalParcelado / parcelas;
+                    
+                    valEl.innerText = valorParcela.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+                    valEl.className = 'text-2xl font-black text-emerald-400 drop-shadow-md';
                 }
             } else {
                 simBox.classList.add('hidden');
@@ -465,6 +508,8 @@
         qSelect.addEventListener('change', calcularSimulacao);
 
         async function enviarProposta() {
+            if (isSubmitting) return;
+            
             const form = document.getElementById('formSolicitacao');
             const erroEl = document.getElementById('erroGeral');
             const btnEnviar = document.getElementById('btnEnviar');
@@ -507,6 +552,7 @@
                 }
             }
 
+            isSubmitting = true; 
             const originalBtnHtml = btnEnviar.innerHTML;
             btnEnviar.disabled = true;
             btnEnviar.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> A ENVIAR DADOS...';
@@ -555,13 +601,13 @@
                     `;
                 } else {
                     const errText = await res.text();
-                    try {
-                        const errObj = JSON.parse(errText);
-                        throw new Error(errObj.details || errObj.erro || "Falha ao processar a solicitação.");
-                    } catch(jsonErr) {
-                        if(jsonErr.message.includes("Falha")) throw jsonErr;
-                        throw new Error("O servidor está temporariamente indisponível. Tente de novo em instantes.");
+                    let errObj;
+                    try { 
+                        errObj = JSON.parse(errText); 
+                    } catch(jsonErr) { 
+                        throw new Error("O servidor está temporariamente indisponível. Tente de novo em instantes."); 
                     }
+                    throw new Error(errObj.details || errObj.erro || "Falha ao processar a solicitação.");
                 }
             } catch (err) { 
                 console.error(err);
@@ -572,24 +618,8 @@
                 btnEnviar.innerHTML = originalBtnHtml;
             } finally {
                 loading.classList.add('hidden');
+                isSubmitting = false; 
             }
-        }
-
-        function mascaraCPF(i) {
-            let v = i.value.replace(/\D/g, ''); 
-            if (v.length > 11) v = v.substring(0, 11);
-            v = v.replace(/(\d{3})(\d)/, '$1.$2');
-            v = v.replace(/(\d{3})(\d)/, '$1.$2');
-            v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-            i.value = v;
-        }
-
-        function mascaraTel(i) {
-            let v = i.value.replace(/\D/g, '');
-            if (v.length > 11) v = v.substring(0, 11);
-            v = v.replace(/^(\d{2})(\d)/g, '($1) $2');
-            v = v.replace(/(\d)(\d{4})$/, '$1-$2');
-            i.value = v;
         }
     </script>
 </body>
