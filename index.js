@@ -11,7 +11,7 @@ const { gerarLinkCobranca } = require('./services/infinity');
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '15mb' })); // 🛡️ Reduzido de 50mb para 15mb para prevenir ataques DoS
+app.use(express.json({ limit: '15mb' })); // 🛡️ Proteção DoS
 app.use(express.urlencoded({ limit: '15mb', extended: true }));
 app.use(express.static('public'));
 
@@ -20,8 +20,8 @@ const APP_URL = process.env.APP_URL || `http://localhost:${process.env.PORT || 3
 // Estruturas de Memória e Proteção
 const processandoWebhooks = new Set();
 const travasAtivasPainel = new Set();
-const tentativasLogin = new Map(); // 🛡️ Trava de memória contra ataques de Força Bruta no Painel
-const tentativasSolicitacao = new Map(); // 🛡️ Trava contra Spam de propostas via API Pública
+const tentativasLogin = new Map();
+const tentativasSolicitacao = new Map();
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -41,7 +41,6 @@ app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
-    // 🛡️ Prevenção de Força Bruta (Máx 5 tentativas por IP)
     const tentativas = tentativasLogin.get(ip) || 0;
     if (tentativas >= 5) {
         return res.status(429).json({ erro: 'Muitas tentativas falhadas. Por favor, aguarde 5 minutos.' });
@@ -51,11 +50,11 @@ app.post('/api/login', async (req, res) => {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
             tentativasLogin.set(ip, tentativas + 1);
-            setTimeout(() => tentativasLogin.delete(ip), 5 * 60 * 1000); // Liberta o IP após 5 minutos
+            setTimeout(() => tentativasLogin.delete(ip), 5 * 60 * 1000); 
             return res.status(401).json({ erro: 'E-mail ou palavra-passe incorretos.' });
         }
         
-        tentativasLogin.delete(ip); // Limpa o histórico de bloqueio do IP em caso de sucesso
+        tentativasLogin.delete(ip); 
         res.json({ token: data.session.access_token, email: data.user?.email });
     } catch (err) { 
         res.status(500).json({ erro: 'Erro interno de autenticação.' }); 
@@ -64,16 +63,9 @@ app.post('/api/login', async (req, res) => {
 
 const authMiddleware = async (req, res, next) => {
     const rotasPublicas = [
-        '/api/login', 
-        '/upload-foto', 
-        '/enviar-solicitacao', 
-        '/api/enviar-solicitacao', 
-        '/validar-extrato', 
-        '/cliente-aceitou', 
-        '/cliente-gerar-pagamento', 
-        '/status-zapi', 
-        '/api/config-publica', 
-        '/favicon.ico'
+        '/api/login', '/upload-foto', '/enviar-solicitacao', '/api/enviar-solicitacao', 
+        '/validar-extrato', '/cliente-aceitou', '/cliente-gerar-pagamento', 
+        '/status-zapi', '/api/config-publica', '/favicon.ico'
     ];
     
     if (rotasPublicas.includes(req.path) || req.path.startsWith('/webhook-infinitepay') || req.path.startsWith('/api/buscar-cliente-publico')) {
@@ -113,7 +105,6 @@ app.get('/api/config-publica', async (req, res) => {
 app.get('/api/buscar-cliente-publico/:cpf', async (req, res) => {
     try {
         const cpf = req.params.cpf.replace(/\D/g, '');
-        // 🛡️ CORREÇÃO LGPD: Removido url_frente, url_verso, url_casa para evitar vazamento de documentos pessoais via API Pública
         const { data, error } = await supabase.from('devedores').select('nome, telefone').eq('cpf', cpf).limit(1);
         if (error || !data || data.length === 0) return res.status(404).json({ erro: "Cliente não encontrado." });
         res.json(data[0]);
@@ -121,27 +112,25 @@ app.get('/api/buscar-cliente-publico/:cpf', async (req, res) => {
 });
 
 app.post('/api/enviar-solicitacao', async (req, res) => {
-    // 🛡️ PREVENÇÃO DE SPAM E BOTS (Máx 3 solicitações por IP a cada 1 hora)
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const reqCount = tentativasSolicitacao.get(ip) || 0;
-    if (reqCount >= 3) return res.status(429).json({ erro: "Muitas solicitações enviadas a partir deste dispositivo. Por favor, aguarde algumas horas." });
+    if (reqCount >= 3) return res.status(429).json({ erro: "Muitas solicitações enviadas. Aguarde algumas horas." });
     
     try {
         const d = req.body;
         const imagensParaVerificar = [d.url_selfie, d.url_residencia, d.url_frente, d.url_verso, d.url_casa];
         for (let img of imagensParaVerificar) { 
-            if (img && img.length > 4 * 1024 * 1024) return res.status(413).json({ erro: "Imagem excede o limite de segurança." }); 
+            if (img && img.length > 4 * 1024 * 1024) return res.status(413).json({ erro: "Imagem excede o limite." }); 
         }
 
         const { data: bl } = await supabase.from('lista_negra').select('cpf').eq('cpf', d.cpf).single();
-        if (bl) return res.status(403).json({ erro: "CPF bloqueado por restrições internas." });
+        if (bl) return res.status(403).json({ erro: "CPF bloqueado." });
 
         const { data: solPendente } = await supabase.from('solicitacoes').select('id').eq('cpf', d.cpf).eq('status', 'PENDENTE').maybeSingle();
         if (solPendente) return res.status(429).json({ erro: "Você já possui uma solicitação em análise." });
 
-        // Regista a tentativa de IP se passou nas validações iniciais
         tentativasSolicitacao.set(ip, reqCount + 1);
-        setTimeout(() => tentativasSolicitacao.delete(ip), 60 * 60 * 1000); // Liberta após 1 hora
+        setTimeout(() => tentativasSolicitacao.delete(ip), 60 * 60 * 1000);
 
         const ts = Date.now() + '_' + Math.random().toString(36).substring(2, 8);
         let oldFrente = null, oldVerso = null, oldCasa = null;
@@ -168,14 +157,9 @@ app.post('/api/enviar-solicitacao', async (req, res) => {
         }]);
         if (error) throw error;
         
-        enviarZap(process.env.ADMIN_WHATSAPP, `🚀 Nova Solicitação:\n👤 ${d.nome}\n💰 R$ ${d.valor}`).catch(e => {
-            console.error("⚠️ Aviso: Falha ao notificar o WhatsApp do Admin.", e.message); // 🛡️ Evita falha silenciosa
-        });
+        enviarZap(process.env.ADMIN_WHATSAPP, `🚀 Nova Solicitação:\n👤 ${d.nome}\n💰 R$ ${d.valor}`).catch(e => {});
         res.status(200).json({ mensagem: "Solicitação recebida com sucesso!" });
-    } catch (err) { 
-        console.error("❌ Erro em /enviar-solicitacao:", err); // 🛡️ Registo de auditoria no terminal
-        res.status(500).json({ erro: err.message }); 
-    }
+    } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
 // ==========================================
@@ -187,6 +171,11 @@ app.post('/validar-extrato', async (req, res) => {
         if (req.body.cpf) query = query.eq('cpf', req.body.cpf.replace(/\D/g, '')); 
         const { data: dev, error } = await query.single();
         if (error || !dev) return res.status(404).json({ erro: "Extrato não encontrado." }); 
+        
+        // Cálculo de Parcelas para o Front-end
+        dev.valor_parcela = (dev.qtd_parcelas > 1) ? (dev.valor_total / dev.qtd_parcelas) : dev.valor_total;
+        dev.parcelas_pagas = (dev.qtd_parcelas > 1 && dev.valor_parcela > 0) ? Math.floor((dev.total_ja_pego || 0) / dev.valor_parcela) : ((dev.total_ja_pego >= dev.valor_total) ? 1 : 0);
+
         res.json(dev); 
     } catch(e) { res.status(500).json({ erro: e.message }); } 
 });
@@ -211,15 +200,10 @@ app.post('/cliente-aceitou', async (req, res) => {
 
 app.post('/cliente-gerar-pagamento', async (req, res) => { 
     try { 
-        // 🛡️ CORREÇÃO IDOR: Pesquisar estritamente por UUID. Evita que hackers enviem IDs sequenciais (1, 2, 3...) para faturar em nome de outros
-        if (!req.body.id || typeof req.body.id !== 'string') {
-            return res.status(400).json({ erro: "Identificador inválido." });
-        }
+        if (!req.body.id || typeof req.body.id !== 'string') return res.status(400).json({ erro: "Identificador inválido." });
 
         const { data: dev } = await supabase.from('devedores').select('*').eq('uuid', req.body.id).single(); 
-        if (!dev) {
-            throw new Error("Extrato não encontrado ou identificador adulterado.");
-        }
+        if (!dev) throw new Error("Extrato não encontrado.");
         
         const link = await gerarLinkCobranca(dev, parseFloat(req.body.valorParaPagar)); 
         res.json({ checkout_url: link }); 
@@ -324,7 +308,6 @@ app.post('/api/aprovar-solicitacao', async (req, res) => {
         if (errSol || !sol) throw new Error("Não encontrada.");
         if (sol.status !== 'PENDENTE') return res.status(400).json({ erro: "Já foi tratada." });
 
-        // 🛡️ Prevenção Matemática: Impede a injeção via API de juros ou capitais negativos
         const jurosDecimal = Math.max(0, (limparMoeda(juros) || 30) / 100);
         const valorFinal = novoValor ? Math.max(0, limparMoeda(novoValor)) : Math.max(0, limparMoeda(sol.valor));
         const freqFinal = novaFreq || sol.frequencia || 'MENSAL';
@@ -393,6 +376,13 @@ app.get('/api/devedores-ativos', async (req, res) => {
             const { data, error } = await supabase.from('devedores').select('*').in('status', ['ABERTO', 'ATRASADO', 'APROVADO_AGUARDANDO_ACEITE']).order('data_vencimento', { ascending: true }).range(p, p + 999);
             if (error || !data || data.length === 0) break; tds = tds.concat(data); if (data.length < 1000) b = false; p += 1000;
         }
+        
+        tds = tds.map(dev => {
+            dev.valor_parcela = (dev.qtd_parcelas > 1) ? (dev.valor_total / dev.qtd_parcelas) : dev.valor_total;
+            dev.parcelas_pagas = (dev.qtd_parcelas > 1 && dev.valor_parcela > 0) ? Math.floor((dev.total_ja_pego || 0) / dev.valor_parcela) : ((dev.total_ja_pego >= dev.valor_total) ? 1 : 0);
+            return dev;
+        });
+
         res.json(tds);
     } catch(e) { res.status(500).json({ erro: e.message }); }
 });
@@ -421,10 +411,44 @@ app.get('/api/cliente-extrato/:busca', async (req, res) => {
         
         const main = cls.find(c => c.status === 'ABERTO' || c.status === 'ATRASADO') || cls[0];
         const { data: tds } = await supabase.from('devedores').select('*').eq('cpf', main.cpf);
+        
+        const tdsComParcelas = (tds || cls).map(dev => {
+            dev.valor_parcela = (dev.qtd_parcelas > 1) ? (dev.valor_total / dev.qtd_parcelas) : dev.valor_total;
+            dev.parcelas_pagas = (dev.qtd_parcelas > 1 && dev.valor_parcela > 0) ? Math.floor((dev.total_ja_pego || 0) / dev.valor_parcela) : ((dev.total_ja_pego >= dev.valor_total) ? 1 : 0);
+            return dev;
+        });
+        const mainComParcelas = tdsComParcelas.find(c => c.id === main.id) || main;
+
         const idsArray = (tds || []).map(c => c.id);
         const { data: logs } = await supabase.from('logs').select('*').in('devedor_id', idsArray).order('created_at', { ascending: false }).limit(200);
         
-        res.json({ cliente: main, todos_contratos: tds || cls, logs: logs || [] });
+        res.json({ cliente: mainComParcelas, todos_contratos: tdsComParcelas, logs: logs || [] });
+    } catch(e) { res.status(500).json({ erro: e.message }); }
+});
+
+app.get('/api/buscar-cliente-admin/:busca', async (req, res) => {
+    try {
+        const b = decodeURIComponent(req.params.busca); 
+        const hasNum = /\d/.test(b); 
+        let q = supabase.from('devedores').select('id, nome, cpf, telefone, status');
+        if (hasNum) { 
+            const num = b.replace(/\D/g, ''); 
+            q = q.or(`cpf.eq.${num},telefone.ilike.%${num}%`); 
+        } else { 
+            q = q.ilike('nome', `%${b}%`); 
+        }
+        const { data: cls, error } = await q.limit(10);
+        if (error || !cls || cls.length === 0) return res.status(404).json({ erro: "Nenhum cliente encontrado" });
+        
+        const uniqueClients = [];
+        const cpfs = new Set();
+        for (const c of cls) {
+            if (!cpfs.has(c.cpf)) {
+                cpfs.add(c.cpf);
+                uniqueClients.push(c);
+            }
+        }
+        res.json(uniqueClients);
     } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
@@ -518,13 +542,26 @@ app.post('/api/baixar-manual', async (req, res) => {
     } catch (e) { res.status(500).json({ erro: e.message }); } finally { setTimeout(() => travasAtivasPainel.delete(lockKey), 3000); }
 });
 
+// 🚨 NOVO: Rota de Cadastro Manual com processamento de fotos e tratamento de erros do DB
 app.post('/api/cadastrar-cliente-manual', async (req, res) => {
     try {
         const d = req.body;
-        const uS = d.img_selfie ? await fazerUploadNoSupabase(d.img_selfie, `${d.cpf}_s.jpg`) : null;
+        
+        // 🚨 Processa de forma independente as fotos que tenham sido enviadas via painel manual
+        const uS = d.img_selfie ? await fazerUploadNoSupabase(d.img_selfie, `${d.cpf}_s_${Date.now()}.jpg`) : null;
+        const uF = d.img_frente ? await fazerUploadNoSupabase(d.img_frente, `${d.cpf}_f_${Date.now()}.jpg`) : null;
+        const uV = d.img_verso ? await fazerUploadNoSupabase(d.img_verso, `${d.cpf}_v_${Date.now()}.jpg`) : null;
+        const uR = d.img_residencia ? await fazerUploadNoSupabase(d.img_residencia, `${d.cpf}_r_${Date.now()}.jpg`) : null;
+        const uC = d.img_casa ? await fazerUploadNoSupabase(d.img_casa, `${d.cpf}_c_${Date.now()}.jpg`) : null;
         
         let db = { nome: d.nome, cpf: d.cpf, telefone: d.whatsapp, observacoes: "[Manual]", cobrar_so_em_dinheiro: d.cobrar_so_em_dinheiro || false };
+        
+        // 🚨 Substitui apenas as fotos que você enviou agora. Mantém as antigas que não foram alteradas
         if(uS) db.url_selfie = uS; 
+        if(uF) db.url_frente = uF; 
+        if(uV) db.url_verso = uV; 
+        if(uR) db.url_residencia = uR; 
+        if(uC) db.url_casa = uC; 
 
         if (!d.is_precadastro) {
             db.valor_emprestado = limparMoeda(d.valor_emprestado); db.valor_total = limparMoeda(d.valor_total);
@@ -540,18 +577,40 @@ app.post('/api/cadastrar-cliente-manual', async (req, res) => {
         }
 
         let dId;
+        
         if (d.id_existente) {
-            const { data: o } = await supabase.from('devedores').select('status').eq('id', d.id_existente).single();
-            if (o?.status === 'PRE_CADASTRO') {
+            const { data: o, error: errBusca } = await supabase.from('devedores').select('status').eq('id', d.id_existente).single();
+            if (errBusca) throw errBusca;
+            
+            if (o?.status === 'PRE_CADASTRO' || o?.status === 'QUITADO') {
                 if (!d.is_precadastro) { db.created_at = new Date().toISOString(); db.ultima_cobranca_atraso = null; }
-                const { data: u } = await supabase.from('devedores').update(db).eq('id', d.id_existente).select().single(); dId = u.id;
-            } else { const { data: i } = await supabase.from('devedores').insert([db]).select().single(); dId = i.id; }
-        } else { const { data: i } = await supabase.from('devedores').insert([db]).select().single(); dId = i.id; }
+                
+                // 🚨 Tenta atualizar. Se houver falha de constrição na DB (ex: tem outro ativo), lança o erro real.
+                const { data: u, error: uErr } = await supabase.from('devedores').update(db).eq('id', d.id_existente).select().single();
+                if (uErr) throw uErr;
+                dId = u.id;
+            } else {
+                // Tenta criar novo registo. A DB vai bloquear se o CPF já estiver em uso (ABERTO/ATRASADO).
+                const { data: i, error: iErr } = await supabase.from('devedores').insert([db]).select().single();
+                if (iErr) throw iErr;
+                dId = i.id;
+            }
+        } else {
+            const { data: i, error: iErr } = await supabase.from('devedores').insert([db]).select().single();
+            if (iErr) throw iErr;
+            dId = i.id;
+        }
 
-        if (!d.is_precadastro) await supabase.from('logs').insert([{ evento: 'Empréstimo Liberado', detalhes: `Lançado.`, devedor_id: dId, valor_fluxo: -Math.abs(db.valor_emprestado) }]);
-        else await supabase.from('logs').insert([{ evento: 'Pré-Cadastro', detalhes: `Salvo.`, devedor_id: dId }]); 
+        if (!d.is_precadastro) {
+            await supabase.from('logs').insert([{ evento: 'Empréstimo Liberado', detalhes: `Lançado.`, devedor_id: dId, valor_fluxo: -Math.abs(db.valor_emprestado) }]);
+        } else {
+            await supabase.from('logs').insert([{ evento: 'Pré-Cadastro', detalhes: `Salvo.`, devedor_id: dId }]); 
+        }
         res.json({ sucesso: true });
-    } catch (err) { res.status(500).json({ erro: err.message }); }
+    } catch (err) { 
+        // Envia a mensagem exata do erro da base de dados para o frontend traduzir
+        res.status(500).json({ erro: err.message }); 
+    }
 });
 
 app.get('/api/extrato-caixa', async (req, res) => {
@@ -594,7 +653,6 @@ app.get('/api/logs-auditoria', async (req, res) => {
     try { const { data } = await supabase.from('logs').select('*, devedores(nome)').order('created_at', { ascending: false }).limit(300); res.json(data || []); } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
-// 🚨 O NOVO MOTOR ANALÍTICO DO RELATÓRIO DE FLUXO DE CAIXA E ESTATÍSTICAS
 app.post('/api/relatorio-periodo', async (req, res) => {
     try {
         const dtInicio = req.body.dataInicio || req.body.inicio || new Date().toISOString().split('T')[0];
@@ -629,15 +687,12 @@ app.post('/api/relatorio-periodo', async (req, res) => {
         let qtdQuitados = 0;
         let movimentacoes = [];
 
-        // 🛡️ NOVO: Utilitário para fatiar Arrays (Prevenção de Erro "414 URI Too Long" no Supabase)
         const chunkArray = (arr, size) => Array.from({ length: Math.ceil(arr.length / size) }, (v, i) => arr.slice(i * size, i * size + size));
 
-        // Busca as taxas dos devedores envolvidos para cálculo proporcional de lucro real
         const devedorIdsPeriodo = [...new Set(todosLogs.filter(l => l.valor_fluxo > 0 && l.devedor_id).map(l => l.devedor_id))];
         let taxasDevedores = {};
 
         if (devedorIdsPeriodo.length > 0) {
-            // 🛡️ Divide a pesquisa em lotes de 200 IDs para garantir estabilidade da API em alto volume
             const chunks = chunkArray(devedorIdsPeriodo, 200);
             let devsEncontrados = [];
             
@@ -673,7 +728,6 @@ app.post('/api/relatorio-periodo', async (req, res) => {
                 totalRecebido += v;
                 if (ev === 'Quitação Total') qtdQuitados++;
 
-                // 🚨 CÁLCULO PRECISO DO LUCRO PROPORCIONAL DAQUELE PAGAMENTO
                 if (log.devedor_id && taxasDevedores[log.devedor_id]) {
                     const info = taxasDevedores[log.devedor_id];
                     let taxaAplicada = info.taxa / 100;
@@ -681,11 +735,9 @@ app.post('/api/relatorio-periodo', async (req, res) => {
                         taxaAplicada = (info.taxa / 100) * info.parcelas;
                     }
                     const multiplicador = 1 + taxaAplicada;
-                    // Formula: O lucro extraído daquela quantia recebida
                     const jurosDestaParcela = v - (v / multiplicador);
                     jurosMensalidade += jurosDestaParcela;
                 } else {
-                    // Fallback de 30% caso seja um contrato muito antigo apagado
                     jurosMensalidade += v - (v / 1.3);
                 }
             }
@@ -718,11 +770,8 @@ app.post('/api/relatorio-periodo', async (req, res) => {
             }
         });
 
-        // 🚨 NOVA FÓRMULA DE LUCRO LÍQUIDO 
-        // Agora calcula apenas sobre os juros contabilizados das faturas pagas (menos despesas internas)
         const lucro = jurosMensalidade - totalDespesas;
 
-        // 🛡️ MEGA DICIONÁRIO DE ALIASES (A COBERTURA TOTAL PARA O INDEX.HTML)
         res.json({ 
             totalEmprestado: totalEmprestado || 0, 
             totalRecebido: totalRecebido || 0, 
@@ -755,7 +804,6 @@ app.post('/api/relatorio-periodo', async (req, res) => {
             multas_atraso: jurosAtrasoGerado || 0
         });
     } catch (e) { 
-        console.error("Erro no relatorio:", e);
         res.json({ totalEmprestado: 0, totalRecebido: 0, totalDespesas: 0, lucro: 0, entradas: 0, saidas: 0, saldo: 0, movimentacoes: [] }); 
     }
 });
@@ -802,9 +850,7 @@ cron.schedule('0 * * * *', async () => {
                     }
                     await enviarLembreteVencimento(dev.telefone, dev.nome, parseFloat(dev.valor_total || 0), dev.data_vencimento, linkPortal);
                     await sleep(2500); 
-                } catch (e) { 
-                    console.error(`⚠️ Erro ao enviar lembrete para devedor ID ${dev.id}:`, e.message); // 🛡️ Previne falha silenciosa
-                }
+                } catch (e) { }
             }
             if (lembretes.length < 1000) buscarLembretes = false;
             ponteiroLembrete += 1000;
@@ -872,15 +918,12 @@ cron.schedule('0 * * * *', async () => {
                         clientesEmQuarentena.add(dev.id);
                     }
                 } catch (e) { 
-                    console.error(`⚠️ Erro ao aplicar multa para devedor ID ${dev.id}:`, e.message); // 🛡️ Previne falha silenciosa de cálculos
                     clientesEmQuarentena.add(dev.id); 
                 }
             }
             if (devedoresEmAtraso.length < 1000) buscarAtrasos = false;
         }
-    } catch(e) { 
-        console.error("❌ Falha Crítica na execução do Cron Job Diário:", e); // 🛡️ Monitorização de colapso de infraestrutura
-    }
+    } catch(e) { }
 });
 
 const PORT = process.env.PORT || 3001;
