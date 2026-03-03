@@ -54,7 +54,7 @@
             
             <p class="text-[9px] font-black text-slate-600 uppercase tracking-widest px-6 mb-2 mt-6">Administração</p>
             <button onclick="mudarAba('caixa')" id="nav-caixa" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-money-bill-transfer w-6"></i> Saída de Caixa</button>
-            <button onclick="mudarAba('ranking')" id="nav-ranking" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-handshake w-6"></i> Promotores</button>
+            <button onclick="mudarAba('ranking')" id="nav-ranking" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-handshake w-6"></i> Indicadores</button>
             <button onclick="mudarAba('relatorios')" id="nav-relatorios" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-file-invoice-dollar w-6"></i> Relatórios Analíticos</button>
             <button onclick="mudarAba('logs')" id="nav-logs" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-clock-rotate-left w-6"></i> Auditoria (Logs)</button>
             <button onclick="mudarAba('lista-negra')" id="nav-lista-negra" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-user-slash w-6"></i> Lista Negra</button>
@@ -1958,7 +1958,7 @@
                     method: 'POST', headers: headersAuth, body: JSON.stringify({ nome, cpf }) 
                 });
                 if(res.ok) { 
-                    showToast("Promotor comissionado integrado."); 
+                    showToast("Indicador comissionado integrado."); 
                     document.getElementById('promo_nome').value = ''; 
                     document.getElementById('promo_cpf').value = ''; 
                     carregarPromotores(); 
