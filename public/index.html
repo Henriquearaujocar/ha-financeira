@@ -183,8 +183,16 @@
                         <h2 id="ext_nome" class="text-xl font-black text-white leading-tight">...</h2>
                         <p id="ext_cpf" class="text-xs font-mono text-slate-400 mt-1">...</p>
                     </div>
+
+                    <!-- RESUMO DE DÍVIDAS ATIVAS RESTAURADO -->
+                    <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700 mb-2 shadow-inner">
+                        <h3 class="text-[9px] font-black uppercase text-slate-500 mb-2 border-b border-slate-700 pb-1">Resumo de Dívidas Ativas</h3>
+                        <p class="text-xs flex justify-between mb-1"><span class="text-slate-400">Capital na Rua:</span> <span id="ext_ativo_capital" class="font-bold text-white">R$ 0,00</span></p>
+                        <p class="text-xs flex justify-between mb-1"><span class="text-slate-400">Dívida Total Ativa:</span> <span id="ext_ativo_divida" class="font-bold text-red-400">R$ 0,00</span></p>
+                        <p class="text-xs flex justify-between"><span class="text-slate-400">Já Recebido (Ativos):</span> <span id="ext_ativo_pago" class="font-bold text-emerald-400">R$ 0,00</span></p>
+                    </div>
                     
-                    <!-- 🚨 LUCRO GLOBAL (Empréstimos vs Pagamentos do Cliente) -->
+                    <!-- LUCRO GLOBAL (Empréstimos vs Pagamentos do Cliente) -->
                     <div class="grid grid-cols-2 gap-2 text-center border-t border-b border-slate-700 py-4 my-2">
                         <div>
                             <p class="text-[9px] font-black uppercase text-slate-500 mb-1">Total Emprestado</p>
@@ -239,7 +247,6 @@
         <div id="aba-cadastro" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-user-plus text-blue-500 mr-2"></i> Cadastro Manual / Pré-Cadastro</h2>
             
-            <!-- 🚨 LIVE SEARCH AUTOCORRECT -->
             <div class="glass-card p-6 rounded-3xl border border-slate-700 mb-6 max-w-4xl relative z-30">
                 <label class="block text-[10px] font-black uppercase text-slate-400 mb-2">Já tem pré-cadastro? Pesquise para lançar dívida:</label>
                 <div class="relative">
@@ -249,7 +256,6 @@
                         </div>
                         <input type="text" id="busca_cliente_cad" placeholder="Digite o Nome, CPF ou Zap..." class="input-dark w-full pl-12 text-sm font-bold" oninput="buscarParaCadastroLive()" autocomplete="off">
                     </div>
-                    <!-- Menu Suspenso Inteligente -->
                     <div id="autocomplete_resultados" class="absolute top-full left-0 w-full bg-slate-800 border border-slate-600 rounded-xl shadow-2xl mt-2 hidden max-h-60 overflow-y-auto custom-scrollbar">
                         <!-- JS Inject -->
                     </div>
@@ -289,7 +295,6 @@
                     </div>
                 </div>
 
-                <!-- 🚨 ANEXOS NO PRÉ-CADASTRO (Substituição Opcional) -->
                 <div class="col-span-1 md:col-span-3 border-t border-slate-700 pt-6 mt-4">
                     <label class="text-[10px] font-black uppercase text-slate-400 ml-2 block mb-3 text-center md:text-left">Anexar Documentos (Opcional - Atualiza a ficha do cliente)</label>
                     <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -321,7 +326,6 @@
                     </div>
                 </div>
 
-                <!-- 🚨 ÁREA FINANCEIRA COM CÁLCULO AUTOMÁTICO DE JUROS -->
                 <div id="cad_area_financeira" class="grid grid-cols-1 md:grid-cols-4 gap-4 border-t border-slate-700 pt-6 transition-all">
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Capital Original</label>
@@ -400,11 +404,9 @@
         <div id="aba-relatorios" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-file-invoice-dollar text-emerald-500 mr-2"></i> Dashboard & Relatórios Analíticos</h2>
             
-            <!-- INÍCIO DO DASHBOARD FINANCEIRO -->
             <div id="dashboard-section" class="glass-card p-6 rounded-3xl mb-8 border border-slate-700">
                 <h2 class="text-xl font-bold text-white mb-4"><i class="fa-solid fa-chart-pie text-blue-500 mr-2"></i> Painel de Desempenho e Lucratividade</h2>
                 
-                <!-- Filtros de Tempo -->
                 <div class="flex flex-wrap gap-4 items-end mb-6 bg-slate-900/50 p-4 rounded-xl border border-slate-700">
                     <div>
                         <label class="text-[10px] text-slate-400 font-bold uppercase mb-1 block">Período de Análise</label>
@@ -430,7 +432,6 @@
                     </button>
                 </div>
 
-                <!-- Cards de Métricas -->
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700 relative overflow-hidden">
                         <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-file-contract text-6xl text-white"></i></div>
@@ -475,9 +476,7 @@
                     </div>
                 </div>
             </div>
-            <!-- FIM DO DASHBOARD FINANCEIRO -->
 
-            <!-- EXTRATO BANCÁRIO DETALHADO -->
             <h3 class="text-lg font-bold text-white mb-4"><i class="fa-solid fa-list-ul text-blue-500 mr-2"></i> Relatório Analítico (Extrato)</h3>
             <div class="glass-card p-6 rounded-3xl border border-slate-700 mb-6 flex flex-wrap gap-4 items-end">
                 <div>
@@ -500,7 +499,6 @@
                 <button onclick="carregarRelatorios()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-xl transition-all shadow-lg"><i class="fa-solid fa-list text-xs mr-2"></i> Listar Movimentações</button>
             </div>
 
-            <!-- TABELA EXTRATO BANCÁRIO DETALHADO -->
             <div class="glass-card rounded-3xl overflow-hidden border border-slate-700 mt-6">
                 <h3 class="text-xs font-black uppercase text-white p-6 bg-slate-800/80 border-b border-slate-700">Fluxo Detalhado (Livro-Razão)</h3>
                 <div class="max-h-[500px] overflow-y-auto">
@@ -845,7 +843,7 @@
             
             <input type="hidden" id="editDevedorId">
             
-            <!-- FLAG PARA DINHEIRO NA EDIÇÃO -->
+            <!-- 🚨 FLAG PARA DINHEIRO NA EDIÇÃO -->
             <label class="flex items-center gap-2 cursor-pointer bg-slate-900/50 px-4 py-3 rounded-xl border border-slate-700 hover:border-emerald-500 transition-colors mb-4">
                 <input type="checkbox" id="editApenasDinheiro" class="w-4 h-4 accent-emerald-500 rounded cursor-pointer">
                 <span class="text-[10px] font-black uppercase text-emerald-400">Cliente Paga Só em Dinheiro (Bloqueia Link PIX)</span>
@@ -878,7 +876,7 @@
 
     <!-- JAVASCRIPT GLOBAL (COMPLETO E EXPANDIDO) -->
     <script>
-        const API_BASE = ''; 
+        const API_BASE = window.location.origin; 
         
         let solicitacaoAtualId = null;
         let listaDevedoresAtuais = [];
@@ -1224,10 +1222,12 @@
         async function aprovarSolicitacao(isContraProposta) {
             const btn = isContraProposta ? document.getElementById('btnAprovarCP') : document.getElementById('btnAprovarOriginal');
             const btnOriginalText = btn.innerHTML;
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processando...`; 
+            
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processando...`;
             btn.disabled = true;
 
             let juros, novoValor, novaFreq, novasParcelas;
+
             if (isContraProposta) {
                 juros = document.getElementById('docJuros').value;
                 novoValor = document.getElementById('docNovoValor').value;
@@ -1257,6 +1257,8 @@
                     })
                 });
                 
+                const data = await res.json();
+                
                 if (res.ok) { 
                     showToast(isContraProposta ? "Contra-Proposta enviada ao cliente!" : "Proposta aprovada com sucesso!"); 
                     const tr = document.getElementById(`tr-soli-${solicitacaoAtualId}`);
@@ -1265,9 +1267,7 @@
                     carregarAberto(); 
                     mudarAba('aberto'); 
                 } else {
-                    let errObj; 
-                    try { errObj = await res.json(); } catch(e) { errObj = {erro:"Falha fatal"}; }
-                    throw new Error(errObj.erro || "Erro interno do servidor.");
+                    throw new Error(data.erro || "Erro interno do servidor.");
                 }
             } catch(e) { 
                 showToast(e.message, "error"); 
@@ -1291,9 +1291,8 @@
                     if(tr) tr.remove();
                     fecharModal('modalDocumentos'); 
                 } else {
-                    let errObj; 
-                    try { errObj = await res.json(); } catch(e) { errObj = {erro:"Falha fatal"}; }
-                    showToast(errObj.erro, "error");
+                    const err = await res.json();
+                    showToast(err.erro, "error");
                 }
             } catch(e) { 
                 showToast("Erro ao rejeitar.", "error"); 
@@ -1323,11 +1322,13 @@
 
         function filtrarAberto() {
             const t = document.getElementById('busca-aberto').value.toLowerCase();
-            const hoje = new Date(); hoje.setHours(0,0,0,0);
+            const hoje = new Date(); 
+            hoje.setHours(0,0,0,0);
             
             const filtrados = listaDevedoresAtuais.filter(d => {
                 const matchTexto = d.nome.toLowerCase().includes(t) || d.cpf.includes(t);
                 let matchStatus = true;
+                
                 let dt = new Date(d.data_vencimento + 'T12:00:00Z');
                 
                 if (filtroStatusAberto === 'PENDENTE') {
@@ -1338,15 +1339,19 @@
                     matchStatus = (dt >= hoje) && d.status !== 'APROVADO_AGUARDANDO_ACEITE';
                 }
 
-                return matchTexto && matchStatus && d.status !== 'PRE_CADASTRO';
+                const isNotPreCadastro = d.status !== 'PRE_CADASTRO';
+
+                return matchTexto && matchStatus && isNotPreCadastro;
             });
+            
             renderizarAberto(filtrados);
         }
 
         function renderizarAberto(lista) {
             const tbody = document.getElementById('lista-aberto');
             tbody.innerHTML = '';
-            const LIMIT_UI = 150; 
+            
+            const LIMIT_UI = 150; // Limite DOM
             const listaVisual = lista.slice(0, LIMIT_UI);
 
             listaVisual.forEach(d => {
@@ -1362,8 +1367,9 @@
                     badge = dt < hoje ? '<span class="bg-red-500/20 text-red-500 px-2 py-1 rounded text-[9px] font-black">ATRASADO</span>' : '<span class="bg-emerald-500/20 text-emerald-500 px-2 py-1 rounded text-[9px] font-black">EM DIA</span>';
                 }
 
+                // Tag visual para clientes que só pagam em dinheiro físico
                 let tagDinheiro = d.cobrar_so_em_dinheiro ? '<i class="fa-solid fa-money-bill-1 text-emerald-500 ml-2" title="Paga só em dinheiro"></i>' : '';
-                
+
                 let valorExibido = total;
                 let txtParcelas = '';
                 let labelTipo = 'TOTAL DA DÍVIDA';
@@ -1388,13 +1394,12 @@
                             ${txtParcelas}
                         </td>
                         <td class="px-6 py-4">${badge}</td>
-                        <td class="px-6 py-4 text-center relative flex justify-center items-center gap-2">
-                            <!-- 🚨 NOVO: Botão de Cobrança Direto na Tabela -->
-                            <button onclick="enviarCobrancaManual('${d.id}')" class="bg-emerald-600/20 text-emerald-500 hover:bg-emerald-500 hover:text-white p-2 rounded transition-colors" title="Enviar Link de Cobrança no Zap"><i class="fa-solid fa-paper-plane"></i></button>
-                            
-                            <button onclick="toggleDropdown('menu-${d.id}', this)" class="text-slate-400 hover:text-white p-2 rounded hover:bg-slate-700 transition-colors" title="Mais Opções"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+                        <td class="px-6 py-4 text-center relative">
+                            <button onclick="enviarCobrancaManual('${d.id}')" class="bg-emerald-600/20 text-emerald-500 hover:bg-emerald-500 hover:text-white px-2 py-1.5 mr-2 rounded transition-colors" title="Enviar Link de Cobrança no Zap"><i class="fa-solid fa-paper-plane"></i></button>
+                            <button onclick="toggleDropdown('menu-${d.id}', this)" class="text-slate-400 hover:text-white p-2 rounded hover:bg-slate-700 transition-colors"><i class="fa-solid fa-ellipsis-vertical"></i></button>
                             <div id="menu-${d.id}" class="dropdown-menu absolute right-8 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-[60]">
                                 <button onclick="prepararPagamento('${d.id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-emerald-400"><i class="fa-solid fa-money-bill-wave mr-2"></i> Receber Pgto</button>
+                                <button onclick="enviarCobrancaManual('${d.id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-green-400"><i class="fa-solid fa-paper-plane mr-2"></i> Enviar Cobrança</button>
                                 <button onclick="abrirEdicaoContrato('${d.id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-orange-400"><i class="fa-solid fa-pen-to-square mr-2"></i> Editar Contrato</button>
                                 <button onclick="abrirExtratoListagem('${d.cpf}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-blue-400"><i class="fa-solid fa-file-invoice mr-2"></i> Ver Extrato</button>
                                 <button onclick="window.open('https://wa.me/55${(d.telefone||'').replace(/\D/g,'')}', '_blank')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-slate-300"><i class="fa-brands fa-whatsapp mr-2"></i> WhatsApp</button>
@@ -1413,12 +1418,6 @@
                  </tr>`;
             }
         }
-
-        document.addEventListener('click', function(e) {
-            if (!e.target.closest('.relative')) {
-                document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
-            }
-        });
 
         function toggleDropdown(id, btnElement) {
             document.querySelectorAll('.dropdown-menu').forEach(m => { 
@@ -1448,7 +1447,6 @@
             
             document.getElementById('pgtoDevedorId').value = dev.id; 
             
-            // 🚨 NOVO: UX Inteligente. Se for parcelado, sugere o valor da parcela. Se não, o total.
             if (dev.qtd_parcelas > 1 && dev.valor_parcela) {
                 document.getElementById('pgtoValor').value = parseFloat(dev.valor_parcela).toFixed(2);
             } else {
@@ -1658,49 +1656,82 @@
                     const corLucro = lucroRealizado >= 0 ? 'text-blue-400' : 'text-red-400';
                     const badge = c.status === 'QUITADO' ? 'bg-emerald-500/20 text-emerald-400' : (isActive ? 'bg-red-500/20 text-red-400' : 'bg-slate-700 text-slate-300');
                     
-                    // 🚨 Se a dívida estiver ativa, gera botões de pagamento e edição exclusivos para ELA!
+                    // 🚨 NOVO: Cálculo de Dias de Atraso e Multas protegido contra crash de logs antigos nulos
+                    let diasAtrasoContrato = 0;
+                    let multasContrato = 0;
+                    
+                    const dtVenc = c.data_vencimento ? new Date(c.data_vencimento + 'T12:00:00Z') : new Date();
+                    const hj = new Date(); hj.setHours(0,0,0,0);
+                    
+                    if (isActive && dtVenc < hj) {
+                        diasAtrasoContrato = Math.floor((hj - dtVenc) / (1000 * 60 * 60 * 24));
+                    }
+
+                    const logsDeste = (data.logs || []).filter(l => String(l.devedor_id) === String(c.id));
+                    logsDeste.forEach(l => {
+                        const evento = l.evento || "";
+                        if (evento.includes('Atraso') || evento.includes('Migração') || evento.includes('Rolagem')) {
+                             // Proteção: Se o detalhe for null no banco de dados, ele lê como vazio em vez de crashar a tela
+                             const matchMulta = (l.detalhes || "").match(/R\$\s?([\d.,]+)/);
+                             if (matchMulta) {
+                                 const parseMulta = parseFloat(matchMulta[1].replace(/\./g, '').replace(',', '.'));
+                                 if (!isNaN(parseMulta)) multasContrato += parseMulta;
+                             }
+                        }
+                    });
+                    
                     let botoesAcao = '';
                     if (isActive) {
                         botoesAcao = `
                             <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-700">
-                                <button onclick="prepararPagamento('${c.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white py-1.5 rounded text-[10px] font-black uppercase transition-all shadow-lg"><i class="fa-solid fa-money-bill-wave mr-1"></i> Receber</button>
+                                <button onclick="prepararPagamento('${c.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white py-1.5 rounded text-[10px] font-black uppercase transition-all shadow-lg"><i class="fa-solid fa-money-bill-wave mr-1"></i> Receber Pgto</button>
                                 <button onclick="abrirEdicaoContrato('${c.id}')" class="bg-orange-600 hover:bg-orange-500 text-white py-1.5 rounded text-[10px] font-black uppercase transition-all shadow-lg"><i class="fa-solid fa-pen mr-1"></i> Editar</button>
                             </div>
                         `;
                     }
 
+                    // 🚨 NOVO LAYOUT DO CARTÃO: 6 Grid items para incluir Atraso e Multas
                     vContratos.innerHTML += `
-                    <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700 mb-3 relative">
-                        <div class="flex justify-between items-center mb-2">
-                            <p class="text-[10px] font-bold text-slate-400"><i class="fa-solid fa-file-contract mr-1"></i> ${new Date(c.created_at).toLocaleDateString()}</p>
+                    <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700 mb-3 relative shadow-md">
+                        <div class="flex justify-between items-center mb-3">
+                            <p class="text-[10px] font-bold text-slate-400"><i class="fa-solid fa-file-contract mr-1"></i> Venc: ${dtVenc.toLocaleDateString('pt-BR')}</p>
                             <span class="px-2 py-1 rounded text-[9px] font-black ${badge}">${c.status}</span>
                         </div>
-                        <div class="grid grid-cols-2 gap-2 text-xs mb-2 text-center">
-                            <div class="bg-slate-900/50 rounded py-1 border border-slate-700"><span class="text-slate-500 block text-[8px] uppercase">Capital</span><span class="font-bold text-white">${formatMoney(cap)}</span></div>
-                            <div class="bg-slate-900/50 rounded py-1 border border-slate-700"><span class="text-slate-500 block text-[8px] uppercase">Dívida Atual</span><span class="font-bold text-red-400">${formatMoney(tot)}</span></div>
-                            <div class="bg-slate-900/50 rounded py-1 border border-slate-700"><span class="text-slate-500 block text-[8px] uppercase">Já Pago</span><span class="font-bold text-emerald-400">${formatMoney(pago)}</span></div>
-                            <div class="bg-slate-900/50 rounded py-1 border border-slate-700"><span class="text-slate-500 block text-[8px] uppercase">Lucro Final</span><span class="font-black ${corLucro}">${lucroStr}</span></div>
+                        <div class="grid grid-cols-3 gap-2 text-[9px] mb-3 text-center">
+                            <div class="bg-slate-900/50 rounded py-1.5 border border-slate-700"><span class="text-slate-500 block text-[7px] uppercase mb-0.5">Capital</span><span class="font-bold text-white">${formatMoney(cap)}</span></div>
+                            <div class="bg-slate-900/50 rounded py-1.5 border border-slate-700"><span class="text-slate-500 block text-[7px] uppercase mb-0.5">Dívida Atual</span><span class="font-bold text-red-400">${formatMoney(tot)}</span></div>
+                            <div class="bg-slate-900/50 rounded py-1.5 border border-slate-700"><span class="text-slate-500 block text-[7px] uppercase mb-0.5">Já Pago</span><span class="font-bold text-emerald-400">${formatMoney(pago)}</span></div>
+                            
+                            <div class="bg-slate-900/50 rounded py-1.5 border border-slate-700"><span class="text-slate-500 block text-[7px] uppercase mb-0.5">Dias Atraso</span><span class="font-bold ${diasAtrasoContrato > 0 ? 'text-orange-400' : 'text-emerald-400'}">${diasAtrasoContrato}</span></div>
+                            <div class="bg-slate-900/50 rounded py-1.5 border border-slate-700"><span class="text-slate-500 block text-[7px] uppercase mb-0.5">Multas</span><span class="font-bold ${multasContrato > 0 ? 'text-orange-400' : 'text-slate-400'}">${formatMoney(multasContrato)}</span></div>
+                            <div class="bg-slate-900/50 rounded py-1.5 border border-slate-700"><span class="text-slate-500 block text-[7px] uppercase mb-0.5">Lucro Final</span><span class="font-black ${corLucro}">${lucroStr}</span></div>
                         </div>
-                        <button onclick="renderizarLogsExtrato(${c.id})" class="w-full bg-slate-900 hover:bg-blue-600 text-slate-400 hover:text-white py-2 rounded-lg text-[10px] font-bold transition-all border border-slate-700 hover:border-blue-500"><i class="fa-solid fa-filter mr-1"></i> Filtrar Histórico/Logs</button>
+                        <button onclick="renderizarLogsExtrato(${c.id})" class="w-full bg-slate-900 hover:bg-blue-600 text-slate-400 hover:text-white py-2 rounded-lg text-[10px] font-bold transition-all border border-slate-700 hover:border-blue-500"><i class="fa-solid fa-filter mr-1"></i> Filtrar Histórico Deste Contrato</button>
                         ${botoesAcao}
                     </div>`;
                 });
 
-                document.getElementById('ext_ativo_capital').innerText = formatMoney(sumAtivoCapital);
-                document.getElementById('ext_ativo_divida').innerText = formatMoney(sumAtivoDivida);
-                document.getElementById('ext_ativo_pago').innerText = formatMoney(sumAtivoPago);
+                // 🛡️ Proteção Inteligente contra Crashes (Só preenche se a tag existir no HTML)
+                if(document.getElementById('ext_ativo_capital')) document.getElementById('ext_ativo_capital').innerText = formatMoney(sumAtivoCapital);
+                if(document.getElementById('ext_ativo_divida')) document.getElementById('ext_ativo_divida').innerText = formatMoney(sumAtivoDivida);
+                if(document.getElementById('ext_ativo_pago')) document.getElementById('ext_ativo_pago').innerText = formatMoney(sumAtivoPago);
 
-                document.getElementById('ext_global_emprestado').innerText = formatMoney(somaCapital);
-                document.getElementById('ext_global_pago').innerText = formatMoney(somaPago);
+                if(document.getElementById('ext_global_emprestado')) document.getElementById('ext_global_emprestado').innerText = formatMoney(somaCapital);
+                if(document.getElementById('ext_global_pago')) document.getElementById('ext_global_pago').innerText = formatMoney(somaPago);
+                
                 const lucroGlobal = somaPago - somaCapital;
                 const lucroDOM = document.getElementById('ext_global_lucro');
-                lucroDOM.innerText = formatMoney(lucroGlobal);
-                lucroDOM.className = `text-lg font-black drop-shadow-md ${lucroGlobal >= 0 ? 'text-blue-400' : 'text-red-400'}`;
+                if(lucroDOM) {
+                    lucroDOM.innerText = formatMoney(lucroGlobal);
+                    lucroDOM.className = `text-lg font-black drop-shadow-md ${lucroGlobal >= 0 ? 'text-blue-400' : 'text-red-400'}`;
+                }
 
                 logsExtratoGlobal = data.logs || [];
                 renderizarLogsExtrato(null);
 
-            } catch(e) { showToast("Cliente não encontrado.", "error"); }
+            } catch(e) { 
+                showToast("Erro ao carregar o extrato. Verifique a consola.", "error"); 
+            }
         }
 
         function renderizarLogsExtrato(idContrato) {
@@ -1838,7 +1869,6 @@
             document.getElementById('autocomplete_resultados').classList.add('hidden'); 
             document.getElementById('busca_cliente_cad').value = nome;
             
-            // 🚨 Mostra alerta popup na tela em vez de apenas um pequeno aviso lateral.
             if (status === 'ABERTO' || status === 'ATRASADO') {
                 alert(`⚠️ ATENÇÃO: O cliente ${nome.split(' ')[0]} JÁ POSSUI uma dívida em andamento!\n\nAo lançar valores abaixo, o sistema criará um NOVO contrato paralelo em vez de atualizar o antigo.`);
             }
