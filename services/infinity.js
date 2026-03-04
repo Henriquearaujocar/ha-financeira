@@ -1,42 +1,26 @@
 const axios = require('axios');
 
 /**
- * Gera um link de pagamento utilizando a API de Invoices Pública da InfinitePay.
- * Baseado nas instruções oficiais: Não requer JWT, apenas o Handle (InfiniteTag) no body.
+ * Gera um link de pagamento utilizando a API de Invoices da InfinitePay.
  */
 async function gerarLinkCobranca(devedor, valor) {
-    // ✅ URL da sua API no Render como padrão (fallback)
+    // 1. Garante que a URL do seu servidor está correta para receber o retorno
+    // 🚨 FALLBACK SEGURO: Colado o seu domínio real da Render para evitar localhost
     let appUrl = process.env.APP_URL || "https://ha-financeira.onrender.com";
     
-    // Remove a barra final se existir, para evitar erro de rotas (ex: .com//webhook)
     if (appUrl.endsWith('/')) {
         appUrl = appUrl.slice(0, -1);
     }
     
-    // 🛡️ ALERTA INTELIGENTE DE INFRAESTRUTURA
     if (appUrl.includes('localhost')) {
-        console.warn("⚠️ AVISO: Seu APP_URL é 'localhost'.");
-        console.warn("A InfinitePay não consegue enviar a confirmação de pagamento (Webhook) para o seu servidor. Use Ngrok para testes locais ou um Domínio Público (ex: VPS/Railway).");
+        console.warn("⚠️ AVISO: O seu APP_URL é 'localhost'. A InfinitePay não conseguirá aceder ao seu computador para enviar a confirmação de pagamento automático.");
     }
     
-    // Converte R$ 15.50 para 1550 centavos (Exigência da InfinitePay)
     const valorCentavos = Math.round(parseFloat(valor) * 100);
-
-    // Pega a Tag do seu .env
-    const handleTag = process.env.INFINITY_API_KEY || "henrique_de_araujo";
-
-    // 🚨 CORREÇÃO: Captura o token secreto que a rota do index.js está a exigir
     const tokenSecreto = process.env.WEBHOOK_SECRET || "cms_seguro_2024";
 
-    // Payload Exato instruído pelo suporte (Enxuto, com valor livre em centavos)
+    // 🚨 2. PAYLOAD BLINDADO: Inclui Metadata, Webhook URL e a Tela de Sucesso
     const data = {
-        "handle": handleTag, 
-        "order_nsu": devedor.uuid,
-        "redirect_url": `${appUrl}/pagamento-concluido`,
-        
-        // ✅ AQUI ESTÁ A CORREÇÃO: Injeção do token secreto na URL do webhook
-        "webhook_url": `${appUrl}/webhook-infinitepay/${tokenSecreto}`, 
-        
         "items": [
             {
                 "id": "pagamento_avulso",
@@ -44,13 +28,21 @@ async function gerarLinkCobranca(devedor, valor) {
                 "price": valorCentavos,
                 "description": `Pgto HA Elite - ${devedor.nome.substring(0, 15)}`
             }
-        ]
+        ],
+        "metadata": {
+            "custom_id": devedor.uuid,
+            "cpf": devedor.cpf
+        },
+        "payment_methods": ["pix", "credit_card"],
+        // Força a InfinitePay a notificar a API da Render assim que o cliente pagar
+        "callback_url": `${appUrl}/webhook-infinitepay/${tokenSecreto}`,
+        // Devolve o cliente para a sua página bonita de "Pedido Recebido!" após pagar
+        "redirect_url": `${appUrl}/pagamento-concluido.html`
     };
 
     try {
         console.log(`⏳ Solicitando Link IP Público para ${devedor.nome} (R$ ${valor})...`);
         
-        // ROTA PÚBLICA: Sem envio de Token (Authorization: Bearer)
         const response = await axios.post('https://api.infinitepay.io/invoices/public/checkout/links', data, {
             headers: { 
                 'Content-Type': 'application/json',
@@ -58,7 +50,7 @@ async function gerarLinkCobranca(devedor, valor) {
             }
         });
 
-        console.log("✅ Link InfinitePay Gerado com Sucesso via API Pública!");
+        console.log("✅ Link InfinitePay Gerado com Sucesso!");
         return response.data.url || response.data.checkout_url || response.data.payment_url;
         
     } catch (error) {
@@ -69,10 +61,10 @@ async function gerarLinkCobranca(devedor, valor) {
             console.error(error.message);
         }
 
-        // PLANO B: Link Direto 
-        const valorFormatado = Number(valor).toFixed(2);
-        console.log("🔄 Acionando Link Público Estático (Plano B)...");
-        return `https://pay.infinitepay.io/${handleTag}/${valorFormatado}`;
+        // PLANO B: Link Direto (Fallback caso a API mude o padrão)
+        const handleTag = process.env.INFINITY_API_KEY || "henrique_de_araujo";
+        const valorFormatado = Number(valor).toFixed(2).replace('.', ',');
+        return `https://pay.infinitepay.io/${handleTag}/${valorFormatado}?metadata=${devedor.uuid}`;
     }
 }
 

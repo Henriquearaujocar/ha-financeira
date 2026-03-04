@@ -51,17 +51,17 @@
             <!-- Resumo da Fatura -->
             <div class="bg-slate-900/50 p-5 rounded-2xl border border-slate-700 text-center relative overflow-hidden">
                 <div class="absolute -right-4 -bottom-4 opacity-5"><i class="fa-solid fa-file-invoice-dollar text-8xl text-emerald-500"></i></div>
-                <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Saldo Devedor Atual</p>
+                <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Dívida Total do Contrato</p>
                 <h2 id="valorTotal" class="text-4xl font-black italic text-red-400">R$ 0,00</h2>
                 <p id="nomeCliente" class="text-sm font-bold text-white mt-2">...</p>
                 <p id="vencimentoTexto" class="text-xs text-orange-400 mt-1 font-bold">Vence em: ...</p>
             </div>
 
-            <!-- Campo de Valor (Permite parcial) -->
+            <!-- Campo de Valor (Auto-preenchido com Parcela) -->
             <div class="bg-emerald-900/10 border border-emerald-500/20 p-5 rounded-2xl">
-                <label class="text-[10px] font-black uppercase text-slate-400 ml-2 block mb-2 text-center">Valor que deseja pagar (R$)</label>
+                <label class="text-[10px] font-black uppercase text-slate-400 ml-2 block mb-2 text-center" id="lblValorPagar">Valor que deseja pagar (R$)</label>
                 <input type="number" step="0.01" id="valorAbater" class="input-field text-emerald-400 font-black text-2xl !bg-slate-900/80" placeholder="0.00">
-                <p class="text-[10px] text-slate-500 mt-3 text-center"><i class="fa-solid fa-circle-info mr-1"></i> Você pode pagar o total ou alterar para um valor parcial (sujeito a juros futuros).</p>
+                <p class="text-[10px] text-slate-500 mt-3 text-center"><i class="fa-solid fa-circle-info mr-1"></i> Você pode alterar para um valor parcial, se necessário.</p>
             </div>
 
             <!-- Botão de Ação -->
@@ -74,7 +74,7 @@
             </div>
         </div>
 
-        <!-- PASSO 3: MENSAGEM DE QUITADO (O BUG DO ZERO RESOLVIDO) -->
+        <!-- PASSO 3: MENSAGEM DE QUITADO -->
         <div id="step-quitado" class="hidden text-center py-8 space-y-4">
             <i class="fa-solid fa-circle-check text-7xl text-emerald-500 mb-4 drop-shadow-[0_0_20px_rgba(16,185,129,0.5)]"></i>
             <h2 class="text-2xl font-black text-white uppercase italic">Tudo Certo por aqui!</h2>
@@ -85,7 +85,7 @@
             </div>
         </div>
 
-        <!-- MENSAGEM DE ERRO (LINK INCOMPLETO) -->
+        <!-- MENSAGEM DE ERRO -->
         <div id="step-erro" class="hidden text-center py-8 space-y-4">
             <i class="fa-solid fa-link-slash text-6xl text-orange-500 mb-4"></i>
             <h2 class="text-xl font-black text-white uppercase italic">Link Inválido</h2>
@@ -99,12 +99,10 @@
         const urlParams = new URLSearchParams(window.location.search);
         const idReal = urlParams.get('id');
         
-        // Variáveis de Controlo de Segurança
         window.valorMaximoPagar = 0;
         let tentativasErradas = parseInt(localStorage.getItem('bloqueio_tentativas')) || 0;
         let bloqueioAte = parseInt(localStorage.getItem('bloqueio_tempo')) || 0;
 
-        // Máscara de CPF simples
         document.getElementById('inputCpf').addEventListener('input', function (e) {
             let x = e.target.value.replace(/\D/g, '').match(/(\d{0,3})(\d{0,3})(\d{0,3})(\d{0,2})/);
             e.target.value = !x[2] ? x[1] : x[1] + '.' + x[2] + (x[3] ? '.' + x[3] : '') + (x[4] ? '-' + x[4] : '');
@@ -116,7 +114,6 @@
         }
 
         async function validarAcesso() {
-            // Defesa contra Força Bruta (Rate Limit Local)
             if (Date.now() < bloqueioAte) {
                 const restam = Math.ceil((bloqueioAte - Date.now()) / 1000);
                 return alert(`Muitas tentativas falhadas. Aguarde ${restam} segundos por segurança.`);
@@ -139,29 +136,34 @@
                 const dev = await res.json();
 
                 if (res.ok && dev) {
-                    // Reset das tentativas caso sucesso
                     localStorage.setItem('bloqueio_tentativas', 0);
                     
-                    // Bloqueia o acesso se o contrato já estiver pago
                     if(dev.status === 'QUITADO' || Number(dev.valor_total) <= 0 || dev.pago === true) {
                         document.getElementById('step-auth').classList.add('hidden');
                         document.getElementById('step-quitado').classList.remove('hidden');
                         return;
                     }
 
-                    // Preenche os dados do cliente e guarda o Limite de Pagamento
-                    document.getElementById('nomeCliente').innerText = dev.nome;
                     const valorTotalFloat = parseFloat(dev.valor_total);
                     window.valorMaximoPagar = valorTotalFloat;
-                    
                     document.getElementById('valorTotal').innerText = valorTotalFloat.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    document.getElementById('valorAbater').value = valorTotalFloat.toFixed(2);
 
-                    // Formatação e aviso de atraso
+                    // 🚨 LÓGICA INTELIGENTE DA PARCELA: Se for parcelado, foca no valor da parcela
+                    if (dev.qtd_parcelas > 1 && dev.valor_parcela) {
+                        const nomeQuebrado = dev.nome.split(' ')[0];
+                        const numeroParcela = (dev.parcelas_pagas || 0) + 1;
+                        document.getElementById('nomeCliente').innerText = `${nomeQuebrado} (Pagando Parcela ${numeroParcela}/${dev.qtd_parcelas})`;
+                        document.getElementById('lblValorPagar').innerText = "Valor da Parcela Atual (R$)";
+                        document.getElementById('valorAbater').value = parseFloat(dev.valor_parcela).toFixed(2);
+                    } else {
+                        document.getElementById('nomeCliente').innerText = dev.nome.split(' ')[0];
+                        document.getElementById('lblValorPagar').innerText = "Valor que deseja pagar (R$)";
+                        document.getElementById('valorAbater').value = valorTotalFloat.toFixed(2);
+                    }
+
+                    // Vencimento e Atraso
                     const dataVenc = new Date(dev.data_vencimento + 'T12:00:00Z');
-                    const hoje = new Date(); 
-                    hoje.setHours(0,0,0,0);
-                    
+                    const hoje = new Date(); hoje.setHours(0,0,0,0);
                     const elVenc = document.getElementById('vencimentoTexto');
                     elVenc.innerText = `Vencimento: ${dataVenc.toLocaleDateString('pt-BR')}`;
                     
@@ -173,16 +175,13 @@
                     document.getElementById('step-auth').classList.add('hidden');
                     document.getElementById('step-pagamento').classList.remove('hidden');
                 } else {
-                    // Incrementa tentativas em caso de erro
                     tentativasErradas++;
                     localStorage.setItem('bloqueio_tentativas', tentativasErradas);
-                    
                     if(tentativasErradas >= 5) {
-                        const tempoBloqueio = Date.now() + 60000; // 1 minuto
-                        localStorage.setItem('bloqueio_tempo', tempoBloqueio);
-                        alert("Muitas tentativas incorretas. Acesso bloqueado por 1 minuto por razões de segurança.");
+                        localStorage.setItem('bloqueio_tempo', Date.now() + 60000);
+                        alert("Muitas tentativas incorretas. Acesso bloqueado por 1 minuto.");
                     } else {
-                        alert("CPF incorreto ou fatura não encontrada no sistema.");
+                        alert("CPF incorreto ou fatura não encontrada.");
                     }
                 }
             } catch (error) {
@@ -193,17 +192,11 @@
             }
         }
 
-        // 🚀 GERAÇÃO DO PIX INFINITEPAY
         async function pagar() {
             const v = parseFloat(document.getElementById('valorAbater').value);
             
-            // 🚨 VALIDAÇÃO DE SEGURANÇA: Impede Pagamento Negativo, Zero ou Excessivo
-            if(!v || v <= 0) {
-                return alert("O valor a pagar deve ser maior que zero.");
-            }
-            if(v > window.valorMaximoPagar) {
-                return alert(`Não é permitido pagar um valor superior à sua dívida total (R$ ${window.valorMaximoPagar.toFixed(2)}).`);
-            }
+            if(!v || v <= 0) return alert("O valor a pagar deve ser maior que zero.");
+            if(v > window.valorMaximoPagar) return alert(`Não é permitido pagar um valor superior à sua dívida total (R$ ${window.valorMaximoPagar.toFixed(2)}).`);
 
             const btn = document.getElementById('btnPagar');
             btn.disabled = true;
@@ -215,13 +208,12 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ id: idReal, valorParaPagar: v })
                 });
-                
                 const data = await res.json();
                 
                 if(data.checkout_url) {
                     window.location.href = data.checkout_url; 
                 } else {
-                    alert("Erro ao gerar a chave PIX. Tente novamente ou contacte o suporte.");
+                    alert("Erro ao gerar a chave PIX. Tente novamente.");
                     btn.disabled = false;
                     btn.innerHTML = `<i class="fa-brands fa-pix text-xl mr-2"></i> Gerar Chave PIX`;
                 }
