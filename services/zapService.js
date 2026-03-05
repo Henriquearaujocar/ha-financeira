@@ -39,8 +39,15 @@ const enviarZap = async (numeroRecebido, mensagem) => {
  * [NOVO] APROVAÇÃO E CONTRAPROPOSTA TRANSPARENTE
  * O cliente vê os novos termos antes de clicar no link.
  */
-const enviarAprovacaoComTermos = async (numero, nome, valor, parcelas, frequencia, valorParcela, linkAssinatura) => {
-    let msg = `🎉 *Boas notícias, ${nome.split(' ')[0]}!*\n\nA sua análise de crédito foi concluída e temos uma proposta aprovada para si:\n\n`;
+const enviarAprovacaoComTermos = async (numero, nome, valor, parcelas, frequencia, valorParcela, linkAssinatura, isContraProposta = false) => {
+    let msg = '';
+    
+    if (isContraProposta) {
+        msg = `Olá, ${nome.split(' ')[0]}! 🤝\n\nA sua análise de crédito foi concluída. Não conseguimos liberar as condições originais, mas temos uma *CONTRAPROPOSTA* aprovada para si:\n\n`;
+    } else {
+        msg = `🎉 *Boas notícias, ${nome.split(' ')[0]}!*\n\nA sua análise de crédito foi concluída e temos uma proposta aprovada para si:\n\n`;
+    }
+
     msg += `💰 *Valor Liberado:* R$ ${Number(valor).toFixed(2)}\n`;
     
     if (parcelas > 1) {

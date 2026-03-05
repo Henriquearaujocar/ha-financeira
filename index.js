@@ -314,7 +314,7 @@ app.get('/api/solicitacoes-pendentes', async (req, res) => {
 });
 
 app.post('/api/aprovar-solicitacao', async (req, res) => {
-    const { id, juros, observacao, novoValor, novaFreq, novasParcelas, cobrarSoEmDinheiro } = req.body;
+    const { id, juros, observacao, novoValor, novaFreq, novasParcelas, cobrarSoEmDinheiro, isContraProposta } = req.body;
     const lockKey = `aprovar_${id}`;
     if (travasAtivasPainel.has(lockKey)) return res.status(429).json({ erro: "Operação em andamento." });
     travasAtivasPainel.add(lockKey);
@@ -378,7 +378,8 @@ app.post('/api/aprovar-solicitacao', async (req, res) => {
                 parcelasFinais, 
                 freqFinal, 
                 valorDaParcela, 
-                linkAceite
+                linkAceite,
+                isContraProposta
             );
         } catch(e) {
             console.error("Erro ao enviar mensagem de aprovação: ", e);
