@@ -4,7 +4,8 @@ const cors = require('cors');
 const cron = require('node-cron');
 
 const { supabase } = require('./database');
-const { enviarZap, formatarNumero, verificarStatusZapi, enviarLembreteVencimento, enviarAvisoAtraso } = require('./services/zapService');
+// 🚨 IMPORTAÇÃO CORRIGIDA: Adicionado o enviarAprovacaoComTermos
+const { enviarZap, formatarNumero, verificarStatusZapi, enviarLembreteVencimento, enviarAvisoAtraso, enviarAprovacaoComTermos } = require('./services/zapService');
 const { recalcularDivida } = require('./services/financeService');
 const { fazerUploadNoSupabase } = require('./services/uploadService');
 const { gerarLinkCobranca } = require('./services/infinity');
@@ -366,7 +367,23 @@ app.post('/api/aprovar-solicitacao', async (req, res) => {
         await supabase.from('logs').insert([{ evento: 'Empréstimo Liberado', detalhes: `Aprovado R$ ${valorFinal.toFixed(2)}.`, devedor_id: devId, valor_fluxo: -Math.abs(valorFinal) }]);
 
         const linkAceite = `${APP_URL}/aceitar.html?id=${devUuid}`;
-        try { await enviarZap(payload.telefone, `🎉 Seu crédito foi APROVADO!\nAssine para receber: ${linkAceite}`); } catch(e) {}
+        
+        // 🚨 ENVIO DA MENSAGEM TRANSPARENTE DE CONTRAPROPOSTA / APROVAÇÃO
+        try { 
+            const valorDaParcela = parcelasFinais > 1 ? (valorTotal / parcelasFinais) : valorTotal;
+            await enviarAprovacaoComTermos(
+                payload.telefone, 
+                payload.nome, 
+                valorFinal, 
+                parcelasFinais, 
+                freqFinal, 
+                valorDaParcela, 
+                linkAceite
+            );
+        } catch(e) {
+            console.error("Erro ao enviar mensagem de aprovação: ", e);
+        }
+        
         res.json({ sucesso: true });
     } catch (e) { res.status(500).json({ erro: e.message }); } finally { setTimeout(() => travasAtivasPainel.delete(lockKey), 3000); }
 });

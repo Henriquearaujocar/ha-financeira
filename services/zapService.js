@@ -36,15 +36,34 @@ const enviarZap = async (numeroRecebido, mensagem) => {
 };
 
 /**
+ * [NOVO] APROVAÇÃO E CONTRAPROPOSTA TRANSPARENTE
+ * O cliente vê os novos termos antes de clicar no link.
+ */
+const enviarAprovacaoComTermos = async (numero, nome, valor, parcelas, frequencia, valorParcela, linkAssinatura) => {
+    let msg = `🎉 *Boas notícias, ${nome.split(' ')[0]}!*\n\nA sua análise de crédito foi concluída e temos uma proposta aprovada para si:\n\n`;
+    msg += `💰 *Valor Liberado:* R$ ${Number(valor).toFixed(2)}\n`;
+    
+    if (parcelas > 1) {
+        msg += `📅 *Plano:* ${parcelas}x de R$ ${Number(valorParcela).toFixed(2)} (${frequencia})\n\n`;
+    } else {
+        msg += `📅 *Plano:* Parcela Única em 30 Dias\n\n`;
+    }
+
+    msg += `Para ler os termos completos, aceitar a proposta e receber o seu PIX, clique no link oficial abaixo:\n🔗 ${linkAssinatura}`;
+    
+    return await enviarZap(numero, msg);
+};
+
+/**
  * Envia lembrete de cobrança (Vencimento Padrão)
  * Focado 100% em enviar o cliente para o Portal de Pagamento.
  */
 const enviarLembreteVencimento = async (numero, nome, valor, dataVenc, linkPortal) => {
     const dataFormatada = new Date(dataVenc + 'T12:00:00Z').toLocaleDateString('pt-BR');
-    let msg = `⏰ *LEMBRETE DE VENCIMENTO*\n\nOlá ${nome.split(' ')[0]}, sua parcela de *R$ ${Number(valor).toFixed(2)}* vence em *${dataFormatada}*.\n`;
+    let msg = `⏰ *LEMBRETE DE VENCIMENTO*\n\nOlá ${nome.split(' ')[0]}, a sua parcela de *R$ ${Number(valor).toFixed(2)}* vence a *${dataFormatada}*.\n`;
     
     // Sempre envia o link do portal para geração do IPIX
-    msg += `\nPara gerar a sua chave PIX de pagamento, acesse seu portal exclusivo:\n🔗 ${linkPortal}`;
+    msg += `\nPara gerar a sua chave PIX de pagamento, aceda ao seu portal exclusivo:\n🔗 ${linkPortal}`;
 
     return await enviarZap(numero, msg);
 };
@@ -54,9 +73,9 @@ const enviarLembreteVencimento = async (numero, nome, valor, dataVenc, linkPorta
  * Envia sempre o link do Portal para regularização.
  */
 const enviarAvisoAtraso = async (numero, nome, valorAtualizado, diasAtraso, linkPortal) => {
-    let msg = `⚠️ *AVISO DE ATRASO - ${diasAtraso} DIAS* ⚠️\n\nOlá ${nome.split(' ')[0]},\n\nIdentificamos que seu contrato está em atraso.\nConforme as regras, foi aplicado o acréscimo de *3% ao dia* sobre o saldo.\n\n*Novo Valor Atualizado:* R$ ${Number(valorAtualizado).toFixed(2)}\n`;
+    let msg = `⚠️ *AVISO DE ATRASO - ${diasAtraso} DIAS* ⚠️\n\nOlá ${nome.split(' ')[0]},\n\nIdentificámos que o seu contrato está em atraso.\nConforme as regras, foi aplicado o acréscimo de *3% ao dia* sobre o saldo.\n\n*Novo Valor Atualizado:* R$ ${Number(valorAtualizado).toFixed(2)}\n`;
     
-    msg += `\nEvite que seu saldo continue crescendo. Regularize hoje acessando o seu portal:\n🔗 ${linkPortal}`;
+    msg += `\nEvite que o seu saldo continue a crescer. Regularize hoje acedendo ao seu portal:\n🔗 ${linkPortal}`;
     
     return await enviarZap(numero, msg);
 };
@@ -83,5 +102,6 @@ module.exports = {
     formatarNumero,
     verificarStatusZapi,
     enviarLembreteVencimento,
-    enviarAvisoAtraso
+    enviarAvisoAtraso,
+    enviarAprovacaoComTermos // 🚨 AGORA EXPORTADO CORRETAMENTE!
 };
