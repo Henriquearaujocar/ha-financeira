@@ -1052,26 +1052,53 @@ app.post('/api/relatorio-periodo', async (req, res) => {
                 totalRecebido += v;
                 if (ev === 'Quitação Total') qtdQuitados++;
                 
-                // 🚨 NOVA LÓGICA DE EXTRAÇÃO DE LUCRO REAL
-                if (ev.includes('Juros Retidos') || ev.includes('Juros Extra')) {
-                    const matchExtra = (log.detalhes || "").match(/R\$ ([\d.,]+) convertidos/);
-                    if (matchExtra) {
-                        jurosMensalidadeFix += parseFloat(matchExtra[1].replace(/\./g, '').replace(',', '.'));
+                // 🚨 MATEMÁTICA DEFINITIVA DE LUCRO REAL (À PROVA DE ERROS)
+                let lucroExtra = 0;
+                // 1. Extrai juros extras sem quebrar casas decimais (ex: 200.00 não vira 20000)
+                const matchExtra1 = (log.detalhes || "").match(/R\$ ([\d.,]+) convertidos/);
+                const matchExtra2 = (log.detalhes || "").match(/Excedente de R\$ ([\d.,]+)/);
+                
+                if (matchExtra1) lucroExtra = limparMoeda(matchExtra1[1]);
+                else if (matchExtra2) lucroExtra = limparMoeda(matchExtra2[1]);
+
+                let basePaid = v - lucroExtra;
+                if (basePaid < 0) basePaid = 0;
+
+                let jurosBaseCalculado = 0;
+
+                // 2. Rolagem: O cliente paga os juros vencidos para manter o capital na rua
+                if (ev.includes('Rolagem')) {
+                    const matchCap = (log.detalhes || "").match(/Cap Reajustado: R\$ ([\d.,]+)/);
+                    if (matchCap && log.devedor_id && taxasDevedores[log.devedor_id]) {
+                        let cNew = limparMoeda(matchCap[1]);
+                        let info = taxasDevedores[log.devedor_id];
+                        let R = info.taxa / 100;
+                        // Cálculo Algébrico Exato do Juro Pago na Rolagem: J = (CapitalNovo + BasePaga) * Taxa / (1 + Taxa)
+                        jurosBaseCalculado = ((cNew + basePaid) * R) / (1 + R);
+                    } else {
+                        // Fallback seguro: toda a base da rolagem costuma ser juros
+                        jurosBaseCalculado = basePaid;
                     }
-                } else if (log.devedor_id && taxasDevedores[log.devedor_id]) {
-                    if (ev === 'Pagamento de Parcela' || ev === 'Recebimento') {
+                } 
+                // 3. Pagamentos Proporcionais (Parcela Normal ou Quitação)
+                else if (ev.includes('Pagamento') || ev.includes('Recebimento') || ev.includes('Quitação')) {
+                    if (log.devedor_id && taxasDevedores[log.devedor_id]) {
                         const info = taxasDevedores[log.devedor_id];
                         let tDec = info.taxa / 100;
                         let taxaAp = info.parcelas > 1 ? tDec * info.parcelas : tDec;
-                        jurosMensalidadeFix += v - (v / (1 + taxaAp));
+                        // Fórmula Proporcional de Amortização
+                        jurosBaseCalculado = basePaid - (basePaid / (1 + taxaAp));
                     }
                 }
+
+                // Soma o Juro da Parcela + O Juro Extra Retido
+                jurosMensalidadeFix += (lucroExtra + jurosBaseCalculado);
             }
             
             if (ev.includes('Juros de Atraso')) {
                 const match = (log.detalhes || "").match(/R\$ ([\d.,]+)/);
                 if (match) { 
-                    const mVal = parseFloat(match[1].replace(/\./g, '').replace(',', '.')); 
+                    const mVal = limparMoeda(match[1]); 
                     if (!isNaN(mVal)) jurosAtrasoGerado += mVal; 
                 }
             }
