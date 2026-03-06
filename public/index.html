@@ -89,7 +89,6 @@
 </head>
 <body class="flex h-screen overflow-hidden" onload="initApp()">
 
-    <!-- Notificações Toast -->
     <div id="toast" class="fixed top-6 left-1/2 -translate-x-1/2 z-[200] hidden transition-all duration-300">
         <div class="bg-slate-900 border border-white/10 px-6 py-3 rounded-full shadow-2xl flex items-center gap-3">
             <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-500"></i>
@@ -97,7 +96,6 @@
         </div>
     </div>
 
-    <!-- Modal: Sessão Expirada Seguro -->
     <div id="modalSessaoExpirada" class="fixed inset-0 bg-black/95 z-[999] hidden flex flex-col items-center justify-center p-6 text-center backdrop-blur-md">
         <div class="glass-card max-w-md w-full p-8 rounded-3xl border border-red-500/30 shadow-[0_0_50px_rgba(239,68,68,0.2)]">
             <div class="w-20 h-20 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl border border-red-500/50">
@@ -115,7 +113,6 @@
         </div>
     </div>
 
-    <!-- Sidebar Completa -->
     <aside class="w-64 glass-card border-r border-slate-800 flex flex-col h-full relative z-20">
         <div class="p-6 text-center border-b border-slate-800">
             <h1 class="text-2xl font-black italic text-blue-500 tracking-tighter uppercase drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]">CMS Ventures</h1>
@@ -186,11 +183,9 @@
         </div>
     </aside>
 
-    <!-- Main Content -->
     <main class="flex-1 h-full overflow-y-auto p-8 relative">
         <div class="fixed top-[-20%] left-[20%] w-[500px] h-[500px] bg-blue-600 rounded-full mix-blend-multiply filter blur-[150px] opacity-10 pointer-events-none"></div>
 
-        <!-- ABA: DASHBOARD E PREVISÃO DE CAIXA -->
         <div id="aba-dashboard" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-chart-pie text-blue-500 mr-2"></i> Visão Geral Financeira</h2>
             
@@ -248,7 +243,6 @@
             </div>
         </div>
 
-        <!-- ABA: SOLICITAÇÕES -->
         <div id="aba-solicitacoes" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-inbox text-blue-500 mr-2"></i> Novas Solicitações</h2>
             <div class="glass-card rounded-3xl overflow-hidden border border-slate-700">
@@ -264,13 +258,11 @@
                         </tr>
                     </thead>
                     <tbody id="lista-solicitacoes" class="divide-y divide-slate-800">
-                        <!-- Preenchido via JS -->
-                    </tbody>
+                        </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- ABA: COBRANÇA ATIVA -->
         <div id="aba-aberto" class="aba-content hidden">
             <div class="flex flex-col xl:flex-row justify-between items-center mb-6 gap-4">
                 <h2 class="text-2xl font-black uppercase tracking-tighter w-full xl:w-auto"><i class="fa-solid fa-wallet text-emerald-500 mr-2"></i> Cobrança Ativa</h2>
@@ -298,13 +290,11 @@
                         </tr>
                     </thead>
                     <tbody id="lista-aberto" class="divide-y divide-slate-800">
-                        <!-- Preenchido via JS -->
-                    </tbody>
+                        </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- ABA: CRM DE COBRANÇA (KANBAN) -->
         <div id="aba-crm" class="aba-content hidden flex flex-col h-full">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-columns text-orange-500 mr-2"></i> CRM de Cobrança Ativa</h2>
             <p class="text-xs text-slate-400 mb-4">Arraste os clientes em atraso entre as colunas para organizar o fluxo de trabalho da sua equipa.</p>
@@ -341,7 +331,6 @@
             </div>
         </div>
 
-        <!-- ABA: CLIENTES / EXTRATO -->
         <div id="aba-clientes" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-users text-blue-500 mr-2"></i> Gestão de Clientes & Extrato</h2>
             
@@ -359,7 +348,6 @@
                         <div class="w-16 h-16 bg-blue-500/10 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl border border-blue-500/30"><i class="fa-solid fa-user"></i></div>
                         <h2 id="ext_nome" class="text-xl font-black text-white leading-tight">...</h2>
                         <p id="ext_cpf" class="text-xs font-mono text-slate-400 mt-1">...</p>
-                        <!-- SCORE DE CRÉDITO -->
                         <div id="ext_score_badge" class="mt-3 mx-auto max-w-[150px] py-1 px-3 rounded-full text-[10px] font-black uppercase tracking-widest border border-slate-600 bg-slate-800 text-white">Score: ---</div>
                     </div>
 
@@ -393,8 +381,7 @@
                     <div>
                         <h3 class="text-[10px] font-black uppercase text-slate-400 mb-3 text-center tracking-widest"><i class="fa-solid fa-file-signature mr-1"></i> Todos os Contratos (Histórico)</h3>
                         <div id="ext_lista_contratos" class="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2 pb-4">
-                            <!-- JS Injects Here -->
-                        </div>
+                            </div>
                     </div>
                 </div>
 
@@ -430,8 +417,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="lista-extrato-movimentacoes" class="divide-y divide-slate-800">
-                                    <!-- JS -->
-                                </tbody>
+                                    </tbody>
                             </table>
                         </div>
                     </div>
@@ -439,7 +425,6 @@
             </div>
         </div>
 
-        <!-- ABA: CADASTRO MANUAL / PRÉ-CADASTRO -->
         <div id="aba-cadastro" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-user-plus text-blue-500 mr-2"></i> Cadastro Manual / Pré-Cadastro</h2>
             
@@ -453,8 +438,7 @@
                         <input type="text" id="busca_cliente_cad" placeholder="Digite o Nome, CPF ou Zap..." class="input-dark w-full pl-12 text-sm font-bold" oninput="buscarParaCadastroLive()" autocomplete="off">
                     </div>
                     <div id="autocomplete_resultados" class="absolute top-full left-0 w-full bg-slate-800 border border-slate-600 rounded-xl shadow-2xl mt-2 hidden max-h-60 overflow-y-auto custom-scrollbar">
-                        <!-- JS Inject -->
-                    </div>
+                        </div>
                 </div>
             </div>
 
@@ -560,7 +544,6 @@
             </form>
         </div>
 
-        <!-- ABA: SAÍDA DE CAIXA -->
         <div id="aba-caixa" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-money-bill-transfer text-red-500 mr-2"></i> Saída de Caixa / Pró-labore</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -592,15 +575,13 @@
                                 </tr>
                             </thead>
                             <tbody id="lista-saidas" class="divide-y divide-slate-800">
-                                <!-- JS -->
-                            </tbody>
+                                </tbody>
                         </table>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- ABA: RELATÓRIOS E SAFRAS -->
         <div id="aba-relatorios" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-file-invoice-dollar text-emerald-500 mr-2"></i> Dashboard & Relatórios Analíticos</h2>
             
@@ -716,21 +697,17 @@
                             </tr>
                         </thead>
                         <tbody id="lista-relatorio-detalhado" class="divide-y divide-slate-800/50">
-                            <!-- JS -->
-                        </tbody>
+                            </tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- RAIO-X DE SAFRAS -->
             <h3 class="text-lg font-bold text-white mb-4 mt-10"><i class="fa-solid fa-layer-group text-purple-500 mr-2"></i> Raio-X de Safras (Cohort Analysis)</h3>
             <p class="text-xs text-slate-400 mb-6">Acompanhe o desempenho de pagamentos e a taxa de inadimplência mês a mês.</p>
             <div id="lista-safras" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                <!-- JS -->
-            </div>
+                </div>
         </div>
 
-        <!-- ABA: AUDITORIA / LOGS -->
         <div id="aba-logs" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-clock-rotate-left text-orange-500 mr-2"></i> Auditoria de Logs (Nível Sistema)</h2>
             <div class="glass-card rounded-3xl overflow-hidden border border-slate-700">
@@ -745,14 +722,12 @@
                             </tr>
                         </thead>
                         <tbody id="lista-todos-logs" class="divide-y divide-slate-800">
-                            <!-- JS -->
-                        </tbody>
+                            </tbody>
                     </table>
                 </div>
             </div>
         </div>
 
-        <!-- ABA: LISTA NEGRA -->
         <div id="aba-lista-negra" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-user-slash text-red-500 mr-2"></i> Lista Negra de CPFs</h2>
             <div class="glass-card p-6 rounded-3xl border border-red-500/20 max-w-4xl mb-6">
@@ -780,13 +755,11 @@
                         </tr>
                     </thead>
                     <tbody id="lista-negra-body" class="divide-y divide-slate-800">
-                        <!-- JS -->
-                    </tbody>
+                        </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- ABA: ROTEAMENTO PIX -->
         <div id="aba-pix" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-brands fa-pix text-emerald-500 mr-2"></i> Gestão e Roteamento PIX</h2>
             
@@ -847,7 +820,6 @@
             </div>
         </div>
 
-        <!-- ABA: PROMOTORES / RANKING -->
         <div id="aba-ranking" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-handshake text-purple-500 mr-2"></i> Gestão de Indicadores</h2>
             <div class="glass-card p-6 rounded-3xl border border-slate-700 max-w-2xl mb-6">
@@ -869,13 +841,11 @@
                         </tr>
                     </thead>
                     <tbody id="lista-promotores" class="divide-y divide-slate-800">
-                        <!-- JS -->
-                    </tbody>
+                        </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- ABA: CONFIGURAÇÕES -->
         <div id="aba-config" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-gear text-slate-400 mr-2"></i> Configurações do Sistema</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -913,9 +883,6 @@
 
     </main>
 
-    <!-- MODAIS E POPUPS (RESTAURADOS E SEGUROS) -->
-
-    <!-- Modal de Garantia -->
     <div id="modalGarantia" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden z-[150] flex items-center justify-center p-4">
         <div class="glass-card w-full max-w-md rounded-3xl border border-orange-500/30 p-8 relative">
             <button onclick="fecharModal('modalGarantia')" class="absolute top-6 right-6 text-slate-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
@@ -937,12 +904,10 @@
         </div>
     </div>
 
-    <!-- Modal: Imagem Fullscreen -->
     <div id="modalZoom" class="fixed inset-0 bg-black/95 z-[200] hidden flex items-center justify-center p-4 cursor-pointer">
         <img id="zoomSource" src="" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl">
     </div>
 
-    <!-- Modal: Documentos e Aprovação -->
     <div id="modalDocumentos" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
         <div class="glass-card w-full max-w-6xl max-h-[95vh] overflow-y-auto rounded-3xl border border-slate-700 p-8 relative">
             <button onclick="fecharModal('modalDocumentos')" class="absolute top-6 right-6 text-slate-400 hover:text-white text-2xl"><i class="fa-solid fa-xmark"></i></button>
@@ -959,7 +924,6 @@
                 </div>
             </div>
 
-            <!-- Grade de Fotos -->
             <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
                 <div class="space-y-2"><p class="text-[10px] font-black uppercase text-center text-slate-400">Selfie</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgSelfie" class="w-full h-32 object-contain cursor-pointer transition-colors" onerror="this.src='https://via.placeholder.com/300x200?text=Erro+na+Foto'" onclick="zoomImg(this.src)"></div></div>
                 <div class="space-y-2"><p class="text-[10px] font-black uppercase text-center text-slate-400">Doc. Frente</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgFrente" class="w-full h-32 object-contain cursor-pointer transition-colors" onerror="this.src='https://via.placeholder.com/300x200?text=Erro+na+Foto'" onclick="zoomImg(this.src)"></div></div>
@@ -1041,7 +1005,6 @@
         </div>
     </div>
 
-    <!-- 🚨 NOVO TITULO COM ID DO CONTRATO: Registrar Pagamento / Terminal -->
     <div id="modalPagamento" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-[150] flex items-center justify-center p-4">
         <div class="glass-card w-full max-w-4xl max-h-[95vh] overflow-y-auto rounded-3xl border border-slate-700 p-8 relative">
             <button onclick="fecharModal('modalPagamento')" class="absolute top-6 right-6 text-slate-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
@@ -1049,7 +1012,6 @@
             
             <div class="mb-6 pb-4 border-b border-slate-700 flex justify-between items-end">
                 <div>
-                    <!-- 🚨 Mostra visualmente que é um contrato específico -->
                     <h3 id="pgtoNome" class="text-xl font-black text-white uppercase tracking-tight">NOME DO CLIENTE</h3>
                     <p id="pgtoCpf" class="text-xs text-slate-400 font-mono mt-1">CPF: 000</p>
                 </div>
@@ -1081,7 +1043,6 @@
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Coluna Esquerda: Recebimento -->
                 <div class="space-y-4">
                     <div class="bg-emerald-900/10 border border-emerald-500/20 p-4 rounded-xl">
                         <label class="text-[10px] font-black uppercase text-emerald-500 block mb-2">Valor Recebido (R$)</label>
@@ -1094,7 +1055,6 @@
                     </div>
                 </div>
 
-                <!-- Coluna Direita: Regras de Pagamento -->
                 <div class="bg-slate-800/30 border border-slate-700 p-5 rounded-2xl space-y-4">
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Forma de Pagamento</label>
@@ -1127,13 +1087,11 @@
         </div>
     </div>
 
-    <!-- 🚨 NOVO TITULO COM ID DO CONTRATO: Modal: Edição de Contrato -->
     <div id="modalEditarContrato" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
         <div class="glass-card w-full max-w-lg rounded-3xl border border-slate-700 p-8 relative">
             <button onclick="fecharModal('modalEditarContrato')" class="absolute top-6 right-6 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             <h2 class="text-xl font-black uppercase text-blue-500 mb-6 flex items-center">
                 <i class="fa-solid fa-pen-to-square mr-2"></i> Editar Contrato 
-                <!-- 🚨 Identificador do Contrato visível -->
                 <span id="editCtLabel" class="text-slate-400 text-sm ml-2 font-mono bg-slate-900 px-2 py-1 rounded border border-slate-700"></span>
             </h2>
             
@@ -1179,7 +1137,6 @@
         </div>
     </div>
 
-    <!-- JS GLOBAL COMPLETO COM TODAS AS FUNÇÕES RESTAURADAS -->
     <script>
         const API_BASE = window.location.origin; 
         
@@ -2792,6 +2749,12 @@
                     
                     const diasAtraso = Math.floor((new Date() - new Date(c.data_vencimento + 'T12:00:00Z')) / (1000 * 60 * 60 * 24));
                     
+                    let infoPromessa = '';
+                    if (statusVal === 'PROMESSA' && c.data_promessa) {
+                        const dataP = new Date(c.data_promessa + 'T12:00:00Z').toLocaleDateString('pt-BR');
+                        infoPromessa = `<p class="text-[10px] text-emerald-400 mb-2 font-bold bg-emerald-900/20 p-1 rounded border border-emerald-500/30 text-center"><i class="fa-solid fa-calendar-check mr-1"></i> Prometeu pagar em: ${dataP}</p>`;
+                    }
+
                     // 🚨 NOVO: IDENTIFICAÇÃO DO CONTRATO NO CARTÃO DO KANBAN
                     document.getElementById(destino).innerHTML += `
                         <div id="crm-card-${c.id}" class="bg-slate-800 p-3 rounded-xl border border-slate-600 shadow-lg cursor-grab active:cursor-grabbing hover:border-orange-500 transition-colors" draggable="true" ondragstart="dragKanban(event)">
@@ -2801,6 +2764,7 @@
                             </div>
                             <p class="text-[9px] text-slate-500 mb-1">CT #${c.id} | Venc: ${new Date(c.data_vencimento + 'T12:00:00Z').toLocaleDateString('pt-BR')}</p>
                             <p class="text-[10px] text-slate-400 mb-2">Dívida: <b class="text-red-400">${formatMoney(c.valor_total)}</b></p>
+                            ${infoPromessa}
                             <div class="flex gap-2">
                                 <button onclick="abrirExtratoListagem('${c.cpf}')" class="flex-1 bg-slate-900 text-slate-300 py-1.5 rounded text-[9px] font-bold border border-slate-700 hover:bg-slate-700 transition-colors">Ficha</button>
                                 <button onclick="window.open('https://wa.me/55${(c.telefone||'').replace(/\D/g,'')}', '_blank')" class="flex-1 bg-emerald-900/30 text-emerald-400 py-1.5 rounded text-[9px] font-bold border border-emerald-500/30 hover:bg-emerald-600 hover:text-white transition-colors">Zap</button>
@@ -2829,13 +2793,26 @@
                 const devedorId = data.replace('crm-card-', ''); 
                 const novoStatus = dropzone.dataset.crm;
                 
+                let payload = { status: novoStatus };
+
+                if (novoStatus === 'PROMESSA') {
+                    const dataInput = prompt("Qual a data que o cliente prometeu pagar? (Digite no formato DD/MM/AAAA):");
+                    if (dataInput) {
+                        const parts = dataInput.split('/');
+                        if (parts.length === 3) {
+                            payload.data_promessa = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                        }
+                    }
+                }
+                
                 try { 
                     await fetchSeguro(`${API_BASE}/api/crm/${devedorId}`, { 
                         method: 'PUT', 
                         headers: headersAuth, 
-                        body: JSON.stringify({ status: novoStatus }) 
+                        body: JSON.stringify(payload) 
                     }); 
                     showToast("Funil atualizado."); 
+                    carregarCRM(); // Recarrega para exibir a tag da data imediatamente
                 } catch(e) {}
             }
         }

@@ -202,7 +202,7 @@ app.post('/cliente-aceitou', async (req, res) => {
 });
 
 // ==========================================
-// 4. MÓDULOS DE PREVISÃO E GARANTIAS (FASE 3)
+// 4. MÓDULOS DE PREVISÃO E GARANTIAS
 // ==========================================
 app.get('/api/previsao-caixa', async (req, res) => {
     try {
@@ -413,8 +413,9 @@ app.post('/api/enviar-cobranca-manual', async (req, res) => {
              textoAtraso = `\n⚠️ *Atenção:* Identificámos que o seu contrato está com ${diasAtraso} dias de atraso.`;
         }
 
+        // 🚨 REMOVIDA QUALQUER MENÇÃO AO PORTAL DE PAGAMENTOS
         if (dev.cobrar_so_em_dinheiro) {
-            msg = `Olá ${nomeCurto},\n\nEste é um aviso da *CMS Ventures* sobre a sua fatura no valor de *${valorFormatado}* (Vencimento: ${dtFormatada}).${textoAtraso}\n\nConforme acordado, este contrato deve ser regularizado em *dinheiro físico*. Por favor, prepare o valor para o nosso cobrador ou entre em contacto.`;
+            msg = `Olá ${nomeCurto},\n\nEste é um aviso da *CMS Ventures* sobre a sua fatura no valor de *${valorFormatado}* (Vencimento: ${dtFormatada}).${textoAtraso}\n\nConforme acordado, este contrato deve ser regularizado em *dinheiro físico*. Por favor, prepare o valor para o nosso cobrador ou entre em contato.`;
         } else {
             msg = `Olá ${nomeCurto},\n\nEste é um aviso da *CMS Ventures* sobre a sua fatura no valor de *${valorFormatado}* (Vencimento: ${dtFormatada}).${textoAtraso}\n\n`;
             
@@ -422,19 +423,17 @@ app.post('/api/enviar-cobranca-manual', async (req, res) => {
                 msg += `🏦 *DADOS PARA PAGAMENTO (PIX)*\n`;
                 msg += `Favorecido: ${pixDados.nome}\n`;
                 msg += `Instituição: ${pixDados.banco}\n\n`;
-                msg += `Copie a chave abaixo e cole no seu banco:\n`;
+                msg += `Copie a chave abaixo e cole no aplicativo do seu banco:\n`;
                 msg += `${pixDados.chave}\n\n`;
-                msg += `⚠️ _Após o pagamento, envie o comprovativo por aqui._\n\n`;
+                msg += `⚠️ _Após o pagamento, envie o comprovante de pagamento por aqui para validarmos a baixa._\n\n`;
             }
-            
-            msg += `Para consultar a sua fatura e portal, acesse:\n🔗 ${APP_URL}/pagar.html?id=${dev.uuid}`;
         }
         
         await enviarZap(dev.telefone, msg);
         
         await supabase.from('logs').insert([{ 
             evento: "Envio Manual de Cobrança", 
-            detalhes: `Link e PIX enviados via WhatsApp.`, 
+            detalhes: `Cobrança PIX enviada via WhatsApp.`, 
             devedor_id: dev.id 
         }]);
         
@@ -543,14 +542,14 @@ app.get('/api/buscar-cliente-admin/:busca', async (req, res) => {
 });
 
 // ==========================================
-// 🚨 FASE 3: CRM KANBAN E ANÁLISE DE SAFRAS (CORRIGIDO)
+// 🚨 FASE 3: CRM KANBAN E ANÁLISE DE SAFRAS
 // ==========================================
 
-// Rota 1: Busca apenas os clientes em atraso para o Kanban (Corrigido Erro 500)
+// Rota 1: Busca apenas os clientes em atraso para o Kanban (COM A DATA DE PROMESSA)
 app.get('/api/crm', async (req, res) => {
     try {
         const { data, error } = await supabase.from('devedores')
-            .select('id, uuid, nome, telefone, valor_total, qtd_parcelas, total_ja_pego, data_vencimento, crm_status, cpf')
+            .select('id, uuid, nome, telefone, valor_total, qtd_parcelas, total_ja_pego, data_vencimento, crm_status, cpf, data_promessa')
             .eq('status', 'ATRASADO')
             .order('data_vencimento', { ascending: true });
             
@@ -561,17 +560,25 @@ app.get('/api/crm', async (req, res) => {
     }
 });
 
-// Rota 2: Atualiza a coluna do cliente no Kanban (Arrastar e Largar)
+// Rota 2: Atualiza a coluna do cliente no Kanban (INCLUINDO DATA DE PROMESSA)
 app.put('/api/crm/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { status } = req.body;
+        const { status, data_promessa } = req.body;
         
-        await supabase.from('devedores').update({ crm_status: status }).eq('id', id);
+        let payload = { crm_status: status };
+        if (data_promessa) {
+            payload.data_promessa = data_promessa;
+        }
         
+        await supabase.from('devedores').update(payload).eq('id', id);
+        
+        let detalhesLog = `Etapa da Gestão movida para: ${status}`;
+        if (data_promessa) detalhesLog += ` | Prometeu pagar em: ${data_promessa}`;
+
         await supabase.from('logs').insert([{ 
             evento: "CRM Workflow Atualizado", 
-            detalhes: `Etapa da Gestão de Cobrança movida para: ${status}`, 
+            detalhes: detalhesLog, 
             devedor_id: id 
         }]);
         
@@ -1103,7 +1110,7 @@ app.post('/api/relatorio-periodo', async (req, res) => {
 });
 
 // ==========================================
-// 🚨 O GRANDE CRON JOB DE AUTOMAÇÃO E COBRANÇA
+// 🚨 O GRANDE CRON JOB DE AUTOMAÇÃO E COBRANÇA (CORRIGIDO)
 // ==========================================
 cron.schedule('0 * * * *', async () => {
     try {
@@ -1155,12 +1162,11 @@ cron.schedule('0 * * * *', async () => {
             
             for (const dev of lembretes) {
                 try {
-                    let linkPortal = dev.cobrar_so_em_dinheiro ? '' : `${APP_URL}/pagar.html?id=${dev.uuid}`;
                     let valorParcelaReal = dev.qtd_parcelas > 1 ? (dev.valor_total / dev.qtd_parcelas) : dev.valor_total;
-                    
                     const pixDaVez = escolherPixInteligente(configPixString, valorParcelaReal);
                     
-                    await enviarLembreteVencimento(dev.telefone, dev.nome, parseFloat(valorParcelaReal), dev.data_vencimento, linkPortal, pixDaVez);
+                    // 🚨 REMOVIDA A VARIÁVEL LINKPORTAL
+                    await enviarLembreteVencimento(dev.telefone, dev.nome, parseFloat(valorParcelaReal), dev.data_vencimento, pixDaVez);
                     await sleep(2500); 
                 } catch (e) { }
             }
@@ -1169,7 +1175,7 @@ cron.schedule('0 * * * *', async () => {
             ptrLemb += 1000;
         }
 
-        // 2. CICLO DE PUNIÇÃO (MULTA SOBRE CAPITAL)
+        // 2. CICLO DE PUNIÇÃO (MULTA SOBRE CAPITAL) E AVISO DE ATRASO
         let runAtraso = true; 
         const clientesOff = new Set(); 
         
@@ -1220,12 +1226,11 @@ cron.schedule('0 * * * *', async () => {
                             devedor_id: dev.id 
                         }]);
 
-                        let linkPortal = dev.cobrar_so_em_dinheiro ? '' : `${APP_URL}/pagar.html?id=${dev.uuid}`;
                         let valorParcelaComAtraso = dev.qtd_parcelas > 1 ? (novoValor / dev.qtd_parcelas) : novoValor;
-                        
                         const pixDaVezAtraso = escolherPixInteligente(configPixString, valorParcelaComAtraso);
                         
-                        await enviarAvisoAtraso(dev.telefone, dev.nome, valorParcelaComAtraso, totalDiasAtraso, linkPortal, pixDaVezAtraso);
+                        // 🚨 REMOVIDA A VARIÁVEL LINKPORTAL
+                        await enviarAvisoAtraso(dev.telefone, dev.nome, valorParcelaComAtraso, totalDiasAtraso, pixDaVezAtraso);
                         await sleep(2500); 
                         
                     } else if (diasParaCobrar > 365 || isNaN(diasParaCobrar)) {
@@ -1242,4 +1247,4 @@ cron.schedule('0 * * * *', async () => {
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`🚀 Servidor Alta Performance a rodar na porta ${PORT}`));
-// FIM DO ARQUIVO - SUCESSO ABSOLUTO
+// FIM DO ARQUIVO

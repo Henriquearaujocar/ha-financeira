@@ -63,7 +63,7 @@ const enviarAprovacaoComTermos = async (numero, nome, valor, parcelas, frequenci
 /**
  * Lembrete de Cobrança com PIX direto na mensagem
  */
-const enviarLembreteVencimento = async (numero, nome, valor, dataVenc, linkPortal, pixDados) => {
+const enviarLembreteVencimento = async (numero, nome, valor, dataVenc, pixDados) => {
     const dataFormatada = new Date(dataVenc + 'T12:00:00Z').toLocaleDateString('pt-BR');
     
     let msg = `⏰ *LEMBRETE DE VENCIMENTO*\n\nOlá ${nome.split(' ')[0]}, a sua fatura de *R$ ${Number(valor).toFixed(2)}* tem vencimento em *${dataFormatada}*.\n\n`;
@@ -75,11 +75,7 @@ const enviarLembreteVencimento = async (numero, nome, valor, dataVenc, linkPorta
         msg += `Instituição: *${pixDados.banco}*\n\n`;
         msg += `Copie a chave PIX abaixo:\n`;
         msg += `${pixDados.chave}\n\n`;
-        msg += `⚠️ _Após o pagamento, envie o comprovativo por aqui para darmos baixa._\n\n`;
-    }
-
-    if (linkPortal) {
-        msg += `Se desejar consultar o seu extrato completo, acesse o portal:\n🔗 ${linkPortal}`;
+        msg += `⚠️ _Assim que realizar o pagamento, por favor, envie o comprovante de pagamento aqui nesta conversa para darmos baixa no sistema._\n\n`;
     }
 
     return await enviarZap(numero, msg);
@@ -88,20 +84,16 @@ const enviarLembreteVencimento = async (numero, nome, valor, dataVenc, linkPorta
 /**
  * Aviso de Atraso Diário com PIX direto na mensagem
  */
-const enviarAvisoAtraso = async (numero, nome, valorAtualizado, diasAtraso, linkPortal, pixDados) => {
+const enviarAvisoAtraso = async (numero, nome, valorAtualizado, diasAtraso, pixDados) => {
     let msg = `⚠️ *AVISO DE ATRASO - ${diasAtraso} DIAS* ⚠️\n\nOlá ${nome.split(' ')[0]},\n\nIdentificamos que a sua fatura encontra-se em atraso.\n\nO valor atualizado (com as multas diárias aplicadas) é de *R$ ${Number(valorAtualizado).toFixed(2)}*.\n\n`;
     
     if (pixDados && pixDados.chave) {
         msg += `🏦 *REGULARIZE AGORA VIA PIX:*\n`;
         msg += `Favorecido: *${pixDados.nome}*\n`;
         msg += `Instituição: *${pixDados.banco}*\n\n`;
-        msg += `Chave PIX:\n`;
+        msg += `Copie a chave PIX abaixo:\n`;
         msg += `${pixDados.chave}\n\n`;
-        msg += `⚠️ _Evite que o seu saldo continue a crescer. Assim que pagar, envie-nos o comprovativo!_\n\n`;
-    }
-    
-    if (linkPortal) {
-        msg += `Se preferir, acesse a fatura detalhada no portal:\n🔗 ${linkPortal}`;
+        msg += `⚠️ _Evite que o seu saldo continue a crescer. Assim que pagar, envie-nos o comprovante de pagamento por aqui!_\n\n`;
     }
     
     return await enviarZap(numero, msg);
