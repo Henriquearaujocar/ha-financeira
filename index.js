@@ -413,7 +413,6 @@ app.post('/api/enviar-cobranca-manual', async (req, res) => {
              textoAtraso = `\n⚠️ *Atenção:* Identificámos que o seu contrato está com ${diasAtraso} dias de atraso.`;
         }
 
-        // 🚨 REMOVIDA QUALQUER MENÇÃO AO PORTAL DE PAGAMENTOS
         if (dev.cobrar_so_em_dinheiro) {
             msg = `Olá ${nomeCurto},\n\nEste é um aviso da *CMS Ventures* sobre a sua fatura no valor de *${valorFormatado}* (Vencimento: ${dtFormatada}).${textoAtraso}\n\nConforme acordado, este contrato deve ser regularizado em *dinheiro físico*. Por favor, prepare o valor para o nosso cobrador ou entre em contato.`;
         } else {
@@ -544,8 +543,6 @@ app.get('/api/buscar-cliente-admin/:busca', async (req, res) => {
 // ==========================================
 // 🚨 FASE 3: CRM KANBAN E ANÁLISE DE SAFRAS
 // ==========================================
-
-// Rota 1: Busca apenas os clientes em atraso para o Kanban (COM A DATA DE PROMESSA)
 app.get('/api/crm', async (req, res) => {
     try {
         const { data, error } = await supabase.from('devedores')
@@ -560,7 +557,6 @@ app.get('/api/crm', async (req, res) => {
     }
 });
 
-// Rota 2: Atualiza a coluna do cliente no Kanban (INCLUINDO DATA DE PROMESSA)
 app.put('/api/crm/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -588,7 +584,6 @@ app.put('/api/crm/:id', async (req, res) => {
     }
 });
 
-// Rota 3: Raio-X de Safras (Cohort Analysis)
 app.get('/api/safras', async (req, res) => {
     try {
         const { data, error } = await supabase.from('devedores').select('created_at, status, valor_emprestado');
@@ -622,7 +617,6 @@ app.get('/api/safras', async (req, res) => {
         res.status(500).json({ erro: e.message }); 
     }
 });
-
 
 // ==========================================
 // 8. EDIÇÃO E BAIXAS MANUAIS
@@ -700,7 +694,8 @@ app.get('/api/estatisticas-pagamento/:id', async (req, res) => {
 });
 
 app.post('/api/baixar-manual', async (req, res) => {
-    const { id, valorPago, observacoes, recalculoAjuste, recalculoTaxa, recalculoParcelas, dataRecebimento, formaPagamento } = req.body;
+    // 🚨 ATUALIZADO: Recebe a instrução 'recalculoTratamento'
+    const { id, valorPago, observacoes, recalculoAjuste, recalculoTaxa, recalculoParcelas, dataRecebimento, formaPagamento, recalculoTratamento } = req.body;
     
     const lockKey = `baixa_${id}`;
     if (travasAtivasPainel.has(lockKey)) {
@@ -714,7 +709,7 @@ app.post('/api/baixar-manual', async (req, res) => {
 
         // Invoca o Motor ACID Externo
         if (vPago > 0) {
-            resRecalculo = await recalcularDivida(id, vPago, null, dataRecebimento, formaPagamento); 
+            resRecalculo = await recalcularDivida(id, vPago, null, dataRecebimento, formaPagamento, recalculoTratamento); 
             if (resRecalculo.erro) throw new Error(resRecalculo.erro);
         }
         
@@ -1110,7 +1105,7 @@ app.post('/api/relatorio-periodo', async (req, res) => {
 });
 
 // ==========================================
-// 🚨 O GRANDE CRON JOB DE AUTOMAÇÃO E COBRANÇA (CORRIGIDO)
+// 🚨 O GRANDE CRON JOB DE AUTOMAÇÃO E COBRANÇA
 // ==========================================
 cron.schedule('0 * * * *', async () => {
     try {
@@ -1165,7 +1160,6 @@ cron.schedule('0 * * * *', async () => {
                     let valorParcelaReal = dev.qtd_parcelas > 1 ? (dev.valor_total / dev.qtd_parcelas) : dev.valor_total;
                     const pixDaVez = escolherPixInteligente(configPixString, valorParcelaReal);
                     
-                    // 🚨 REMOVIDA A VARIÁVEL LINKPORTAL
                     await enviarLembreteVencimento(dev.telefone, dev.nome, parseFloat(valorParcelaReal), dev.data_vencimento, pixDaVez);
                     await sleep(2500); 
                 } catch (e) { }
@@ -1229,7 +1223,6 @@ cron.schedule('0 * * * *', async () => {
                         let valorParcelaComAtraso = dev.qtd_parcelas > 1 ? (novoValor / dev.qtd_parcelas) : novoValor;
                         const pixDaVezAtraso = escolherPixInteligente(configPixString, valorParcelaComAtraso);
                         
-                        // 🚨 REMOVIDA A VARIÁVEL LINKPORTAL
                         await enviarAvisoAtraso(dev.telefone, dev.nome, valorParcelaComAtraso, totalDiasAtraso, pixDaVezAtraso);
                         await sleep(2500); 
                         
@@ -1247,4 +1240,3 @@ cron.schedule('0 * * * *', async () => {
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`🚀 Servidor Alta Performance a rodar na porta ${PORT}`));
-// FIM DO ARQUIVO

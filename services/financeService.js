@@ -3,7 +3,7 @@ const { supabase } = require('../database');
 /**
  * Recalcula a dívida após um pagamento utilizando Transação ACID e Amortização Real.
  */
-const recalcularDivida = async (devedorId, valorPago, transactionId = null, dataRecebimento = null, formaPagamento = 'CONTA') => {
+const recalcularDivida = async (devedorId, valorPago, transactionId = null, dataRecebimento = null, formaPagamento = 'CONTA', tratamento = 'AMORTIZAR') => {
     
     // 1. Busca Segura e Validação de Status
     const { data: dev, error } = await supabase.from('devedores').select('*').eq('id', devedorId).single();
@@ -16,7 +16,7 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
         return { erro: "Operação Bloqueada: Contrato já se encontra quitado." };
     }
 
-    // 2. Sanitização Absoluta de Valores
+    // 2. Sanitização e Separação de Juros Extra
     const pago = Math.round(parseFloat(valorPago) * 100) / 100;
     if (isNaN(pago) || pago <= 0) {
         return { erro: "O valor pago é inválido ou nulo." };
@@ -25,10 +25,37 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
     const totalAnterior = Math.round(parseFloat(dev.valor_total) * 100) / 100;
     const capitalAtual = Math.round(parseFloat(dev.valor_emprestado) * 100) / 100;
     
-    let novoTotal = Math.round((totalAnterior - pago) * 100) / 100; 
-    if (novoTotal < 0) {
-        novoTotal = 0;
+    let valorParaAbaterDoSaldo = pago;
+    let excedenteRetidoComoJuros = 0;
+
+    // 🚨 MOTOR DE RETENÇÃO DE LUCRO (Não amortece o excedente)
+    if (tratamento === 'JUROS_EXTRA') {
+        if (dev.qtd_parcelas > 1) {
+            const parcelaEstimada = totalAnterior / Math.max(1, parseInt(dev.qtd_parcelas) || 1);
+            if (pago > parcelaEstimada && pago < totalAnterior) {
+                let numParcPagas = Math.floor(pago / parcelaEstimada);
+                if (numParcPagas > 0) {
+                    valorParaAbaterDoSaldo = numParcPagas * parcelaEstimada;
+                    excedenteRetidoComoJuros = pago - valorParaAbaterDoSaldo;
+                }
+            }
+        } else {
+            const valorJurosAtual = Math.round((totalAnterior - capitalAtual) * 100) / 100;
+            if (pago > valorJurosAtual && pago < totalAnterior) {
+                valorParaAbaterDoSaldo = valorJurosAtual;
+                excedenteRetidoComoJuros = pago - valorJurosAtual;
+            }
+        }
     }
+
+    // Se o cliente pagar um valor que quita o total, forçamos a Quitação Padrão
+    if (pago >= totalAnterior) {
+        valorParaAbaterDoSaldo = pago;
+        excedenteRetidoComoJuros = 0;
+    }
+
+    let novoTotal = Math.round((totalAnterior - valorParaAbaterDoSaldo) * 100) / 100; 
+    if (novoTotal < 0) novoTotal = 0;
 
     // 3. Fuso Horário e Bloqueio de Derrapagem de Datas
     let strVencimento = dev.data_vencimento;
@@ -47,7 +74,7 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
     // 4. Estrutura Padrão de Atualização
     let rpcPayload = {
         p_devedor_id: dev.id, 
-        p_pago: pago, 
+        p_pago: pago, // O valor PAGO (total) vai pro Banco para fins de relatórios e extratos
         p_novo_total: novoTotal, 
         p_capital: capitalAtual,
         p_status: statusDefault, 
@@ -65,7 +92,7 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
     // ==========================================
     if (novoTotal <= 0.05) {
         rpcPayload.p_novo_total = 0;
-        rpcPayload.p_capital = capitalAtual; // Preserva histórico da Quitação
+        rpcPayload.p_capital = capitalAtual;
         rpcPayload.p_status = 'QUITADO';
         rpcPayload.p_limpar_atraso = true;
         rpcPayload.p_evento = "Quitação Total";
@@ -78,29 +105,32 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
     }
 
     // ==========================================
-    // CENÁRIO B: CRÉDITO PARCELADO (Com Amortização Real)
+    // CENÁRIO B: CRÉDITO PARCELADO
     // ==========================================
     if (dev.qtd_parcelas > 1) {
         let qtdSegura = Math.max(1, parseInt(dev.qtd_parcelas) || 1);
         const parcelaEstimada = totalAnterior / qtdSegura;
         
-        rpcPayload.p_detalhes = `${tagPgto} Pagou R$ ${pago.toFixed(2)} de um plano parcelado. Saldo restante: R$ ${novoTotal.toFixed(2)}.`;
-        rpcPayload.p_evento = "Pagamento de Parcela";
-
-        // 🚨 1. Matemática de Abatimento Rigorosa (Evita engolir parcelas)
-        let parcelasPagasInt = Math.floor(pago / parcelaEstimada);
-        let restoDoPagamento = pago - (parcelasPagasInt * parcelaEstimada);
+        let parcelasPagasInt = Math.floor(valorParaAbaterDoSaldo / parcelaEstimada);
+        let restoDoPagamento = valorParaAbaterDoSaldo - (parcelasPagasInt * parcelaEstimada);
         
-        // Tolerância apenas se faltar cêntimos para pagar a próxima inteira
         if (restoDoPagamento >= (parcelaEstimada * 0.90)) {
             parcelasPagasInt += 1;
         }
 
-        // 🚨 2. Amortização de Capital (Corrige a Ilusão do Dashboard)
         const proporcaoCapital = totalAnterior > 0 ? (capitalAtual / totalAnterior) : 1;
-        const abateCapital = pago * proporcaoCapital;
+        const abateCapital = valorParaAbaterDoSaldo * proporcaoCapital;
         rpcPayload.p_capital = Math.max(0, Math.round((capitalAtual - abateCapital) * 100) / 100);
-        rpcPayload.p_capital = Math.min(rpcPayload.p_capital, rpcPayload.p_novo_total); // Trava de segurança extra
+        rpcPayload.p_capital = Math.min(rpcPayload.p_capital, rpcPayload.p_novo_total);
+
+        rpcPayload.p_evento = excedenteRetidoComoJuros > 0 ? "Pagamento + Juros Retidos" : "Pagamento de Parcela";
+        rpcPayload.p_detalhes = `${tagPgto} Pagou R$ ${pago.toFixed(2)}`;
+        
+        if (excedenteRetidoComoJuros > 0) {
+            rpcPayload.p_detalhes += ` (Sendo R$ ${excedenteRetidoComoJuros.toFixed(2)} convertidos em lucro extra).`;
+        }
+        
+        rpcPayload.p_detalhes += ` Saldo restante base: R$ ${novoTotal.toFixed(2)}.`;
 
         if (parcelasPagasInt > 0) {
             let dataBaseObj = new Date(strVencimento + 'T12:00:00Z');
@@ -109,9 +139,8 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
                 const diaOriginal = dataBaseObj.getDate();
                 dataBaseObj.setMonth(dataBaseObj.getMonth() + parcelasPagasInt);
                 
-                // 🚨 3. Trava Anti-Drift (Resolve o bug do dia 31 pular para dia 3)
                 if (dataBaseObj.getDate() < diaOriginal && diaOriginal >= 28) {
-                    dataBaseObj.setDate(0); // Força a ficar no último dia do mês correto
+                    dataBaseObj.setDate(0); 
                 }
             } else {
                 dataBaseObj.setDate(dataBaseObj.getDate() + (7 * parcelasPagasInt));
@@ -123,14 +152,14 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
             if (dataBaseObj <= dataObjOperacao) {
                 rpcPayload.p_limpar_atraso = false; 
                 rpcPayload.p_status = 'ATRASADO'; 
-                rpcPayload.p_detalhes += ` Abateu ${parcelasPagasInt} parcela(s). AINDA EM ATRASO. Vencimento: ${rpcPayload.p_novo_vencimento}. Restam ${rpcPayload.p_novas_parcelas} parc.`;
+                rpcPayload.p_detalhes += ` Abateu ${parcelasPagasInt} parc. AINDA EM ATRASO. Venc: ${rpcPayload.p_novo_vencimento}. Restam ${rpcPayload.p_novas_parcelas} parc.`;
             } else {
                 rpcPayload.p_limpar_atraso = true; 
                 rpcPayload.p_status = 'ABERTO';
-                rpcPayload.p_detalhes += ` Abateu ${parcelasPagasInt} parcela(s) e ficou em dia. Vencimento: ${rpcPayload.p_novo_vencimento}. Restam ${rpcPayload.p_novas_parcelas} parc.`;
+                rpcPayload.p_detalhes += ` Abateu ${parcelasPagasInt} parc. e ficou em dia. Venc: ${rpcPayload.p_novo_vencimento}. Restam ${rpcPayload.p_novas_parcelas} parc.`;
             }
         } else {
-            rpcPayload.p_detalhes += ` Abatimento no saldo devedor. (Vencimento mantido).`;
+            rpcPayload.p_detalhes += ` Abatimento parcial no saldo. (Vencimento mantido).`;
         }
 
         const { error: rpcErr } = await supabase.rpc('processar_transacao_financeira', rpcPayload);
@@ -140,15 +169,15 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
     }
 
     // ==========================================
-    // CENÁRIO C: ROLAGEM / ROTATIVO ÚNICO (Empréstimo de 30 Dias)
+    // CENÁRIO C: ROLAGEM ÚNICA (30 Dias)
     // ==========================================
     const valorJurosAtual = Math.round((totalAnterior - capitalAtual) * 100) / 100;
 
-    if (pago >= (valorJurosAtual * 0.95)) {
+    if (valorParaAbaterDoSaldo >= (valorJurosAtual * 0.95)) {
         let taxaJuros = parseFloat(dev.taxa_juros) || 30;
         const multiplicadorJuros = 1 + (taxaJuros / 100);
-        let saldoDevedorDosJuros = Math.max(0, valorJurosAtual - pago);
-        const abateCapital = pago > valorJurosAtual ? Math.round((pago - valorJurosAtual) * 100) / 100 : 0;
+        let saldoDevedorDosJuros = Math.max(0, valorJurosAtual - valorParaAbaterDoSaldo);
+        const abateCapital = valorParaAbaterDoSaldo > valorJurosAtual ? Math.round((valorParaAbaterDoSaldo - valorJurosAtual) * 100) / 100 : 0;
         
         rpcPayload.p_capital = Math.max(0, Math.round((capitalAtual - abateCapital + saldoDevedorDosJuros) * 100) / 100);
         rpcPayload.p_novo_total = Math.round((rpcPayload.p_capital * multiplicadorJuros) * 100) / 100; 
@@ -165,8 +194,13 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
         rpcPayload.p_novo_vencimento = dataReferencia.toISOString().split('T')[0];
         rpcPayload.p_status = 'ABERTO';
         rpcPayload.p_limpar_atraso = true;
-        rpcPayload.p_evento = "Rolagem de Contrato";
-        rpcPayload.p_detalhes = `${tagPgto} Pagou R$ ${pago.toFixed(2)}. Cap Reajustado: R$ ${rpcPayload.p_capital.toFixed(2)}. Novo Total (+${taxaJuros}%): R$ ${rpcPayload.p_novo_total.toFixed(2)}. Venc: ${rpcPayload.p_novo_vencimento}.`;
+        
+        rpcPayload.p_evento = excedenteRetidoComoJuros > 0 ? "Rolagem + Juros Extra" : "Rolagem de Contrato";
+        rpcPayload.p_detalhes = `${tagPgto} Pagou R$ ${pago.toFixed(2)}`;
+        if (excedenteRetidoComoJuros > 0) {
+            rpcPayload.p_detalhes += ` (Excedente de R$ ${excedenteRetidoComoJuros.toFixed(2)} retido como taxa extra).`;
+        }
+        rpcPayload.p_detalhes += ` Cap Reajustado: R$ ${rpcPayload.p_capital.toFixed(2)}. Novo Total (+${taxaJuros}%): R$ ${rpcPayload.p_novo_total.toFixed(2)}. Venc: ${rpcPayload.p_novo_vencimento}.`;
 
         const { error: rpcErr } = await supabase.rpc('processar_transacao_financeira', rpcPayload);
         if (rpcErr) throw new Error(rpcErr.message);
@@ -174,9 +208,9 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
         return { sucesso: true, status: 'rolado', novoVencimento: rpcPayload.p_novo_vencimento };
         
     } else {
-        // PAGAMENTO PARCIAL INCOMPLETO (Abaixo dos Juros Mínimos)
+        // PAGAMENTO INCOMPLETO
         const proporcaoCapitalMin = totalAnterior > 0 ? (capitalAtual / totalAnterior) : 1;
-        const abateCapitalMin = pago * proporcaoCapitalMin;
+        const abateCapitalMin = valorParaAbaterDoSaldo * proporcaoCapitalMin;
         
         rpcPayload.p_capital = Math.max(0, Math.round((capitalAtual - abateCapitalMin) * 100) / 100);
         rpcPayload.p_capital = Math.min(rpcPayload.p_capital, rpcPayload.p_novo_total);
