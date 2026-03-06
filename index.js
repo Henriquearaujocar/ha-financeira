@@ -393,6 +393,55 @@ app.get('/api/devedores-ativos', async (req, res) => {
     } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
+app.get('/api/clientes-lista', async (req, res) => {
+    try {
+        let todos = [];
+        let buscar = true;
+        let ptr = 0;
+        
+        // Paginação automática para garantir que puxa TODOS os clientes
+        while (buscar) {
+            const { data, error } = await supabase
+                .from('devedores')
+                .select('cpf, nome, telefone, status')
+                .order('nome', { ascending: true })
+                .range(ptr, ptr + 999);
+            
+            if (error || !data || data.length === 0) break;
+            todos = todos.concat(data);
+            if (data.length < 1000) buscar = false;
+            ptr += 1000;
+        }
+
+        const unicos = [];
+        const cpfs = new Set();
+        const cpfsDevendo = new Set();
+
+        todos.forEach(c => {
+            // Se o contrato estiver em aberto ou atrasado, o cliente está devendo
+            if (['ABERTO', 'ATRASADO'].includes(c.status)) {
+                cpfsDevendo.add(c.cpf);
+            }
+            
+            // Adiciona na lista apenas 1 vez por CPF (evita duplicar nomes de quem tem vários contratos)
+            if (!cpfs.has(c.cpf)) {
+                cpfs.add(c.cpf);
+                unicos.push(c);
+            }
+        });
+
+        // Ordena a lista final alfabeticamente
+        unicos.sort((a, b) => a.nome.localeCompare(b.nome));
+
+        res.json({
+            clientes: unicos,
+            totalDevendo: cpfsDevendo.size
+        });
+    } catch(e) { 
+        res.status(500).json({ erro: e.message }); 
+    }
+});
+
 app.post('/api/enviar-cobranca-manual', async (req, res) => {
     try {
         const { data: dev } = await supabase.from('devedores').select('*').eq('id', req.body.id).single();
@@ -591,21 +640,52 @@ app.put('/api/crm/:id', async (req, res) => {
 
 app.get('/api/safras', async (req, res) => {
     try {
-        const { data, error } = await supabase.from('devedores').select('created_at, status, valor_emprestado');
-        if (error) throw error;
+        // 1. Paginação para suportar bases maiores sem quebrar
+        let todosDevs = [];
+        let buscar = true;
+        let ptr = 0;
+        while (buscar) {
+            const { data, error } = await supabase.from('devedores').select('id, created_at, status, valor_emprestado').range(ptr, ptr + 999);
+            if (error || !data || data.length === 0) break;
+            todosDevs = todosDevs.concat(data);
+            if (data.length < 1000) buscar = false;
+            ptr += 1000;
+        }
+
+        // 2. Puxar logs para o capital real (evita erro de amortização)
+        let todosLogs = [];
+        buscar = true;
+        ptr = 0;
+        while (buscar) {
+            const { data, error } = await supabase.from('logs').select('devedor_id, valor_fluxo, evento').lt('valor_fluxo', 0).range(ptr, ptr + 999);
+            if (error || !data || data.length === 0) break;
+            todosLogs = todosLogs.concat(data);
+            if (data.length < 1000) buscar = false;
+            ptr += 1000;
+        }
+
+        const capitalRealPorContrato = {};
+        todosLogs.forEach(l => {
+            if (l.evento === 'Empréstimo Liberado' || l.evento.includes('Ajuste')) {
+                capitalRealPorContrato[l.devedor_id] = (capitalRealPorContrato[l.devedor_id] || 0) + Math.abs(parseFloat(l.valor_fluxo));
+            }
+        });
 
         const safras = {};
-        
-        (data || []).forEach(d => {
-            const mes = d.created_at.substring(0, 7); 
-            
+
+        todosDevs.forEach(d => {
+            const mes = d.created_at.substring(0, 7);
+
             if (!safras[mes]) {
                 safras[mes] = { mes, total_clientes: 0, volume_emprestado: 0, quitados: 0, atrasados: 0, abertos: 0 };
             }
-            
+
             safras[mes].total_clientes++;
-            safras[mes].volume_emprestado += parseFloat(d.valor_emprestado) || 0;
-            
+
+            // 🚨 O Segredo: Pega do Log (histórico intocável). Se falhar, pega o atual.
+            const valorOriginal = capitalRealPorContrato[d.id] > 0 ? capitalRealPorContrato[d.id] : (parseFloat(d.valor_emprestado) || 0);
+            safras[mes].volume_emprestado += valorOriginal;
+
             if (d.status === 'QUITADO') {
                 safras[mes].quitados++;
             } else if (d.status === 'ATRASADO') {
@@ -617,7 +697,7 @@ app.get('/api/safras', async (req, res) => {
 
         const resultado = Object.values(safras).sort((a, b) => b.mes.localeCompare(a.mes));
         res.json(resultado);
-        
+
     } catch(e) { 
         res.status(500).json({ erro: e.message }); 
     }

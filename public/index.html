@@ -346,16 +346,42 @@
 
         <!-- ABA: CLIENTES / EXTRATO -->
         <div id="aba-clientes" class="aba-content hidden">
-            <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-users text-blue-500 mr-2"></i> Gestão de Clientes & Extrato</h2>
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <h2 class="text-2xl font-black uppercase tracking-tighter"><i class="fa-solid fa-users text-blue-500 mr-2"></i> Gestão de Clientes & Extrato</h2>
+                
+                <!-- BADGE COM O TOTAL DE DEVEDORES -->
+                <div id="badge-devedores" class="bg-orange-500/10 border border-orange-500/30 text-orange-400 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest hidden flex items-center shadow-inner">
+                    <span class="relative flex h-3 w-3 mr-2">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
+                    </span>
+                    <span id="qtd-devendo">0</span> &nbsp;Clientes c/ Dívida Ativa
+                </div>
+            </div>
             
             <div class="flex gap-4 mb-6">
-                <input type="text" id="extrato-busca" placeholder="Pesquisar por Nome, CPF ou WhatsApp..." class="input-dark w-80 text-center text-sm">
-                <button onclick="buscarExtrato()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-2 rounded-xl shadow-lg shadow-blue-500/20">
+                <!-- Adicionado o onkeyup para filtrar em tempo real! -->
+                <input type="text" id="extrato-busca" placeholder="Pesquisar por Nome, CPF ou WhatsApp..." class="input-dark w-full md:w-80 text-center text-sm" onkeyup="filtrarListaClientesLocais()">
+                <button onclick="buscarExtrato()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-2 rounded-xl shadow-lg shadow-blue-500/20 whitespace-nowrap">
                     <i class="fa-solid fa-magnifying-glass"></i> Buscar Histórico
                 </button>
             </div>
 
+            <!-- NOVA LISTA DE CLIENTES -->
+            <div id="container-lista-clientes" class="mb-6 transition-all">
+                <h3 class="text-xs font-black uppercase text-slate-500 mb-4 tracking-widest border-b border-slate-800 pb-2">Selecione um cliente para ver o extrato</h3>
+                <div id="grid-clientes" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2 pb-6">
+                    <!-- Preenchido via JS -->
+                </div>
+            </div>
+
             <div id="box-extrato" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Botão para voltar à lista -->
+                <div class="col-span-full mb-[-10px]">
+                    <button onclick="voltarParaListaClientes()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-lg font-bold transition-all uppercase tracking-widest border border-slate-700">
+                        <i class="fa-solid fa-arrow-left mr-2"></i> Voltar para a Lista Geral
+                    </button>
+                </div>
                 
                 <div class="col-span-1 glass-card p-6 rounded-3xl border border-slate-700 h-fit relative flex flex-col">
                     <div class="text-center mb-2">
@@ -1315,6 +1341,14 @@
                 carregarAberto();
             } else if (aba === 'crm') {
                 carregarCRM();
+            } else if (aba === 'clientes') {
+                // Esconde o extrato detalhado e exibe a lista principal ao entrar na aba
+                document.getElementById('box-extrato').classList.add('hidden');
+                document.getElementById('container-lista-clientes').classList.remove('hidden');
+                document.getElementById('extrato-busca').value = '';
+                carregarListaClientes();
+            } else if (aba === 'cadastro') {
+                // Nada extra a fazer
             } else if (aba === 'caixa') {
                 carregarSaidas();
             } else if (aba === 'ranking') {
@@ -2074,6 +2108,8 @@
             const busca = document.getElementById('extrato-busca').value.trim();
             if(busca.length < 3) return; 
             
+            // Oculta a lista de clientes para dar espaço ao Dossiê/Extrato
+            document.getElementById('container-lista-clientes').classList.add('hidden');
             document.getElementById('box-extrato').classList.add('hidden'); 
             window.clienteAtualExtrato = null;
             
@@ -2927,6 +2963,85 @@
                     `;
                 });
             } catch(e) {}
+        }
+        
+        let listaClientesCache = [];
+
+        async function carregarListaClientes() {
+            const grid = document.getElementById('grid-clientes');
+            grid.innerHTML = '<div class="col-span-full text-center py-10 text-slate-500 font-bold"><i class="fa-solid fa-spinner fa-spin text-2xl mb-2"></i><br>A carregar base de clientes...</div>';
+            
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/clientes-lista`, { headers: headersAuth });
+                const data = await res.json();
+                
+                listaClientesCache = data.clientes || [];
+                
+                document.getElementById('qtd-devendo').innerText = data.totalDevendo || 0;
+                document.getElementById('badge-devedores').classList.remove('hidden');
+                
+                renderizarGridClientes(listaClientesCache);
+            } catch(e) {
+                grid.innerHTML = '<div class="col-span-full text-center py-10 text-red-500 font-bold">Erro ao carregar clientes. Verifique sua conexão.</div>';
+            }
+        }
+
+        function renderizarGridClientes(lista) {
+            const grid = document.getElementById('grid-clientes');
+            grid.innerHTML = '';
+            
+            if (lista.length === 0) {
+                grid.innerHTML = '<div class="col-span-full text-center py-10 text-slate-500 font-bold">Nenhum cliente encontrado.</div>';
+                return;
+            }
+
+            lista.forEach(c => {
+                const isDevendo = c.status === 'ABERTO' || c.status === 'ATRASADO';
+                const statusIndicator = isDevendo 
+                    ? '<span class="w-2.5 h-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]" title="Possui dívida ativa"></span>' 
+                    : '<span class="w-2.5 h-2.5 rounded-full bg-slate-700 border border-slate-600" title="Sem dívidas ativas"></span>';
+
+                grid.innerHTML += `
+                    <div onclick="abrirExtratoListagem('${c.cpf}')" class="bg-slate-800/40 hover:bg-slate-700/80 border border-slate-700/50 hover:border-blue-500 p-4 rounded-xl cursor-pointer transition-all flex items-center justify-between group shadow-sm hover:shadow-lg">
+                        <div class="overflow-hidden">
+                            <p class="text-[11px] font-black text-white truncate group-hover:text-blue-400 transition-colors uppercase tracking-tight">${escapeHTML(c.nome)}</p>
+                            <p class="text-[10px] text-slate-400 font-mono mt-1">${escapeHTML(c.cpf)}</p>
+                        </div>
+                        <div class="flex items-center gap-3 ml-2 shrink-0">
+                            ${statusIndicator}
+                            <i class="fa-solid fa-chevron-right text-slate-600 group-hover:text-blue-500 text-[10px]"></i>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function filtrarListaClientesLocais() {
+            const termo = document.getElementById('extrato-busca').value.toLowerCase();
+            
+            if (termo.length === 0) {
+                renderizarGridClientes(listaClientesCache);
+                document.getElementById('container-lista-clientes').classList.remove('hidden');
+                document.getElementById('box-extrato').classList.add('hidden');
+                return;
+            }
+
+            const filtrados = listaClientesCache.filter(c => 
+                c.nome.toLowerCase().includes(termo) || 
+                c.cpf.includes(termo) || 
+                (c.telefone && c.telefone.includes(termo))
+            );
+            
+            document.getElementById('container-lista-clientes').classList.remove('hidden');
+            document.getElementById('box-extrato').classList.add('hidden');
+            renderizarGridClientes(filtrados);
+        }
+
+        function voltarParaListaClientes() {
+            document.getElementById('box-extrato').classList.add('hidden');
+            document.getElementById('container-lista-clientes').classList.remove('hidden');
+            document.getElementById('extrato-busca').value = '';
+            renderizarGridClientes(listaClientesCache);
         }
         
     </script>
