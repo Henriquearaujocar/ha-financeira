@@ -183,7 +183,7 @@
             </div>
         </div>
 
-        <!-- ABA: CLIENTES / EXTRATO (RAIO-X DETALHADO E HISTÓRICO GLOBAL) -->
+        <!-- ABA: CLIENTES / EXTRATO (COM ENGENHARIA REVERSA DE LUCRO) -->
         <div id="aba-clientes" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-users text-blue-500 mr-2"></i> Gestão de Clientes & Extrato</h2>
             
@@ -194,7 +194,7 @@
 
             <div id="box-extrato" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
-                <!-- COLUNA ESQUERDA: PERFIL DO CLIENTE E CONTRATOS -->
+                <!-- COLUNA ESQUERDA: PERFIL DO CLIENTE -->
                 <div class="col-span-1 glass-card p-6 rounded-3xl border border-slate-700 h-fit relative flex flex-col">
                     <div class="text-center mb-2">
                         <div class="w-16 h-16 bg-blue-500/10 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl border border-blue-500/30"><i class="fa-solid fa-user"></i></div>
@@ -202,7 +202,7 @@
                         <p id="ext_cpf" class="text-xs font-mono text-slate-400 mt-1">...</p>
                     </div>
 
-                    <!-- RESUMO DE DÍVIDAS ATIVAS -->
+                    <!-- RESUMO DE DÍVIDAS ATIVAS RESTAURADO -->
                     <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700 mb-2 shadow-inner">
                         <h3 class="text-[9px] font-black uppercase text-slate-500 mb-2 border-b border-slate-700 pb-1">Resumo de Dívidas Ativas</h3>
                         <p class="text-xs flex justify-between mb-1"><span class="text-slate-400">Capital na Rua:</span> <span id="ext_ativo_capital" class="font-bold text-white">R$ 0,00</span></p>
@@ -215,7 +215,7 @@
                         <div class="col-span-2 mb-2 bg-blue-900/20 border border-blue-500/20 p-3 rounded-xl shadow-inner">
                             <p class="text-[9px] font-black uppercase text-blue-400 mb-1">Montante Histórico Total Emprestado</p>
                             <p id="ext_global_emprestado" class="text-xl font-black text-white drop-shadow-md">R$ 0,00</p>
-                            <p class="text-[8px] text-slate-400 mt-1 uppercase tracking-wider">Soma de todos os contratos liberados</p>
+                            <p class="text-[8px] text-slate-400 mt-1 uppercase tracking-wider">Soma do Capital de Todos os Contratos</p>
                         </div>
                         <div class="bg-slate-900/80 border border-slate-700 p-3 rounded-xl">
                             <p class="text-[9px] font-black uppercase text-slate-400 mb-1">Total Já Recebido</p>
@@ -230,7 +230,7 @@
                     <button onclick="abrirDossieCliente()" class="w-full bg-slate-800 hover:bg-blue-600 text-blue-400 hover:text-white py-3 rounded-xl font-black uppercase text-[10px] transition-all border border-blue-500/20 mb-4"><i class="fa-solid fa-address-card mr-2"></i> Ver Dados e Documentos</button>
 
                     <div>
-                        <h3 class="text-[10px] font-black uppercase text-slate-400 mb-3 text-center tracking-widest"><i class="fa-solid fa-file-signature mr-1"></i> Todos os Contratos (Histórico Completo)</h3>
+                        <h3 class="text-[10px] font-black uppercase text-slate-400 mb-3 text-center tracking-widest"><i class="fa-solid fa-file-signature mr-1"></i> Todos os Contratos (Histórico)</h3>
                         <div id="ext_lista_contratos" class="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2 pb-4">
                             <!-- JS Injects Here -->
                         </div>
@@ -262,7 +262,7 @@
             </div>
         </div>
 
-        <!-- ABA: CADASTRO MANUAL / PRÉ-CADASTRO -->
+        <!-- ABA: CADASTRO MANUAL / PRÉ-CADASTRO (LIVE SEARCH) -->
         <div id="aba-cadastro" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-user-plus text-blue-500 mr-2"></i> Cadastro Manual / Pré-Cadastro</h2>
             
@@ -861,7 +861,9 @@
             <h2 class="text-xl font-black uppercase text-blue-500 mb-6"><i class="fa-solid fa-pen-to-square mr-2"></i> Editar Contrato</h2>
             
             <input type="hidden" id="editDevedorId">
+            <input type="hidden" id="editJaPago">
             
+            <!-- 🚨 FLAG PARA DINHEIRO NA EDIÇÃO -->
             <label class="flex items-center gap-2 cursor-pointer bg-slate-900/50 px-4 py-3 rounded-xl border border-slate-700 hover:border-emerald-500 transition-colors mb-4">
                 <input type="checkbox" id="editApenasDinheiro" class="w-4 h-4 accent-emerald-500 rounded cursor-pointer">
                 <span class="text-[10px] font-black uppercase text-emerald-400">Cliente Paga Só em Dinheiro (Bloqueia Link PIX)</span>
@@ -880,14 +882,23 @@
                     </select>
                 </div>
                 <div>
+                    <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Nº Parcelas Restantes</label>
+                    <input type="number" id="editParcelas" class="input-dark mt-1 font-bold text-white" min="1" oninput="autoCalcularEdicao()">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Taxa de Juros Base (%)</label>
+                    <input type="number" id="editTaxa" class="input-dark mt-1 font-bold text-orange-400" min="0" step="0.1" oninput="autoCalcularEdicao()">
+                </div>
+                <div>
                     <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Capital Original (R$)</label>
-                    <input type="number" id="editCapital" class="input-dark mt-1 font-bold text-white" min="0">
+                    <input type="number" id="editCapital" class="input-dark mt-1 font-bold text-white" min="0" oninput="autoCalcularEdicao()">
                 </div>
                 <div>
                     <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Saldo Devedor Atual (R$)</label>
                     <input type="number" id="editTotal" class="input-dark mt-1 font-bold text-red-400" min="0">
                 </div>
             </div>
+            <p id="editInfoCalculo" class="text-[10px] font-bold text-blue-400 mb-4 text-center tracking-widest uppercase"></p>
             <button onclick="salvarEdicaoContrato()" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-black uppercase text-sm shadow-lg shadow-blue-500/20">Salvar Alterações</button>
         </div>
     </div>
@@ -933,7 +944,7 @@
             try {
                 await fetchSeguro(`${API_BASE}/api/verify-session`, { headers: headersAuth });
             } catch (error) { 
-                console.warn("Sessão inválida."); 
+                console.warn("Servidor offline temporariamente."); 
             }
         }
 
@@ -971,6 +982,9 @@
             if (aba === 'config') carregarConfig();
         }
 
+        // =====================================
+        // FECHAMENTO INTELIGENTE DOS MODAIS (UX)
+        // =====================================
         function fecharModal(id) { 
             document.getElementById(id).classList.add('hidden'); 
         }
@@ -1594,7 +1608,33 @@
             document.getElementById('editTotal').value = dev.valor_total;
             document.getElementById('editApenasDinheiro').checked = dev.cobrar_so_em_dinheiro || false;
             
+            document.getElementById('editParcelas').value = dev.qtd_parcelas || 1;
+            document.getElementById('editTaxa').value = dev.taxa_juros || window.sistemaConfig?.juros_unico || 30;
+            document.getElementById('editJaPago').value = dev.total_ja_pego || 0;
+            document.getElementById('editInfoCalculo').innerText = '';
+            
             document.getElementById('modalEditarContrato').classList.remove('hidden');
+        }
+
+        function autoCalcularEdicao() {
+            const cap = parseFloat(document.getElementById('editCapital').value) || 0;
+            const parcelas = parseInt(document.getElementById('editParcelas').value) || 1;
+            const taxaBase = parseFloat(document.getElementById('editTaxa').value) || 0;
+            const jaPago = parseFloat(document.getElementById('editJaPago').value) || 0;
+            
+            let taxaAplicada = parcelas > 1 ? (taxaBase / 100) * parcelas : (taxaBase / 100);
+            let dividaTotalCompleta = cap * (1 + taxaAplicada);
+            let saldoRestante = dividaTotalCompleta - jaPago;
+            
+            if (saldoRestante < 0) saldoRestante = 0;
+            
+            document.getElementById('editTotal').value = saldoRestante.toFixed(2);
+            
+            if (parcelas > 1) {
+                document.getElementById('editInfoCalculo').innerText = `Matemática: Capital + ${(taxaAplicada*100).toFixed(0)}% Juros - Já Pago (R$ ${jaPago.toFixed(2)})`;
+            } else {
+                document.getElementById('editInfoCalculo').innerText = `Matemática: Capital + ${taxaBase}% Juros - Já Pago (R$ ${jaPago.toFixed(2)})`;
+            }
         }
 
         async function salvarEdicaoContrato() {
@@ -1604,13 +1644,16 @@
             const novoCap = parseFloat(document.getElementById('editCapital').value);
             const novoTot = parseFloat(document.getElementById('editTotal').value);
             const apenasDinheiro = document.getElementById('editApenasDinheiro').checked;
+            const novasParcelas = parseInt(document.getElementById('editParcelas').value);
+            const novaTaxa = parseFloat(document.getElementById('editTaxa').value);
 
             try {
                 const res = await fetchSeguro(`${API_BASE}/api/editar-contrato`, { 
                     method: 'POST', headers: headersAuth, 
                     body: JSON.stringify({ 
                         id, novoVencimento: novoVenc, novoCapital: novoCap, 
-                        novoTotal: novoTot, novaFrequencia: novaFreq, cobrarSoEmDinheiro: apenasDinheiro
+                        novoTotal: novoTot, novaFrequencia: novaFreq, cobrarSoEmDinheiro: apenasDinheiro,
+                        novasParcelas: novasParcelas, novaTaxa: novaTaxa
                     }) 
                 });
                 
@@ -1654,28 +1697,45 @@
                 document.getElementById('ext_nome').innerText = data.cliente.nome;
                 document.getElementById('ext_cpf').innerText = data.cliente.cpf;
                 
-                let somaCapital = 0; let somaPago = 0;
+                let somaCapitalOriginal = 0; 
+                let somaPago = 0;
                 let sumAtivoCapital = 0; let sumAtivoDivida = 0; let sumAtivoPago = 0;
 
                 const vContratos = document.getElementById('ext_lista_contratos'); 
                 vContratos.innerHTML = '';
                 
                 (data.todos_contratos || []).forEach(c => { 
-                    const cap = parseFloat(c.valor_emprestado) || 0;
                     const pago = parseFloat(c.total_ja_pego) || 0;
                     const tot = parseFloat(c.valor_total) || 0;
                     
-                    somaCapital += cap; 
+                    // 🚨 Lógica de Engenharia Reversa (Cura do Bug Antigo de Capital Apagado)
+                    let capReal = 0;
+                    const logsDeste = (data.logs || []).filter(l => String(l.devedor_id) === String(c.id));
+                    const logLiberacao = logsDeste.find(l => l.evento === 'Empréstimo Liberado' || (l.evento || '').includes('Ajuste Manual'));
+                    
+                    if (logLiberacao && logLiberacao.valor_fluxo) {
+                        capReal = Math.abs(parseFloat(logLiberacao.valor_fluxo));
+                    } else {
+                        // Faz a matemática de trás para a frente para adivinhar quanto foi emprestado
+                        const tDec = (parseFloat(c.taxa_juros) || 30) / 100;
+                        const tAp = c.qtd_parcelas > 1 ? tDec * c.qtd_parcelas : tDec;
+                        const dividaBase = (c.status === 'QUITADO' || pago >= parseFloat(c.valor_total)) ? pago : (parseFloat(c.valor_total) + pago);
+                        capReal = Math.round((dividaBase / (1 + tAp)) * 100) / 100;
+                    }
+                    
+                    if (isNaN(capReal) || capReal <= 0) capReal = parseFloat(c.valor_emprestado) || 0;
+                    
+                    somaCapitalOriginal += capReal; 
                     somaPago += pago;
 
                     const isActive = ['ABERTO', 'ATRASADO'].includes(c.status);
                     if (isActive) {
-                        sumAtivoCapital += cap;
+                        sumAtivoCapital += capReal;
                         sumAtivoDivida += tot;
                         sumAtivoPago += pago;
                     }
                     
-                    const lucroRealizado = pago - cap; 
+                    const lucroRealizado = pago - capReal; 
                     const lucroStr = lucroRealizado >= 0 ? `+ ${formatMoney(lucroRealizado)}` : `${formatMoney(lucroRealizado)}`;
                     const corLucro = lucroRealizado >= 0 ? 'text-blue-400' : 'text-red-400';
                     const badge = c.status === 'QUITADO' ? 'bg-emerald-500/20 text-emerald-400' : (isActive ? 'bg-red-500/20 text-red-400' : 'bg-slate-700 text-slate-300');
@@ -1691,7 +1751,6 @@
                         diasAtrasoContrato = Math.floor((hj - dtVenc) / (1000 * 60 * 60 * 24));
                     }
 
-                    const logsDeste = (data.logs || []).filter(l => String(l.devedor_id) === String(c.id));
                     logsDeste.forEach(l => {
                         const evento = l.evento || "";
                         if (evento.includes('Atraso') || evento.includes('Migração') || evento.includes('Rolagem')) {
@@ -1706,7 +1765,7 @@
                     // Extração de Data de Contrato, Progresso e Último Pagamento
                     const dtContrato = c.created_at ? new Date(c.created_at).toLocaleDateString('pt-BR') : '--/--/----';
                     const qtdPagas = c.parcelas_pagas || 0;
-                    const isQuitado = c.pago || (pago >= tot && tot > 0);
+                    const isQuitado = c.pago || (pago >= tot && tot > 0) || c.status === 'QUITADO';
                     let parcelasInfo = c.qtd_parcelas > 1 ? `${qtdPagas} de ${c.qtd_parcelas} pagas` : (isQuitado ? 'Quitada' : 'Pendente');
 
                     let dataUltimoPgto = "Ainda não pagou";
@@ -1719,12 +1778,8 @@
                     if (isActive) {
                         botoesAcao = `
                             <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-700">
-                                <button onclick="prepararPagamento('${c.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white py-1.5 rounded text-[10px] font-black uppercase transition-all shadow-lg">
-                                    <i class="fa-solid fa-money-bill-wave mr-1"></i> Receber Pgto
-                                </button>
-                                <button onclick="abrirEdicaoContrato('${c.id}')" class="bg-orange-600 hover:bg-orange-500 text-white py-1.5 rounded text-[10px] font-black uppercase transition-all shadow-lg">
-                                    <i class="fa-solid fa-pen mr-1"></i> Editar
-                                </button>
+                                <button onclick="prepararPagamento('${c.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white py-1.5 rounded text-[10px] font-black uppercase transition-all shadow-lg"><i class="fa-solid fa-money-bill-wave mr-1"></i> Receber Pgto</button>
+                                <button onclick="abrirEdicaoContrato('${c.id}')" class="bg-orange-600 hover:bg-orange-500 text-white py-1.5 rounded text-[10px] font-black uppercase transition-all shadow-lg"><i class="fa-solid fa-pen mr-1"></i> Editar</button>
                             </div>
                         `;
                     }
@@ -1758,37 +1813,25 @@
                         </div>
 
                         <div class="grid grid-cols-3 gap-2 text-[9px] mb-3 text-center">
-                            <div class="bg-slate-900/50 rounded py-1.5 border border-slate-700">
-                                <span class="text-slate-500 block text-[7px] uppercase mb-0.5">Capital Emprestado</span>
-                                <span class="font-bold text-white">${formatMoney(cap)}</span>
-                            </div>
-                            <div class="bg-slate-900/50 rounded py-1.5 border border-slate-700">
-                                <span class="text-slate-500 block text-[7px] uppercase mb-0.5">Dívida Total</span>
-                                <span class="font-bold text-red-400">${formatMoney(tot)}</span>
-                            </div>
-                            <div class="bg-slate-900/50 rounded py-1.5 border border-slate-700">
-                                <span class="text-slate-500 block text-[7px] uppercase mb-0.5">Total Recebido</span>
-                                <span class="font-bold text-emerald-400">${formatMoney(pago)}</span>
-                            </div>
+                            <div class="bg-slate-900/50 rounded py-1.5 border border-slate-700"><span class="text-slate-500 block text-[7px] uppercase mb-0.5">Capital Orig.</span><span class="font-bold text-white">${formatMoney(capReal)}</span></div>
+                            <div class="bg-slate-900/50 rounded py-1.5 border border-slate-700"><span class="text-slate-500 block text-[7px] uppercase mb-0.5">Dívida Atual</span><span class="font-bold text-red-400">${formatMoney(tot)}</span></div>
+                            <div class="bg-slate-900/50 rounded py-1.5 border border-slate-700"><span class="text-slate-500 block text-[7px] uppercase mb-0.5">Total Recebido</span><span class="font-bold text-emerald-400">${formatMoney(pago)}</span></div>
                         </div>
 
-                        <button onclick="renderizarLogsExtrato(${c.id})" class="w-full bg-slate-900 hover:bg-blue-600 text-slate-400 hover:text-white py-2 rounded-lg text-[10px] font-black uppercase transition-all border border-slate-700 hover:border-blue-500 mb-1">
-                            <i class="fa-solid fa-clock-rotate-left mr-1"></i> Ver Histórico Financeiro Completo
-                        </button>
+                        <button onclick="renderizarLogsExtrato(${c.id})" class="w-full bg-slate-900 hover:bg-blue-600 text-slate-400 hover:text-white py-2 rounded-lg text-[10px] font-black uppercase transition-all border border-slate-700 hover:border-blue-500 mb-1"><i class="fa-solid fa-clock-rotate-left mr-1"></i> Ver Histórico Financeiro Completo</button>
                         ${botoesAcao}
-                    </div>
-                    `;
+                    </div>`;
                 });
 
                 if(document.getElementById('ext_ativo_capital')) document.getElementById('ext_ativo_capital').innerText = formatMoney(sumAtivoCapital);
                 if(document.getElementById('ext_ativo_divida')) document.getElementById('ext_ativo_divida').innerText = formatMoney(sumAtivoDivida);
                 if(document.getElementById('ext_ativo_pago')) document.getElementById('ext_ativo_pago').innerText = formatMoney(sumAtivoPago);
 
-                // 🚨 O Extrato agora mostra o Total Histórico (Escadinha somada)
-                if(document.getElementById('ext_global_emprestado')) document.getElementById('ext_global_emprestado').innerText = formatMoney(somaCapital);
+                // 🚨 O Extrato agora mostra o Total Histórico Corretamente Somado
+                if(document.getElementById('ext_global_emprestado')) document.getElementById('ext_global_emprestado').innerText = formatMoney(somaCapitalOriginal);
                 if(document.getElementById('ext_global_pago')) document.getElementById('ext_global_pago').innerText = formatMoney(somaPago);
                 
-                const lucroGlobal = somaPago - somaCapital;
+                const lucroGlobal = somaPago - somaCapitalOriginal;
                 const lucroDOM = document.getElementById('ext_global_lucro');
                 if(lucroDOM) {
                     lucroDOM.innerText = formatMoney(lucroGlobal);

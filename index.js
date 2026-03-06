@@ -4,7 +4,6 @@ const cors = require('cors');
 const cron = require('node-cron');
 
 const { supabase } = require('./database');
-// 🚨 IMPORTAÇÃO CORRIGIDA: Adicionado o enviarAprovacaoComTermos
 const { enviarZap, formatarNumero, verificarStatusZapi, enviarLembreteVencimento, enviarAvisoAtraso, enviarAprovacaoComTermos } = require('./services/zapService');
 const { recalcularDivida } = require('./services/financeService');
 const { fazerUploadNoSupabase } = require('./services/uploadService');
@@ -368,7 +367,6 @@ app.post('/api/aprovar-solicitacao', async (req, res) => {
 
         const linkAceite = `${APP_URL}/aceitar.html?id=${devUuid}`;
         
-        // 🚨 ENVIO DA MENSAGEM TRANSPARENTE DE CONTRAPROPOSTA / APROVAÇÃO
         try { 
             const valorDaParcela = parcelasFinais > 1 ? (valorTotal / parcelasFinais) : valorTotal;
             await enviarAprovacaoComTermos(
@@ -501,16 +499,27 @@ app.get('/api/buscar-cliente-admin/:busca', async (req, res) => {
 
 app.post('/api/editar-contrato', async (req, res) => {
     try {
-        const { id, novoVencimento, novoCapital, novoTotal, novaFrequencia, cobrarSoEmDinheiro } = req.body;
+        const { id, novoVencimento, novoCapital, novoTotal, novaFrequencia, cobrarSoEmDinheiro, novasParcelas, novaTaxa } = req.body;
         const { data: devAntigo } = await supabase.from('devedores').select('valor_emprestado, status').eq('id', id).maybeSingle();
         if (devAntigo?.status === 'APROVADO_AGUARDANDO_ACEITE') return res.status(400).json({ erro: "Contrato pendente não editável." });
 
-        await supabase.from('devedores').update({ 
-            data_vencimento: novoVencimento, valor_emprestado: limparMoeda(novoCapital), valor_total: limparMoeda(novoTotal), 
-            frequencia: novaFrequencia, status: 'ABERTO', ultima_cobranca_atraso: null, pago: false, cobrar_so_em_dinheiro: cobrarSoEmDinheiro
-        }).eq('id', id);
+        let payload = { 
+            data_vencimento: novoVencimento, 
+            valor_emprestado: limparMoeda(novoCapital), 
+            valor_total: limparMoeda(novoTotal), 
+            frequencia: novaFrequencia, 
+            status: 'ABERTO', 
+            ultima_cobranca_atraso: null, 
+            pago: false, 
+            cobrar_so_em_dinheiro: cobrarSoEmDinheiro
+        };
+
+        if (novasParcelas) payload.qtd_parcelas = parseInt(novasParcelas);
+        if (novaTaxa) payload.taxa_juros = limparMoeda(novaTaxa);
+
+        await supabase.from('devedores').update(payload).eq('id', id);
         
-        await supabase.from('logs').insert([{ evento: "Edição Manual", detalhes: `Vencimento para ${novoVencimento}. Saldo: R$ ${limparMoeda(novoTotal)}`, devedor_id: id }]);
+        await supabase.from('logs').insert([{ evento: "Edição Manual", detalhes: `Estrutura reajustada. Novo Venc: ${novoVencimento}. Saldo: R$ ${limparMoeda(novoTotal)}`, devedor_id: id }]);
         res.json({ sucesso: true });
     } catch(e) { res.status(500).json({ erro: e.message }); }
 });
@@ -579,8 +588,19 @@ app.post('/api/baixar-manual', async (req, res) => {
             if (calcAjuste !== 0) { novoTotal += calcAjuste; notas.push(`Ajuste: R$ ${calcAjuste}`); }
             if (observacoes) { notas.push(`Obs: ${observacoes}`); atualizacoes.observacoes = (dev.observacoes ? dev.observacoes + " | " : "") + `[${new Date().toLocaleDateString()}] ${observacoes}`; }
 
-            if (novoTotal <= 0.05) { atualizacoes.valor_total = 0; atualizacoes.valor_emprestado = 0; atualizacoes.status = 'QUITADO'; atualizacoes.pago = true; } 
-            else { atualizacoes.valor_total = Math.max(0, novoTotal); if(dev.status === 'QUITADO' && atualizacoes.valor_total > 0) { atualizacoes.status = 'ABERTO'; atualizacoes.pago = false; } }
+            // 🚨 CORREÇÃO CRÍTICA: NÃO APAGA O HISTÓRICO DO CAPITAL (valor_emprestado) QUANDO QUITA!
+            if (novoTotal <= 0.05) { 
+                atualizacoes.valor_total = 0; 
+                atualizacoes.status = 'QUITADO'; 
+                atualizacoes.pago = true; 
+            } 
+            else { 
+                atualizacoes.valor_total = Math.max(0, novoTotal); 
+                if(dev.status === 'QUITADO' && atualizacoes.valor_total > 0) { 
+                    atualizacoes.status = 'ABERTO'; 
+                    atualizacoes.pago = false; 
+                } 
+            }
 
             if (Object.keys(atualizacoes).length > 0) await supabase.from('devedores').update(atualizacoes).eq('id', id);
             if (notas.length > 0) await supabase.from('logs').insert([{ evento: "Ajuste Manual", detalhes: notas.join(' | '), devedor_id: id }]);

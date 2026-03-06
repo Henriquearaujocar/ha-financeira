@@ -70,7 +70,8 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
     // ==========================================
     if (novoTotal <= 0.05) {
         rpcPayload.p_novo_total = 0;
-        rpcPayload.p_capital = 0;
+        // 🚨 MANTIDO INTACTO: Preserva o histórico do que foi emprestado!
+        rpcPayload.p_capital = capitalAtual; 
         rpcPayload.p_status = 'QUITADO';
         rpcPayload.p_limpar_atraso = true;
         rpcPayload.p_evento = "Quitação Total";
@@ -93,8 +94,8 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
         rpcPayload.p_evento = "Pagamento de Parcela";
 
         // 🚨 O Épsilon resolve o Float Bug de divisões como 0.9999999
-        let parcelasPagasInt = Math.floor((pago / parcelaEstimada) + 0.0001);
-        let restoDoPagamento = pago % parcelaEstimada;
+        let parcelasPagasInt = Math.floor(pago / parcelaEstimada);
+        let restoDoPagamento = pago - (parcelasPagasInt * parcelaEstimada);
         
         if (restoDoPagamento >= (parcelaEstimada * 0.85)) {
             parcelasPagasInt += 1;
@@ -126,13 +127,8 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
             rpcPayload.p_detalhes += ` Pagamento parcial (não cobriu uma parcela inteira). Vencimento mantido.`;
         }
 
-        const proporcaoCapital = totalAnterior > 0 ? (capitalAtual / totalAnterior) : 1;
-        const abateCapital = pago * proporcaoCapital;
-        
-        rpcPayload.p_capital = Math.max(0, Math.round((capitalAtual - abateCapital) * 100) / 100);
-        
-        // 🚨 Trava de Teto Matemático
-        rpcPayload.p_capital = Math.min(rpcPayload.p_capital, rpcPayload.p_novo_total);
+        // 🚨 MANTIDO INTACTO: Não destrói o histórico original
+        rpcPayload.p_capital = capitalAtual;
 
         const { error: rpcErr } = await supabase.rpc('processar_transacao_financeira', rpcPayload);
         if (rpcErr) throw new Error(rpcErr.message);
@@ -157,6 +153,7 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
         let saldoDevedorDosJuros = Math.max(0, valorJurosAtual - pago);
         const abateCapital = pago > valorJurosAtual ? Math.round((pago - valorJurosAtual) * 100) / 100 : 0;
         
+        // Num rotativo, o capital real restante muda se ele pagar a mais.
         rpcPayload.p_capital = Math.max(0, Math.round((capitalAtual - abateCapital + saldoDevedorDosJuros) * 100) / 100);
         rpcPayload.p_novo_total = Math.round((rpcPayload.p_capital * multiplicadorJuros) * 100) / 100; 
         rpcPayload.p_capital = Math.min(rpcPayload.p_capital, rpcPayload.p_novo_total);
