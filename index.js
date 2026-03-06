@@ -23,7 +23,6 @@ app.use(express.static('public'));
 
 const APP_URL = process.env.APP_URL || `http://localhost:${process.env.PORT || 3001}`;
 
-// Estruturas de Memória e Proteção
 const travasAtivasPainel = new Set();
 const tentativasLogin = new Map();
 const tentativasSolicitacao = new Map();
@@ -33,52 +32,32 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const limparMoeda = (valor) => {
     if (valor === null || valor === undefined || valor === '') return 0;
     if (typeof valor === 'number') return valor;
-    
     let str = String(valor).trim();
-    if (str.includes(',')) {
-        str = str.replace(/\./g, '').replace(',', '.');
-    }
-    
+    if (str.includes(',')) str = str.replace(/\./g, '').replace(',', '.');
     const num = parseFloat(str);
     return isNaN(num) ? 0 : num;
 };
 
 // ==========================================
-// 🚨 MOTOR DE DECISÃO DE PIX INTELIGENTE
+// MOTOR DE DECISÃO DE PIX INTELIGENTE
 // ==========================================
 const escolherPixInteligente = (configPixString, valorCobranca) => {
     if (!configPixString) return null;
-    
     try {
         const conf = JSON.parse(configPixString);
-        
-        if (!conf || !conf.chaves || conf.chaves.length === 0) {
-            return null;
-        }
+        if (!conf || !conf.chaves || conf.chaves.length === 0) return null;
 
         const getChave = (id) => conf.chaves.find(c => c.id === id);
 
-        if (conf.modo === 'UNICO') {
-            return getChave(conf.padrao) || conf.chaves[0];
-        } 
-        else if (conf.modo === 'ALEATORIO') {
-            const randomIndex = Math.floor(Math.random() * conf.chaves.length);
-            return conf.chaves[randomIndex];
-        } 
-        else if (conf.modo === 'VALOR') {
+        if (conf.modo === 'UNICO') return getChave(conf.padrao) || conf.chaves[0];
+        if (conf.modo === 'ALEATORIO') return conf.chaves[Math.floor(Math.random() * conf.chaves.length)];
+        if (conf.modo === 'VALOR') {
             const limite = parseFloat(conf.regras.limite) || 0;
-            if (parseFloat(valorCobranca) < limite) {
-                return getChave(conf.regras.menor);
-            } else {
-                return getChave(conf.regras.maior);
-            }
+            if (parseFloat(valorCobranca) < limite) return getChave(conf.regras.menor);
+            else return getChave(conf.regras.maior);
         }
-        
-        return conf.chaves[0]; // Fallback de segurança
-        
-    } catch(e) { 
-        return null; 
-    }
+        return conf.chaves[0]; 
+    } catch(e) { return null; }
 };
 
 // ==========================================
@@ -89,48 +68,26 @@ app.post('/api/login', async (req, res) => {
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
     const tentativas = tentativasLogin.get(ip) || 0;
-    if (tentativas >= 5) {
-        return res.status(429).json({ erro: 'Muitas tentativas falhadas. Por favor, aguarde 5 minutos.' });
-    }
+    if (tentativas >= 5) return res.status(429).json({ erro: 'Muitas tentativas falhadas. Por favor, aguarde 5 minutos.' });
 
     try {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        
         if (error) {
             tentativasLogin.set(ip, tentativas + 1);
             setTimeout(() => tentativasLogin.delete(ip), 5 * 60 * 1000); 
             return res.status(401).json({ erro: 'E-mail ou palavra-passe incorretos.' });
         }
-        
         tentativasLogin.delete(ip); 
         res.json({ token: data.session.access_token, email: data.user?.email });
-        
-    } catch (err) { 
-        res.status(500).json({ erro: 'Erro interno de autenticação.' }); 
-    }
+    } catch (err) { res.status(500).json({ erro: 'Erro interno de autenticação.' }); }
 });
 
 const authMiddleware = async (req, res, next) => {
-    const rotasPublicas = [
-        '/api/login', 
-        '/upload-foto', 
-        '/enviar-solicitacao', 
-        '/api/enviar-solicitacao', 
-        '/validar-extrato', 
-        '/cliente-aceitou', 
-        '/status-zapi', 
-        '/api/config-publica', 
-        '/favicon.ico'
-    ];
-    
-    if (rotasPublicas.includes(req.path) || req.path.startsWith('/api/buscar-cliente-publico')) {
-        return next();
-    }
+    const rotasPublicas = ['/api/login', '/upload-foto', '/enviar-solicitacao', '/api/enviar-solicitacao', '/validar-extrato', '/cliente-aceitou', '/status-zapi', '/api/config-publica', '/favicon.ico'];
+    if (rotasPublicas.includes(req.path) || req.path.startsWith('/api/buscar-cliente-publico')) return next();
     
     const tokenHeader = req.headers['authorization'];
-    if (!tokenHeader || !tokenHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ erro: 'Acesso Restrito.' });
-    }
+    if (!tokenHeader || !tokenHeader.startsWith('Bearer ')) return res.status(401).json({ erro: 'Acesso Restrito.' });
     
     const token = tokenHeader.split(' ')[1];
     try {
@@ -138,86 +95,42 @@ const authMiddleware = async (req, res, next) => {
         if (error || !user) throw new Error("Sessão Inválida");
         req.user = user; 
         return next();
-    } catch(err) { 
-        return res.status(401).json({ erro: 'Sessão expirada.' }); 
-    }
+    } catch(err) { return res.status(401).json({ erro: 'Sessão expirada.' }); }
 };
 
 app.use(authMiddleware);
-
-app.get('/api/verify-session', (req, res) => {
-    res.json({ autenticado: true, email: req.user?.email });
-});
+app.get('/api/verify-session', (req, res) => res.json({ autenticado: true, email: req.user?.email }));
 
 // ==========================================
 // 2. ROTAS PÚBLICAS
 // ==========================================
-app.get('/status-zapi', async (req, res) => { 
-    try { 
-        const status = await verificarStatusZapi(); 
-        res.json(status); 
-    } catch(e) { 
-        res.json({ connected: false }); 
-    } 
-});
-
-app.get('/api/config-publica', async (req, res) => { 
-    try { 
-        const { data } = await supabase
-            .from('config')
-            .select('*')
-            .in('chave', ['valor_minimo', 'juros_unico', 'juros_parcelado', 'pix_avancado']); 
-        res.json(data || []); 
-    } catch(e) { 
-        res.json([]); 
-    } 
-});
+app.get('/status-zapi', async (req, res) => { try { const status = await verificarStatusZapi(); res.json(status); } catch(e) { res.json({ connected: false }); } });
+app.get('/api/config-publica', async (req, res) => { try { const { data } = await supabase.from('config').select('*').in('chave', ['valor_minimo', 'juros_unico', 'juros_parcelado', 'pix_avancado']); res.json(data || []); } catch(e) { res.json([]); } });
 
 app.get('/api/buscar-cliente-publico/:cpf', async (req, res) => {
     try {
         const cpf = req.params.cpf.replace(/\D/g, '');
-        const { data, error } = await supabase
-            .from('devedores')
-            .select('nome, telefone')
-            .eq('cpf', cpf)
-            .limit(1);
-            
-        if (error || !data || data.length === 0) {
-            return res.status(404).json({ erro: "Cliente não encontrado." });
-        }
+        const { data, error } = await supabase.from('devedores').select('nome, telefone').eq('cpf', cpf).limit(1);
+        if (error || !data || data.length === 0) return res.status(404).json({ erro: "Cliente não encontrado." });
         res.json(data[0]);
-    } catch(e) { 
-        res.status(500).json({ erro: e.message }); 
-    }
+    } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
 app.post('/api/enviar-solicitacao', async (req, res) => {
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const reqCount = tentativasSolicitacao.get(ip) || 0;
-    
-    if (reqCount >= 3) {
-        return res.status(429).json({ erro: "Muitas solicitações. Aguarde." });
-    }
+    if (reqCount >= 3) return res.status(429).json({ erro: "Muitas solicitações. Aguarde." });
     
     try {
         const d = req.body;
         const imagensParaVerificar = [d.url_selfie, d.url_residencia, d.url_frente, d.url_verso, d.url_casa];
-        
-        for (let img of imagensParaVerificar) { 
-            if (img && img.length > 4 * 1024 * 1024) {
-                return res.status(413).json({ erro: "Imagem excede o limite de tamanho." }); 
-            }
-        }
+        for (let img of imagensParaVerificar) { if (img && img.length > 4 * 1024 * 1024) return res.status(413).json({ erro: "Imagem excede o limite de tamanho." }); }
 
         const { data: bl } = await supabase.from('lista_negra').select('cpf').eq('cpf', d.cpf).single();
-        if (bl) {
-            return res.status(403).json({ erro: "CPF bloqueado pelo sistema." });
-        }
+        if (bl) return res.status(403).json({ erro: "CPF bloqueado pelo sistema." });
 
         const { data: solPendente } = await supabase.from('solicitacoes').select('id').eq('cpf', d.cpf).eq('status', 'PENDENTE').maybeSingle();
-        if (solPendente) {
-            return res.status(429).json({ erro: "Você já possui uma solicitação em análise." });
-        }
+        if (solPendente) return res.status(429).json({ erro: "Você já possui uma solicitação em análise." });
 
         tentativasSolicitacao.set(ip, reqCount + 1);
         setTimeout(() => tentativasSolicitacao.delete(ip), 60 * 60 * 1000);
@@ -227,11 +140,7 @@ app.post('/api/enviar-solicitacao', async (req, res) => {
 
         if (d.is_recorrente) {
             const { data: dev } = await supabase.from('devedores').select('url_frente, url_verso, url_casa').eq('cpf', d.cpf).limit(1);
-            if (dev && dev.length > 0) { 
-                oldFrente = dev[0].url_frente; 
-                oldVerso = dev[0].url_verso; 
-                oldCasa = dev[0].url_casa; 
-            }
+            if (dev && dev.length > 0) { oldFrente = dev[0].url_frente; oldVerso = dev[0].url_verso; oldCasa = dev[0].url_casa; }
         }
 
         const uSelfie = d.url_selfie ? await fazerUploadNoSupabase(d.url_selfie, `${d.cpf}_selfie_${ts}.jpg`) : null;
@@ -243,32 +152,18 @@ app.post('/api/enviar-solicitacao', async (req, res) => {
         const parcelasMatematicas = Math.max(1, d.tipo_plano === '30DIAS' ? 1 : (parseInt(d.qtd_parcelas) || 1));
 
         const { error } = await supabase.from('solicitacoes').insert([{
-            nome: d.nome, 
-            cpf: d.cpf, 
-            whatsapp: d.whatsapp, 
-            valor: limparMoeda(d.valor),
-            tipo_plano: d.tipo_plano || '30DIAS', 
-            frequencia: d.frequencia || 'MENSAL',
-            qtd_parcelas: parcelasMatematicas, 
-            indicado_por: d.indicado_por || 'DIRETO',
-            url_selfie: uSelfie, 
-            url_frente: uFrente, 
-            url_verso: uVerso, 
-            url_residencia: uResidencia, 
-            url_casa: uCasa,
-            referencia1_nome: d.referencia1_nome, 
-            referencia1_tel: d.referencia1_tel, 
-            status: 'PENDENTE'
+            nome: d.nome, cpf: d.cpf, whatsapp: d.whatsapp, valor: limparMoeda(d.valor),
+            tipo_plano: d.tipo_plano || '30DIAS', frequencia: d.frequencia || 'MENSAL',
+            qtd_parcelas: parcelasMatematicas, indicado_por: d.indicado_por || 'DIRETO',
+            url_selfie: uSelfie, url_frente: uFrente, url_verso: uVerso, url_residencia: uResidencia, url_casa: uCasa,
+            referencia1_nome: d.referencia1_nome, referencia1_tel: d.referencia1_tel, status: 'PENDENTE'
         }]);
         
         if (error) throw error;
         
         enviarZap(process.env.ADMIN_WHATSAPP, `🚀 Nova Solicitação:\n👤 ${d.nome}\n💰 R$ ${d.valor}`).catch(e => {});
         res.status(200).json({ mensagem: "Solicitação recebida com sucesso!" });
-        
-    } catch (err) { 
-        res.status(500).json({ erro: err.message }); 
-    }
+    } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
 // ==========================================
@@ -277,24 +172,15 @@ app.post('/api/enviar-solicitacao', async (req, res) => {
 app.post('/validar-extrato', async (req, res) => { 
     try { 
         let query = supabase.from('devedores').select('*').eq('uuid', req.body.id);
-        
-        if (req.body.cpf) {
-            query = query.eq('cpf', req.body.cpf.replace(/\D/g, '')); 
-        }
+        if (req.body.cpf) query = query.eq('cpf', req.body.cpf.replace(/\D/g, '')); 
         
         const { data: dev, error } = await query.single();
-        if (error || !dev) {
-            return res.status(404).json({ erro: "Extrato não encontrado." }); 
-        }
+        if (error || !dev) return res.status(404).json({ erro: "Extrato não encontrado." }); 
         
-        // Cálculos de front-end injectados
         dev.valor_parcela = (dev.qtd_parcelas > 1) ? (dev.valor_total / dev.qtd_parcelas) : dev.valor_total;
         dev.parcelas_pagas = (dev.qtd_parcelas > 1 && dev.valor_parcela > 0) ? Math.floor((dev.total_ja_pego || 0) / dev.valor_parcela) : ((dev.total_ja_pego >= dev.valor_total) ? 1 : 0);
-        
         res.json(dev); 
-    } catch(e) { 
-        res.status(500).json({ erro: e.message }); 
-    } 
+    } catch(e) { res.status(500).json({ erro: e.message }); } 
 });
 
 app.post('/cliente-aceitou', async (req, res) => { 
@@ -302,33 +188,17 @@ app.post('/cliente-aceitou', async (req, res) => {
         const { data: dev } = await supabase.from('devedores').select('*').eq('uuid', req.body.id).single();
         if (!dev) throw new Error("Extrato não encontrado");
         
-        if (dev.status === 'ABERTO' || dev.status === 'ATRASADO') {
-            return res.json({ status: 'Assinado' });
-        }
+        if (dev.status === 'ABERTO' || dev.status === 'ATRASADO') return res.json({ status: 'Assinado' });
         
         const momentBRT = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
         momentBRT.setDate(momentBRT.getDate() + (dev.frequencia === 'SEMANAL' ? 7 : 30));
         const dataVencimentoReal = momentBRT.toISOString().split('T')[0];
 
-        await supabase.from('devedores').update({ 
-            status: 'ABERTO', 
-            data_vencimento: dataVencimentoReal 
-        }).eq('id', dev.id);
-        
-        await supabase.from('solicitacoes').update({ 
-            status: 'ASSINADO' 
-        }).eq('cpf', dev.cpf).eq('status', 'APROVADO_CP');
-        
-        await supabase.from('logs').insert([{ 
-            evento: "Assinatura Digital", 
-            detalhes: `Contrato ativado. Vencimento configurado para: ${dataVencimentoReal}.`, 
-            devedor_id: dev.id 
-        }]); 
-        
+        await supabase.from('devedores').update({ status: 'ABERTO', data_vencimento: dataVencimentoReal }).eq('id', dev.id);
+        await supabase.from('solicitacoes').update({ status: 'ASSINADO' }).eq('cpf', dev.cpf).eq('status', 'APROVADO_CP');
+        await supabase.from('logs').insert([{ evento: "Assinatura Digital", detalhes: `Contrato ativado. Vencimento configurado para: ${dataVencimentoReal}.`, devedor_id: dev.id }]); 
         res.json({ status: 'Assinado' }); 
-    } catch(e) { 
-        res.status(500).json({ erro: e.message }); 
-    } 
+    } catch(e) { res.status(500).json({ erro: e.message }); } 
 });
 
 // ==========================================
@@ -350,18 +220,12 @@ app.get('/api/previsao-caixa', async (req, res) => {
             const dataVenc = d.data_vencimento;
             const valorParcela = d.qtd_parcelas > 1 ? (parseFloat(d.valor_total) / d.qtd_parcelas) : parseFloat(d.valor_total);
             
-            if (!previsao[dataVenc]) {
-                previsao[dataVenc] = { total: 0, clientes: [] };
-            }
-            
+            if (!previsao[dataVenc]) previsao[dataVenc] = { total: 0, clientes: [] };
             previsao[dataVenc].total += valorParcela;
             previsao[dataVenc].clientes.push({ nome: d.nome.split(' ')[0], valor: valorParcela });
         });
-        
         res.json(previsao);
-    } catch(e) { 
-        res.status(500).json({ erro: e.message }); 
-    }
+    } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
 app.get('/api/garantias/:cpf', async (req, res) => {
@@ -369,32 +233,22 @@ app.get('/api/garantias/:cpf', async (req, res) => {
         const cpf = req.params.cpf.replace(/\D/g, '');
         const { data } = await supabase.from('garantias').select('*').eq('cpf', cpf).order('created_at', { ascending: false });
         res.json(data || []);
-    } catch(e) { 
-        res.status(500).json({ erro: e.message }); 
-    }
+    } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
 app.post('/api/garantias', async (req, res) => {
     try {
         const { cpf, descricao, valor_estimado } = req.body;
-        await supabase.from('garantias').insert([{ 
-            cpf: cpf.replace(/\D/g, ''), 
-            descricao: descricao, 
-            valor_estimado: limparMoeda(valor_estimado) 
-        }]);
+        await supabase.from('garantias').insert([{ cpf: cpf.replace(/\D/g, ''), descricao, valor_estimado: limparMoeda(valor_estimado) }]);
         res.json({ sucesso: true });
-    } catch(e) { 
-        res.status(500).json({ erro: e.message }); 
-    }
+    } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
 app.put('/api/garantias/:id/status', async (req, res) => {
     try {
         await supabase.from('garantias').update({ status: req.body.status }).eq('id', req.params.id);
         res.json({ sucesso: true });
-    } catch(e) { 
-        res.status(500).json({ erro: e.message }); 
-    }
+    } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
 // ==========================================
@@ -404,21 +258,12 @@ app.get(['/api/dashboard', '/api/dashboard-master'], async (req, res) => {
     try {
         const { data: configs } = await supabase.from('config').select('*');
         let caixaGeral = 50000; 
-        
-        configs?.forEach(c => { 
-            if (c.chave === 'caixa_total') {
-                caixaGeral = parseFloat(c.valor) || 0; 
-            }
-        });
+        configs?.forEach(c => { if (c.chave === 'caixa_total') caixaGeral = parseFloat(c.valor) || 0; });
 
         const p_inicio = req.query.inicio || null;
         const p_fim = req.query.fim || null;
 
-        const { data: dbResumo, error: rpcErr } = await supabase.rpc('obter_resumo_dashboard', { 
-            p_inicio: p_inicio, 
-            p_fim: p_fim 
-        });
-        
+        const { data: dbResumo, error: rpcErr } = await supabase.rpc('obter_resumo_dashboard', { p_inicio: p_inicio, p_fim: p_fim });
         if (rpcErr) throw new Error(rpcErr.message);
         
         const resumoSeguro = dbResumo || {};
@@ -430,58 +275,37 @@ app.get(['/api/dashboard', '/api/dashboard-master'], async (req, res) => {
             lucroEstimado: (parseFloat(resumoSeguro.totalAReceber) || 0) - (parseFloat(resumoSeguro.capitalNaRua) || 0), 
             capitalNaRua: resumoSeguro.capitalNaRua || 0, 
             caixaDisponivel: caixaGeral + (parseFloat(resumoSeguro.fluxoLiquidoTotal) || 0),
-            
-            // Retro-compatibilidade com front-ends antigos
             total_a_receber: resumoSeguro.totalAReceber || 0,
             recebido_hoje: resumoSeguro.recebidoHoje || 0,
             capital_na_rua: resumoSeguro.capitalNaRua || 0,
             caixa_disponivel: caixaGeral + (parseFloat(resumoSeguro.fluxoLiquidoTotal) || 0)
         });
     } catch (err) { 
-        res.json({ 
-            totalAReceber: 0, recebidoHoje: 0, pendencias: 0, lucroEstimado: 0, capitalNaRua: 0, caixaDisponivel: 0 
-        }); 
+        res.json({ totalAReceber: 0, recebidoHoje: 0, pendencias: 0, lucroEstimado: 0, capitalNaRua: 0, caixaDisponivel: 0 }); 
     }
 });
 
 app.get('/api/solicitacoes-pendentes', async (req, res) => {
     try {
-        let todas = []; 
-        let buscar = true; 
-        let ptr = 0;
-        
+        let todas = []; let buscar = true; let ptr = 0;
         while (buscar) {
-            const { data, error } = await supabase
-                .from('solicitacoes')
-                .select('*')
-                .eq('status', 'PENDENTE')
-                .order('created_at', { ascending: false })
-                .range(ptr, ptr + 999);
-                
+            const { data, error } = await supabase.from('solicitacoes').select('*').eq('status', 'PENDENTE').order('created_at', { ascending: false }).range(ptr, ptr + 999);
             if (error || !data || data.length === 0) break;
-            
-            todas = todas.concat(data); 
-            if (data.length < 1000) buscar = false; 
-            ptr += 1000;
+            todas = todas.concat(data); if (data.length < 1000) buscar = false; ptr += 1000;
         }
         res.json(todas);
-    } catch(e) { 
-        res.status(500).json({ erro: e.message }); 
-    }
+    } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
 app.post('/api/aprovar-solicitacao', async (req, res) => {
     const { id, juros, observacao, novoValor, novaFreq, novasParcelas, cobrarSoEmDinheiro, isContraProposta } = req.body;
     
     const lockKey = `aprovar_${id}`;
-    if (travasAtivasPainel.has(lockKey)) {
-        return res.status(429).json({ erro: "Operação em andamento." });
-    }
+    if (travasAtivasPainel.has(lockKey)) return res.status(429).json({ erro: "Operação em andamento." });
     travasAtivasPainel.add(lockKey);
 
     try {
         const { data: sol, error: errSol } = await supabase.from('solicitacoes').select('*').eq('id', id).single();
-        
         if (errSol || !sol) throw new Error("Solicitação não encontrada.");
         if (sol.status !== 'PENDENTE') return res.status(400).json({ erro: "Esta solicitação já foi tratada." });
 
@@ -492,9 +316,7 @@ app.post('/api/aprovar-solicitacao', async (req, res) => {
         let parcelasFinais = novasParcelas ? parseInt(novasParcelas) : (parseInt(sol.qtd_parcelas) || 1);
         parcelasFinais = Math.max(1, parcelasFinais);
 
-        let taxaAplicada = jurosDecimal;
-        if (parcelasFinais > 1) taxaAplicada = jurosDecimal * parcelasFinais;
-        
+        let taxaAplicada = parcelasFinais > 1 ? (jurosDecimal * parcelasFinais) : jurosDecimal;
         const valorTotal = Math.round((valorFinal * (1 + taxaAplicada)) * 100) / 100;
         
         const momentBRT = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
@@ -502,101 +324,49 @@ app.post('/api/aprovar-solicitacao', async (req, res) => {
         const dtVencimentoProjetado = momentBRT.toISOString().split('T')[0];
         
         const cpfLimpo = String(sol.cpf || '').replace(/\D/g, '');
-
         const { data: exDevs } = await supabase.from('devedores').select('id, uuid, status').eq('cpf', cpfLimpo).order('created_at', { ascending: false }).limit(1);
         const exDev = exDevs && exDevs.length > 0 ? exDevs[0] : null;
 
-        let devId; 
-        let devUuid;
-        
+        let devId, devUuid;
         let payload = {
-            nome: sol.nome, 
-            telefone: sol.whatsapp || sol.telefone || 'N/A', 
-            valor_emprestado: valorFinal, 
-            valor_total: valorTotal,
-            frequencia: freqFinal, 
-            qtd_parcelas: parcelasFinais, 
-            status: 'APROVADO_AGUARDANDO_ACEITE', 
-            data_vencimento: dtVencimentoProjetado, 
-            taxa_juros: jurosDecimal * 100, 
-            observacoes: observacao || '', 
-            url_selfie: sol.url_selfie, 
-            url_frente: sol.url_frente, 
-            url_verso: sol.url_verso, 
-            url_residencia: sol.url_residencia, 
-            url_casa: sol.url_casa, 
-            referencia1_nome: sol.referencia1_nome, 
-            referencia1_tel: sol.referencia1_tel, 
-            indicado_por: sol.indicado_por, 
-            pago: false, 
-            cobrar_so_em_dinheiro: cobrarSoEmDinheiro || false
+            nome: sol.nome, telefone: sol.whatsapp || sol.telefone || 'N/A', valor_emprestado: valorFinal, valor_total: valorTotal,
+            frequencia: freqFinal, qtd_parcelas: parcelasFinais, status: 'APROVADO_AGUARDANDO_ACEITE', data_vencimento: dtVencimentoProjetado, 
+            taxa_juros: jurosDecimal * 100, observacoes: observacao || '', url_selfie: sol.url_selfie, url_frente: sol.url_frente, 
+            url_verso: sol.url_verso, url_residencia: sol.url_residencia, url_casa: sol.url_casa, referencia1_nome: sol.referencia1_nome, 
+            referencia1_tel: sol.referencia1_tel, indicado_por: sol.indicado_por, pago: false, cobrar_so_em_dinheiro: cobrarSoEmDinheiro || false
         };
 
         if (exDev && exDev.status === 'PRE_CADASTRO') {
-            payload.created_at = new Date().toISOString(); 
-            payload.ultima_cobranca_atraso = null;
-            
+            payload.created_at = new Date().toISOString(); payload.ultima_cobranca_atraso = null;
             const { data: u, error: uE } = await supabase.from('devedores').update(payload).eq('id', exDev.id).select().single();
-            if (uE) throw uE; 
-            devId = u.id; 
-            devUuid = u.uuid;
+            if (uE) throw uE; devId = u.id; devUuid = u.uuid;
         } else {
             payload.cpf = cpfLimpo;
             const { data: i, error: iE } = await supabase.from('devedores').insert([payload]).select().single();
-            if (iE) throw iE; 
-            devId = i.id; 
-            devUuid = i.uuid;
+            if (iE) throw iE; devId = i.id; devUuid = i.uuid;
         }
 
         await supabase.from('solicitacoes').update({ status: 'APROVADO_CP', observacoes: observacao }).eq('id', id);
-        
-        await supabase.from('logs').insert([{ 
-            evento: 'Empréstimo Liberado', 
-            detalhes: `Aprovado R$ ${valorFinal.toFixed(2)}.`, 
-            devedor_id: devId, 
-            valor_fluxo: -Math.abs(valorFinal) 
-        }]);
+        await supabase.from('logs').insert([{ evento: 'Empréstimo Liberado', detalhes: `Aprovado R$ ${valorFinal.toFixed(2)}.`, devedor_id: devId, valor_fluxo: -Math.abs(valorFinal) }]);
 
         const linkAceite = `${APP_URL}/aceitar.html?id=${devUuid}`;
-        
         try { 
             const valorDaParcela = parcelasFinais > 1 ? (valorTotal / parcelasFinais) : valorTotal;
-            await enviarAprovacaoComTermos(
-                payload.telefone, 
-                payload.nome, 
-                valorFinal, 
-                parcelasFinais, 
-                freqFinal, 
-                valorDaParcela, 
-                linkAceite,
-                isContraProposta
-            );
-        } catch(e) {
-            console.error("Erro ao notificar WhatsApp", e);
-        }
+            await enviarAprovacaoComTermos(payload.telefone, payload.nome, valorFinal, parcelasFinais, freqFinal, valorDaParcela, linkAceite, isContraProposta);
+        } catch(e) {}
         
         res.json({ sucesso: true });
-    } catch (e) { 
-        res.status(500).json({ erro: e.message }); 
-    } finally { 
-        setTimeout(() => travasAtivasPainel.delete(lockKey), 3000); 
-    }
+    } catch (e) { res.status(500).json({ erro: e.message }); } finally { setTimeout(() => travasAtivasPainel.delete(lockKey), 3000); }
 });
 
 app.post('/api/rejeitar-solicitacao', async (req, res) => {
     try {
         const { data: sol } = await supabase.from('solicitacoes').select('status').eq('id', req.body.id).single();
-        if (sol && sol.status === 'ASSINADO') {
-            return res.status(400).json({ erro: "Cliente já assinou este contrato."});
-        }
-        
+        if (sol && sol.status === 'ASSINADO') return res.status(400).json({ erro: "Cliente já assinou este contrato."});
         await supabase.from('solicitacoes').update({ status: 'REJEITADO', observacoes: req.body.motivo }).eq('id', req.body.id);
         await supabase.from('logs').insert([{ evento: "Solicitação Rejeitada", detalhes: `Motivo: ${req.body.motivo}` }]);
-        
         res.json({ sucesso: true });
-    } catch (e) { 
-        res.status(500).json({ erro: e.message }); 
-    }
+    } catch (e) { res.status(500).json({ erro: e.message }); }
 });
 
 // ==========================================
@@ -604,33 +374,18 @@ app.post('/api/rejeitar-solicitacao', async (req, res) => {
 // ==========================================
 app.get('/api/devedores-ativos', async (req, res) => {
     try {
-        let tds = []; 
-        let b = true; 
-        let p = 0;
-        
+        let tds = []; let b = true; let p = 0;
         while (b) {
-            const { data, error } = await supabase.from('devedores')
-                .select('*')
-                .in('status', ['ABERTO', 'ATRASADO', 'APROVADO_AGUARDANDO_ACEITE'])
-                .order('data_vencimento', { ascending: true })
-                .range(p, p + 999);
-                
-            if (error || !data || data.length === 0) break; 
-            tds = tds.concat(data); 
-            if (data.length < 1000) b = false; 
-            p += 1000;
+            const { data, error } = await supabase.from('devedores').select('*').in('status', ['ABERTO', 'ATRASADO', 'APROVADO_AGUARDANDO_ACEITE']).order('data_vencimento', { ascending: true }).range(p, p + 999);
+            if (error || !data || data.length === 0) break; tds = tds.concat(data); if (data.length < 1000) b = false; p += 1000;
         }
-        
         tds = tds.map(dev => {
             dev.valor_parcela = (dev.qtd_parcelas > 1) ? (dev.valor_total / dev.qtd_parcelas) : dev.valor_total;
             dev.parcelas_pagas = (dev.qtd_parcelas > 1 && dev.valor_parcela > 0) ? Math.floor((dev.total_ja_pego || 0) / dev.valor_parcela) : ((dev.total_ja_pego >= dev.valor_total) ? 1 : 0);
             return dev;
         });
-
         res.json(tds);
-    } catch(e) { 
-        res.status(500).json({ erro: e.message }); 
-    }
+    } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
 app.post('/api/enviar-cobranca-manual', async (req, res) => {
@@ -786,6 +541,81 @@ app.get('/api/buscar-cliente-admin/:busca', async (req, res) => {
         res.status(500).json({ erro: e.message }); 
     }
 });
+
+// ==========================================
+// 🚨 FASE 3: CRM KANBAN E ANÁLISE DE SAFRAS (CORRIGIDO)
+// ==========================================
+
+// Rota 1: Busca apenas os clientes em atraso para o Kanban (Corrigido Erro 500)
+app.get('/api/crm', async (req, res) => {
+    try {
+        const { data, error } = await supabase.from('devedores')
+            .select('id, uuid, nome, telefone, valor_total, qtd_parcelas, total_ja_pego, data_vencimento, crm_status, cpf')
+            .eq('status', 'ATRASADO')
+            .order('data_vencimento', { ascending: true });
+            
+        if (error) throw error;
+        res.json(data || []);
+    } catch(e) { 
+        res.status(500).json({ erro: e.message }); 
+    }
+});
+
+// Rota 2: Atualiza a coluna do cliente no Kanban (Arrastar e Largar)
+app.put('/api/crm/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+        
+        await supabase.from('devedores').update({ crm_status: status }).eq('id', id);
+        
+        await supabase.from('logs').insert([{ 
+            evento: "CRM Workflow Atualizado", 
+            detalhes: `Etapa da Gestão de Cobrança movida para: ${status}`, 
+            devedor_id: id 
+        }]);
+        
+        res.json({ sucesso: true });
+    } catch(e) { 
+        res.status(500).json({ erro: e.message }); 
+    }
+});
+
+// Rota 3: Raio-X de Safras (Cohort Analysis)
+app.get('/api/safras', async (req, res) => {
+    try {
+        const { data, error } = await supabase.from('devedores').select('created_at, status, valor_emprestado');
+        if (error) throw error;
+
+        const safras = {};
+        
+        (data || []).forEach(d => {
+            const mes = d.created_at.substring(0, 7); 
+            
+            if (!safras[mes]) {
+                safras[mes] = { mes, total_clientes: 0, volume_emprestado: 0, quitados: 0, atrasados: 0, abertos: 0 };
+            }
+            
+            safras[mes].total_clientes++;
+            safras[mes].volume_emprestado += parseFloat(d.valor_emprestado) || 0;
+            
+            if (d.status === 'QUITADO') {
+                safras[mes].quitados++;
+            } else if (d.status === 'ATRASADO') {
+                safras[mes].atrasados++;
+            } else {
+                safras[mes].abertos++;
+            }
+        });
+
+        const resultado = Object.values(safras).sort((a, b) => b.mes.localeCompare(a.mes));
+        res.json(resultado);
+        
+    } catch(e) { 
+        res.status(500).json({ erro: e.message }); 
+    }
+});
+
 
 // ==========================================
 // 8. EDIÇÃO E BAIXAS MANUAIS
@@ -1182,7 +1012,6 @@ app.post('/api/relatorio-periodo', async (req, res) => {
         let jurosMensalidadeFix = 0; 
         let movimentacoes = [];
 
-        // Motor de Engenharia Reversa para buscar o Juro Original de Cada Cliente
         const devedorIdsPeriodo = [...new Set(todosLogs.filter(l => l.valor_fluxo > 0 && l.devedor_id).map(l => l.devedor_id))];
         let taxasDevedores = {};
 
@@ -1214,7 +1043,6 @@ app.post('/api/relatorio-periodo', async (req, res) => {
                 totalRecebido += v;
                 if (ev === 'Quitação Total') qtdQuitados++;
                 
-                // Separa a fatia de juros do que é capital usando a taxa real guardada
                 if (log.devedor_id && taxasDevedores[log.devedor_id]) {
                     const info = taxasDevedores[log.devedor_id];
                     let tDec = info.taxa / 100;
@@ -1251,8 +1079,9 @@ app.post('/api/relatorio-periodo', async (req, res) => {
             }
         });
 
-        // 🚨 LUCRO LÍQUIDO REAL BLINDADO: Soma de Juros Recebidos + Multas Recebidas - Despesas
         const lucroLiquidoReal = jurosMensalidadeFix + jurosAtrasoGerado - totalDespesas;
+        const { data: garantiasAtivas } = await supabase.from('garantias').select('valor_estimado').eq('status', 'ATIVO');
+        const totalGarantias = (garantiasAtivas || []).reduce((acc, g) => acc + (parseFloat(g.valor_estimado) || 0), 0);
 
         res.json({ 
             totalEmprestado: totalEmprestado, 
@@ -1264,86 +1093,12 @@ app.post('/api/relatorio-periodo', async (req, res) => {
             qtdCadastros: qtdCadastros, 
             qtdQuitados: qtdQuitados, 
             diasAtrasados: diasAtrasados,
+            totalGarantias: totalGarantias,
             movimentacoes: movimentacoes.slice(0, 1500)
         });
         
     } catch (e) { 
-        res.json({ totalEmprestado: 0, totalRecebido: 0, totalDespesas: 0, lucro: 0, movimentacoes: [] }); 
-    }
-});
-
-
-// ==========================================
-// 🚀 FASE 3: CRM KANBAN E ANÁLISE DE SAFRAS
-// ==========================================
-
-// Rota 1: Busca apenas os clientes em atraso para o Kanban
-app.get('/api/crm', async (req, res) => {
-    try {
-        const { data, error } = await supabase.from('devedores')
-            .select('id, uuid, nome, telefone, valor_total, qtd_parcelas, parcelas_pagas, total_ja_pego, data_vencimento, crm_status')
-            .eq('status', 'ATRASADO')
-            .order('data_vencimento', { ascending: true });
-        
-        if (error) throw error;
-        res.json(data || []);
-    } catch(e) { 
-        res.status(500).json({ erro: e.message }); 
-    }
-});
-
-// Rota 2: Atualiza a coluna do cliente no Kanban (Arrastar e Largar)
-app.put('/api/crm/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { status } = req.body;
-        
-        await supabase.from('devedores').update({ crm_status: status }).eq('id', id);
-        
-        await supabase.from('logs').insert([{ 
-            evento: "CRM Workflow Atualizado", 
-            detalhes: `Etapa da Gestão de Cobrança movida para: ${status}`, 
-            devedor_id: id 
-        }]);
-        
-        res.json({ sucesso: true });
-    } catch(e) { 
-        res.status(500).json({ erro: e.message }); 
-    }
-});
-
-// Rota 3: Raio-X de Safras (Cohort Analysis)
-app.get('/api/safras', async (req, res) => {
-    try {
-        const { data, error } = await supabase.from('devedores').select('created_at, status, valor_emprestado');
-        if (error) throw error;
-
-        const safras = {};
-        
-        (data || []).forEach(d => {
-            const mes = d.created_at.substring(0, 7); 
-            
-            if (!safras[mes]) {
-                safras[mes] = { mes, total_clientes: 0, volume_emprestado: 0, quitados: 0, atrasados: 0, abertos: 0 };
-            }
-            
-            safras[mes].total_clientes++;
-            safras[mes].volume_emprestado += parseFloat(d.valor_emprestado) || 0;
-            
-            if (d.status === 'QUITADO') {
-                safras[mes].quitados++;
-            } else if (d.status === 'ATRASADO') {
-                safras[mes].atrasados++;
-            } else {
-                safras[mes].abertos++;
-            }
-        });
-
-        const resultado = Object.values(safras).sort((a, b) => b.mes.localeCompare(a.mes));
-        res.json(resultado);
-        
-    } catch(e) { 
-        res.status(500).json({ erro: e.message }); 
+        res.json({ totalEmprestado: 0, totalRecebido: 0, totalDespesas: 0, lucro: 0, totalGarantias: 0, movimentacoes: [] }); 
     }
 });
 
@@ -1364,11 +1119,10 @@ cron.schedule('0 * * * *', async () => {
         const lockHour = `${d0}_${d_obj.getHours()}`;
         const { data: lockCron } = await supabase.from('config').select('valor').eq('chave', 'cron_diario_lock').maybeSingle();
         
-        if (lockCron && lockCron.valor === lockHour) return; // Evita envio duplo na mesma hora
+        if (lockCron && lockCron.valor === lockHour) return; 
         
         await supabase.from('config').upsert({ chave: 'cron_diario_lock', valor: lockHour });
 
-        // Gera as matrizes temporais para envio de 0 até -4 dias de antecedência
         const dates = [d0];
         for(let i=1; i<=4; i++) {
             const temp = new Date(d_obj); 
@@ -1407,7 +1161,7 @@ cron.schedule('0 * * * *', async () => {
                     const pixDaVez = escolherPixInteligente(configPixString, valorParcelaReal);
                     
                     await enviarLembreteVencimento(dev.telefone, dev.nome, parseFloat(valorParcelaReal), dev.data_vencimento, linkPortal, pixDaVez);
-                    await sleep(2500); // 2.5 segundos para não engasgar o Z-API
+                    await sleep(2500); 
                 } catch (e) { }
             }
             
@@ -1441,10 +1195,7 @@ cron.schedule('0 * * * *', async () => {
                     const dataBaseCalculo = dev.ultima_cobranca_atraso ? new Date(dev.ultima_cobranca_atraso + 'T00:00:00-03:00') : new Date(dev.data_vencimento + 'T00:00:00-03:00');
                     const diasParaCobrar = Math.round((dMath - dataBaseCalculo) / (1000 * 60 * 60 * 24));
                     
-                    // Bloqueio de proteção: Só cobra se houver atraso efetivo, num limite humano de 365 dias.
                     if (diasParaCobrar > 0 && diasParaCobrar <= 365) {
-                        
-                        // 🚨 MULTA COBRADA APENAS SOBRE O CAPITAL ORIGINAL 
                         const capitalOriginal = parseFloat(dev.valor_emprestado || 0);
                         let novoValor = parseFloat(dev.valor_total || 0); 
                         let multasAcumuladas = 0;
@@ -1457,7 +1208,6 @@ cron.schedule('0 * * * *', async () => {
                         
                         const totalDiasAtraso = Math.round((dMath - new Date(dev.data_vencimento + 'T00:00:00-03:00')) / (1000 * 60 * 60 * 24));
                         
-                        // Atualiza a base de dados
                         await supabase.from('devedores').update({ 
                             valor_total: novoValor, 
                             ultima_cobranca_atraso: d0, 
@@ -1479,7 +1229,7 @@ cron.schedule('0 * * * *', async () => {
                         await sleep(2500); 
                         
                     } else if (diasParaCobrar > 365 || isNaN(diasParaCobrar)) {
-                        clientesOff.add(dev.id); // Abandona perfis perdidos para não travar o robô
+                        clientesOff.add(dev.id);
                     }
                 } catch (e) { 
                     clientesOff.add(dev.id); 
@@ -1492,3 +1242,4 @@ cron.schedule('0 * * * *', async () => {
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`🚀 Servidor Alta Performance a rodar na porta ${PORT}`));
+// FIM DO ARQUIVO - SUCESSO ABSOLUTO

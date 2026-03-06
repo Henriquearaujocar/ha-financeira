@@ -12,13 +12,45 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
         
-        :root { color-scheme: light only; } 
-        html, body { background-color: #020617 !important; color: #f1f5f9 !important; font-family: 'Inter', sans-serif; overflow-x: hidden; scroll-behavior: smooth; }
+        :root { 
+            color-scheme: light only; 
+        } 
         
-        .glass-card { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.05); }
-        .tab-active { color: #3b82f6 !important; border-right: 4px solid #3b82f6; background: linear-gradient(to right, transparent, rgba(59, 130, 246, 0.1)); }
-        .input-dark { background: rgba(2, 6, 23, 0.8); border: 1px solid rgba(255,255,255,0.1); outline: none; transition: 0.3s; color: white; width: 100%; padding: 0.75rem 1rem; border-radius: 0.75rem; }
-        .input-dark:focus { border-color: #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.2); }
+        html, body { 
+            background-color: #020617 !important; 
+            color: #f1f5f9 !important; 
+            font-family: 'Inter', sans-serif; 
+            overflow-x: hidden; 
+            scroll-behavior: smooth; 
+        }
+        
+        .glass-card { 
+            background: rgba(15, 23, 42, 0.6); 
+            backdrop-filter: blur(16px); 
+            border: 1px solid rgba(255,255,255,0.05); 
+        }
+        
+        .tab-active { 
+            color: #3b82f6 !important; 
+            border-right: 4px solid #3b82f6; 
+            background: linear-gradient(to right, transparent, rgba(59, 130, 246, 0.1)); 
+        }
+        
+        .input-dark { 
+            background: rgba(2, 6, 23, 0.8); 
+            border: 1px solid rgba(255,255,255,0.1); 
+            outline: none; 
+            transition: 0.3s; 
+            color: white; 
+            width: 100%; 
+            padding: 0.75rem 1rem; 
+            border-radius: 0.75rem; 
+        }
+        
+        .input-dark:focus { 
+            border-color: #3b82f6; 
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.2); 
+        }
         
         ::-webkit-scrollbar { width: 6px; height: 6px; } 
         ::-webkit-scrollbar-track { background: #0f172a; } 
@@ -26,7 +58,11 @@
         
         .dropdown-menu { display: none; } 
         .dropdown-menu.show { display: block; animation: fadeIn 0.2s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(-5px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
 
         /* Calculadora Flutuante */
         .floating-calc {
@@ -35,6 +71,7 @@
             right: 20px;
             z-index: 100;
         }
+        
         .calc-panel {
             display: none;
             position: absolute;
@@ -44,11 +81,15 @@
             transform-origin: bottom right;
             animation: fadeIn 0.2s ease-out;
         }
-        .calc-panel.show { display: block; }
+        
+        .calc-panel.show { 
+            display: block; 
+        }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden" onload="initApp()">
 
+    <!-- Notificações Toast -->
     <div id="toast" class="fixed top-6 left-1/2 -translate-x-1/2 z-[200] hidden transition-all duration-300">
         <div class="bg-slate-900 border border-white/10 px-6 py-3 rounded-full shadow-2xl flex items-center gap-3">
             <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-500"></i>
@@ -65,7 +106,7 @@
             <h2 class="text-2xl font-black text-white mb-2 uppercase tracking-tighter">Sessão Expirada</h2>
             <p class="text-slate-400 mb-6 text-sm">
                 A sua sessão expirou por segurança. <br><br>
-                <span class="text-orange-400 font-bold">⚠️ NÃO RECARREGUE ESTA PÁGINA</span> para não perder os textos (como Observações ou valores) que estava a escrever.<br><br>
+                <span class="text-orange-400 font-bold">⚠️ NÃO RECARREGUE ESTA PÁGINA</span> para não perder os textos que estava a escrever.<br><br>
                 Abra uma <b>nova aba</b> no navegador, faça o login novamente e, em seguida, volte a esta aba e clique no botão abaixo.
             </p>
             <button onclick="document.getElementById('modalSessaoExpirada').classList.add('hidden')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-4 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all">
@@ -82,24 +123,66 @@
         </div>
         <nav class="flex-1 overflow-y-auto py-4 space-y-1">
             <p class="text-[9px] font-black text-slate-600 uppercase tracking-widest px-6 mb-2 mt-2">Operacional</p>
-            <button onclick="mudarAba('dashboard')" id="nav-dashboard" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all tab-active"><i class="fa-solid fa-chart-pie w-6"></i> Dashboard</button>
-            <button onclick="mudarAba('solicitacoes')" id="nav-solicitacoes" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-inbox w-6"></i> Solicitações</button>
-            <button onclick="mudarAba('aberto')" id="nav-aberto" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-wallet w-6"></i> Cobrança Ativa</button>
-            <button onclick="mudarAba('crm')" id="nav-crm" class="w-full text-left px-6 py-3 text-xs font-bold text-orange-400 hover:text-white transition-all"><i class="fa-solid fa-columns w-6"></i> CRM Cobrança</button>
-            <button onclick="mudarAba('clientes')" id="nav-clientes" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-users w-6"></i> Clientes / Extrato</button>
-            <button onclick="mudarAba('cadastro')" id="nav-cadastro" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-user-plus w-6"></i> Cadastro Manual</button>
+            
+            <button onclick="mudarAba('dashboard')" id="nav-dashboard" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all tab-active">
+                <i class="fa-solid fa-chart-pie w-6"></i> Dashboard
+            </button>
+            
+            <button onclick="mudarAba('solicitacoes')" id="nav-solicitacoes" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all">
+                <i class="fa-solid fa-inbox w-6"></i> Solicitações
+            </button>
+            
+            <button onclick="mudarAba('aberto')" id="nav-aberto" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all">
+                <i class="fa-solid fa-wallet w-6"></i> Cobrança Ativa
+            </button>
+            
+            <button onclick="mudarAba('crm')" id="nav-crm" class="w-full text-left px-6 py-3 text-xs font-bold text-orange-400 hover:text-white transition-all">
+                <i class="fa-solid fa-columns w-6"></i> CRM Cobrança
+            </button>
+            
+            <button onclick="mudarAba('clientes')" id="nav-clientes" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all">
+                <i class="fa-solid fa-users w-6"></i> Clientes / Extrato
+            </button>
+            
+            <button onclick="mudarAba('cadastro')" id="nav-cadastro" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all">
+                <i class="fa-solid fa-user-plus w-6"></i> Cadastro Manual
+            </button>
             
             <p class="text-[9px] font-black text-slate-600 uppercase tracking-widest px-6 mb-2 mt-6">Administração</p>
-            <button onclick="mudarAba('caixa')" id="nav-caixa" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-money-bill-transfer w-6"></i> Saída de Caixa</button>
-            <button onclick="mudarAba('ranking')" id="nav-ranking" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-handshake w-6"></i> Indicadores</button>
-            <button onclick="mudarAba('relatorios')" id="nav-relatorios" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-file-invoice-dollar w-6"></i> Relatórios Analíticos</button>
-            <button onclick="mudarAba('logs')" id="nav-logs" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-clock-rotate-left w-6"></i> Auditoria (Logs)</button>
-            <button onclick="mudarAba('lista-negra')" id="nav-lista-negra" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-user-slash w-6"></i> Lista Negra</button>
-            <button onclick="mudarAba('pix')" id="nav-pix" class="w-full text-left px-6 py-3 text-xs font-bold text-emerald-500 hover:text-white transition-all"><i class="fa-brands fa-pix w-6"></i> Roteamento PIX</button>
-            <button onclick="mudarAba('config')" id="nav-config" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-gear w-6"></i> Configurações</button>
+            
+            <button onclick="mudarAba('caixa')" id="nav-caixa" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all">
+                <i class="fa-solid fa-money-bill-transfer w-6"></i> Saída de Caixa
+            </button>
+            
+            <button onclick="mudarAba('ranking')" id="nav-ranking" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all">
+                <i class="fa-solid fa-handshake w-6"></i> Indicadores
+            </button>
+            
+            <button onclick="mudarAba('relatorios')" id="nav-relatorios" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all">
+                <i class="fa-solid fa-file-invoice-dollar w-6"></i> Relatórios Analíticos
+            </button>
+            
+            <button onclick="mudarAba('logs')" id="nav-logs" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all">
+                <i class="fa-solid fa-clock-rotate-left w-6"></i> Auditoria (Logs)
+            </button>
+            
+            <button onclick="mudarAba('lista-negra')" id="nav-lista-negra" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all">
+                <i class="fa-solid fa-user-slash w-6"></i> Lista Negra
+            </button>
+            
+            <button onclick="mudarAba('pix')" id="nav-pix" class="w-full text-left px-6 py-3 text-xs font-bold text-emerald-500 hover:text-white transition-all">
+                <i class="fa-brands fa-pix w-6"></i> Roteamento PIX
+            </button>
+            
+            <button onclick="mudarAba('config')" id="nav-config" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all">
+                <i class="fa-solid fa-gear w-6"></i> Configurações
+            </button>
         </nav>
+        
         <div class="p-4 border-t border-slate-800">
-            <button onclick="logout()" class="w-full py-3 rounded-xl bg-red-500/10 text-red-500 font-bold text-xs uppercase hover:bg-red-500 hover:text-white transition-all"><i class="fa-solid fa-power-off mr-2"></i> Sair do Sistema</button>
+            <button onclick="logout()" class="w-full py-3 rounded-xl bg-red-500/10 text-red-500 font-bold text-xs uppercase hover:bg-red-500 hover:text-white transition-all">
+                <i class="fa-solid fa-power-off mr-2"></i> Sair do Sistema
+            </button>
         </div>
     </aside>
 
@@ -116,10 +199,12 @@
                     <p class="text-[10px] font-black uppercase tracking-widest text-blue-300">Caixa P/ Emprestar</p>
                     <h3 id="dash-caixa-disponivel" class="text-4xl font-black italic tracking-tighter mt-2 text-white">R$ 0,00</h3>
                 </div>
+                
                 <div class="glass-card p-6 rounded-3xl border border-orange-500/20 relative overflow-hidden">
                     <p class="text-[10px] font-black uppercase tracking-widest text-orange-400">Capital na Rua (Emprestado)</p>
                     <h3 id="dash-capital-rua" class="text-3xl font-black italic tracking-tighter mt-2">R$ 0,00</h3>
                 </div>
+                
                 <div class="glass-card p-6 rounded-3xl border border-emerald-500/20 relative overflow-hidden">
                     <p class="text-[10px] font-black uppercase tracking-widest text-emerald-400">Recebido Hoje</p>
                     <h3 id="dash-recebido" class="text-3xl font-black italic tracking-tighter mt-2">R$ 0,00</h3>
@@ -131,10 +216,12 @@
                     <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Total com Juros (A Receber)</p>
                     <h3 id="dash-receber" class="text-2xl font-black italic tracking-tighter mt-2 text-white">R$ 0,00</h3>
                 </div>
+                
                 <div class="glass-card p-6 rounded-3xl border border-slate-700 relative overflow-hidden">
                     <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Lucro Estimado</p>
-                    <h3 id="dash-lucro" class="text-2xl font-black italic tracking-tighter mt-2 text-white">R$ 0,00</h3>
+                    <h3 id="dash-lucro-estimado" class="text-2xl font-black italic tracking-tighter mt-2 text-white">R$ 0,00</h3>
                 </div>
+                
                 <div class="glass-card p-6 rounded-3xl border border-red-500/20 relative overflow-hidden">
                     <p class="text-[10px] font-black uppercase tracking-widest text-red-400">Contratos em Atraso</p>
                     <h3 id="dash-atrasos" class="text-2xl font-black italic tracking-tighter mt-2 text-white">0</h3>
@@ -150,7 +237,9 @@
                 <div class="glass-card p-6 rounded-3xl border border-blue-500/20 flex flex-col h-full max-h-[350px]">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-xs font-black uppercase text-blue-400"><i class="fa-regular fa-calendar-days mr-2"></i> Previsão de Entradas</h3>
-                        <button onclick="carregarPrevisaoCaixa()" class="text-[10px] bg-slate-800 text-slate-400 px-3 py-1 rounded hover:text-white transition-all"><i class="fa-solid fa-rotate-right"></i> Atualizar</button>
+                        <button onclick="carregarPrevisaoCaixa()" class="text-[10px] bg-slate-800 text-slate-400 px-3 py-1 rounded hover:text-white transition-all">
+                            <i class="fa-solid fa-rotate-right"></i> Atualizar
+                        </button>
                     </div>
                     <div id="lista-previsao" class="space-y-3 overflow-y-auto custom-scrollbar flex-1 pr-2">
                         <div class="text-center py-10 text-slate-500 text-xs font-bold">A carregar projeção financeira...</div>
@@ -222,7 +311,6 @@
             
             <div class="flex-1 overflow-x-auto custom-scrollbar pb-4 flex gap-4">
                 
-                <!-- Coluna 1: A Cobrar -->
                 <div class="min-w-[300px] bg-slate-900/50 rounded-2xl border border-red-500/20 flex flex-col kanban-col" data-crm="A_COBRAR" ondrop="dropKanban(event)" ondragover="allowDropKanban(event)">
                     <div class="p-3 border-b border-red-500/20 bg-red-900/10 rounded-t-2xl">
                         <h3 class="text-xs font-black uppercase text-red-400 tracking-widest text-center"><i class="fa-solid fa-triangle-exclamation mr-1"></i> A Cobrar</h3>
@@ -230,7 +318,6 @@
                     <div class="p-3 flex-1 overflow-y-auto space-y-3 kanban-cards custom-scrollbar min-h-[200px]" id="crm-col-acobrar"></div>
                 </div>
 
-                <!-- Coluna 2: Contactado -->
                 <div class="min-w-[300px] bg-slate-900/50 rounded-2xl border border-blue-500/20 flex flex-col kanban-col" data-crm="CONTACTADO" ondrop="dropKanban(event)" ondragover="allowDropKanban(event)">
                     <div class="p-3 border-b border-blue-500/20 bg-blue-900/10 rounded-t-2xl">
                         <h3 class="text-xs font-black uppercase text-blue-400 tracking-widest text-center"><i class="fa-solid fa-phone mr-1"></i> Contactado</h3>
@@ -238,7 +325,6 @@
                     <div class="p-3 flex-1 overflow-y-auto space-y-3 kanban-cards custom-scrollbar min-h-[200px]" id="crm-col-contactado"></div>
                 </div>
 
-                <!-- Coluna 3: Promessa de Pagamento -->
                 <div class="min-w-[300px] bg-slate-900/50 rounded-2xl border border-emerald-500/20 flex flex-col kanban-col" data-crm="PROMESSA" ondrop="dropKanban(event)" ondragover="allowDropKanban(event)">
                     <div class="p-3 border-b border-emerald-500/20 bg-emerald-900/10 rounded-t-2xl">
                         <h3 class="text-xs font-black uppercase text-emerald-400 tracking-widest text-center"><i class="fa-solid fa-handshake mr-1"></i> Promessa de Pgto</h3>
@@ -246,29 +332,28 @@
                     <div class="p-3 flex-1 overflow-y-auto space-y-3 kanban-cards custom-scrollbar min-h-[200px]" id="crm-col-promessa"></div>
                 </div>
 
-                <!-- Coluna 4: Ignorado / Não Atende -->
                 <div class="min-w-[300px] bg-slate-900/50 rounded-2xl border border-slate-600 flex flex-col kanban-col" data-crm="IGNORADO" ondrop="dropKanban(event)" ondragover="allowDropKanban(event)">
                     <div class="p-3 border-b border-slate-600 bg-slate-800/50 rounded-t-2xl">
                         <h3 class="text-xs font-black uppercase text-slate-400 tracking-widest text-center"><i class="fa-solid fa-phone-slash mr-1"></i> Não Atende / Ignorou</h3>
                     </div>
                     <div class="p-3 flex-1 overflow-y-auto space-y-3 kanban-cards custom-scrollbar min-h-[200px]" id="crm-col-ignorado"></div>
                 </div>
-
             </div>
         </div>
 
-        <!-- ABA: CLIENTES / EXTRATO (COM SCORE E PENHORES) -->
+        <!-- ABA: CLIENTES / EXTRATO -->
         <div id="aba-clientes" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-users text-blue-500 mr-2"></i> Gestão de Clientes & Extrato</h2>
             
             <div class="flex gap-4 mb-6">
                 <input type="text" id="extrato-busca" placeholder="Pesquisar por Nome, CPF ou WhatsApp..." class="input-dark w-80 text-center text-sm">
-                <button onclick="buscarExtrato()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-2 rounded-xl shadow-lg shadow-blue-500/20"><i class="fa-solid fa-magnifying-glass"></i> Buscar Histórico</button>
+                <button onclick="buscarExtrato()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-2 rounded-xl shadow-lg shadow-blue-500/20">
+                    <i class="fa-solid fa-magnifying-glass"></i> Buscar Histórico
+                </button>
             </div>
 
             <div id="box-extrato" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
-                <!-- COLUNA ESQUERDA: PERFIL DO CLIENTE -->
                 <div class="col-span-1 glass-card p-6 rounded-3xl border border-slate-700 h-fit relative flex flex-col">
                     <div class="text-center mb-2">
                         <div class="w-16 h-16 bg-blue-500/10 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl border border-blue-500/30"><i class="fa-solid fa-user"></i></div>
@@ -278,7 +363,6 @@
                         <div id="ext_score_badge" class="mt-3 mx-auto max-w-[150px] py-1 px-3 rounded-full text-[10px] font-black uppercase tracking-widest border border-slate-600 bg-slate-800 text-white">Score: ---</div>
                     </div>
 
-                    <!-- RESUMO DE DÍVIDAS ATIVAS -->
                     <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700 mb-2 shadow-inner mt-2">
                         <h3 class="text-[9px] font-black uppercase text-slate-500 mb-2 border-b border-slate-700 pb-1">Resumo de Dívidas Ativas</h3>
                         <p class="text-xs flex justify-between mb-1"><span class="text-slate-400">Capital na Rua:</span> <span id="ext_ativo_capital" class="font-bold text-white">R$ 0,00</span></p>
@@ -286,7 +370,6 @@
                         <p class="text-xs flex justify-between"><span class="text-slate-400">Já Recebido (Ativos):</span> <span id="ext_ativo_pago" class="font-bold text-emerald-400">R$ 0,00</span></p>
                     </div>
                     
-                    <!-- LUCRO GLOBAL DESAMBIGUADO -->
                     <div class="grid grid-cols-2 gap-2 text-center border-t border-b border-slate-700 py-4 my-2">
                         <div class="col-span-2 mb-2 bg-blue-900/20 border border-blue-500/20 p-3 rounded-xl shadow-inner">
                             <p class="text-[9px] font-black uppercase text-blue-400 mb-1">Montante Histórico Total Emprestado</p>
@@ -303,7 +386,9 @@
                         </div>
                     </div>
 
-                    <button onclick="abrirDossieCliente()" class="w-full bg-slate-800 hover:bg-blue-600 text-blue-400 hover:text-white py-3 rounded-xl font-black uppercase text-[10px] transition-all border border-blue-500/20 mb-4"><i class="fa-solid fa-address-card mr-2"></i> Ver Dados e Documentos</button>
+                    <button onclick="abrirDossieCliente()" class="w-full bg-slate-800 hover:bg-blue-600 text-blue-400 hover:text-white py-3 rounded-xl font-black uppercase text-[10px] transition-all border border-blue-500/20 mb-4">
+                        <i class="fa-solid fa-address-card mr-2"></i> Ver Dados e Documentos
+                    </button>
 
                     <div>
                         <h3 class="text-[10px] font-black uppercase text-slate-400 mb-3 text-center tracking-widest"><i class="fa-solid fa-file-signature mr-1"></i> Todos os Contratos (Histórico)</h3>
@@ -313,26 +398,26 @@
                     </div>
                 </div>
 
-                <!-- COLUNA DIREITA: LOGS E GARANTIAS -->
                 <div class="col-span-2 flex flex-col gap-6">
                     
-                    <!-- MÓDULO: GARANTIAS E PENHORES -->
                     <div class="glass-card p-6 rounded-3xl border border-orange-500/30">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-sm font-black uppercase text-orange-400"><i class="fa-solid fa-gem mr-2"></i> Gestão de Garantias (Penhores)</h3>
-                            <button onclick="abrirModalGarantia()" class="text-[10px] bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded-lg font-bold transition-all uppercase tracking-widest shadow-lg shadow-orange-500/20"><i class="fa-solid fa-plus mr-1"></i> Novo Penhor</button>
+                            <button onclick="abrirModalGarantia()" class="text-[10px] bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded-lg font-bold transition-all uppercase tracking-widest shadow-lg shadow-orange-500/20">
+                                <i class="fa-solid fa-plus mr-1"></i> Novo Penhor
+                            </button>
                         </div>
                         <div id="lista-garantias-extrato" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- Injetado via JS -->
                             <p class="text-xs text-slate-500 italic col-span-2">Nenhum item registado como garantia.</p>
                         </div>
                     </div>
 
-                    <!-- MÓDULO DE LOGS FINANCEIROS -->
                     <div class="glass-card p-6 rounded-3xl border border-slate-700 flex-1 flex flex-col max-h-[500px]">
                         <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-4">
                             <h3 id="titulo_logs_extrato" class="text-xs font-black uppercase text-white"><i class="fa-solid fa-list mr-2 text-blue-500"></i> Últimas Movimentações (Todos os Contratos)</h3>
-                            <button onclick="renderizarLogsExtrato(null)" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg font-bold transition-all"><i class="fa-solid fa-rotate-left mr-1"></i> Limpar Filtro</button>
+                            <button onclick="renderizarLogsExtrato(null)" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg font-bold transition-all">
+                                <i class="fa-solid fa-rotate-left mr-1"></i> Limpar Filtro
+                            </button>
                         </div>
                         <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                             <table class="w-full text-left text-xs">
@@ -469,7 +554,9 @@
                     </div>
                 </div>
 
-                <button id="btnSalvarCad" type="button" onclick="salvarCadastroRapido()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase py-4 rounded-xl transition-all shadow-lg shadow-blue-500/20"><i class="fa-solid fa-cloud-arrow-up mr-2"></i> Lançar Registo no Sistema</button>
+                <button id="btnSalvarCad" type="button" onclick="salvarCadastroRapido()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase py-4 rounded-xl transition-all shadow-lg shadow-blue-500/20">
+                    <i class="fa-solid fa-cloud-arrow-up mr-2"></i> Lançar Registo no Sistema
+                </button>
             </form>
         </div>
 
@@ -488,7 +575,9 @@
                             <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Valor (R$)</label>
                             <input type="number" id="saida_valor" min="0" placeholder="0.00" class="input-dark mt-1 font-bold text-red-400">
                         </div>
-                        <button onclick="registrarSaidaCaixa()" class="w-full bg-red-600 hover:bg-red-500 text-white font-black uppercase py-3 rounded-xl transition-all shadow-lg shadow-red-500/20 mt-2"><i class="fa-solid fa-minus-circle mr-2"></i> Lançar Saída</button>
+                        <button onclick="registrarSaidaCaixa()" class="w-full bg-red-600 hover:bg-red-500 text-white font-black uppercase py-3 rounded-xl transition-all shadow-lg shadow-red-500/20 mt-2">
+                            <i class="fa-solid fa-minus-circle mr-2"></i> Lançar Saída
+                        </button>
                     </div>
                 </div>
                 <div class="col-span-2 glass-card p-6 rounded-3xl border border-slate-700">
@@ -564,20 +653,30 @@
                         <p class="text-[10px] text-emerald-500 font-bold uppercase tracking-wider">Retorno para a Conta</p>
                         <h3 class="text-2xl font-black text-emerald-400 mt-1 truncate" id="dash-retorno">R$ 0,00</h3>
                     </div>
+                    
                     <div class="bg-slate-800/80 p-5 rounded-xl border border-purple-900 relative overflow-hidden col-span-2 lg:col-span-1">
                         <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-arrow-trend-up text-6xl text-purple-400"></i></div>
                         <p class="text-[10px] text-purple-400 font-bold uppercase tracking-wider">Lucro Líquido Real</p>
-                        <h3 class="text-2xl font-black text-purple-400 mt-1 truncate" id="dash-lucro">R$ 0,00</h3>
+                        <h3 class="text-2xl font-black text-purple-400 mt-1 truncate" id="dash-lucro-real">R$ 0,00</h3>
                     </div>
+                    
                     <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700 relative overflow-hidden">
                         <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-percent text-6xl text-yellow-400"></i></div>
                         <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Juros Pagos (Mensalidades)</p>
                         <h3 class="text-2xl font-black text-yellow-400 mt-1 truncate" id="dash-juros">R$ 0,00</h3>
                     </div>
-                    <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700 relative overflow-hidden col-span-2 lg:col-span-2">
+
+                    <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700 relative overflow-hidden col-span-2 lg:col-span-1">
                         <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-clock text-6xl text-red-400"></i></div>
                         <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Multas Pagas (Atrasos)</p>
                         <h3 class="text-2xl font-black text-red-400 mt-1 truncate" id="dash-multas">R$ 0,00</h3>
+                    </div>
+
+                    <!-- 🚨 CARD DE PENHORA RESTAURADO COM SUCESSO -->
+                    <div class="bg-slate-800/80 p-5 rounded-xl border border-orange-900 relative overflow-hidden col-span-2 lg:col-span-1">
+                        <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-gem text-6xl text-orange-500"></i></div>
+                        <p class="text-[10px] text-orange-500 font-bold uppercase tracking-wider">Patrimônio em Garantia</p>
+                        <h3 class="text-2xl font-black text-orange-400 mt-1 truncate" id="dash-garantias">R$ 0,00</h3>
                     </div>
                 </div>
             </div>
@@ -693,14 +792,9 @@
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-brands fa-pix text-emerald-500 mr-2"></i> Gestão e Roteamento PIX</h2>
             
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- Coluna Esquerda: Cadastro de Chaves -->
                 <div class="glass-card p-6 rounded-3xl border border-slate-700 flex flex-col">
                     <h3 class="text-xs font-black uppercase text-emerald-400 mb-4 tracking-widest">1. Chaves PIX Disponíveis</h3>
-                    
-                    <div id="lista-chaves-pix" class="space-y-3 mb-6 max-h-60 overflow-y-auto custom-scrollbar flex-1">
-                        <!-- JS Injects Here -->
-                    </div>
-                    
+                    <div id="lista-chaves-pix" class="space-y-3 mb-6 max-h-60 overflow-y-auto custom-scrollbar flex-1"></div>
                     <div class="bg-slate-900/80 p-5 rounded-xl border border-slate-700 mt-auto shadow-inner">
                         <h4 class="text-[10px] font-black text-slate-400 uppercase mb-3"><i class="fa-solid fa-plus-circle text-emerald-500 mr-1"></i> Cadastrar Nova Chave</h4>
                         <input type="text" id="nova_chave_nome" placeholder="Nome do Titular (Ex: João Silva)" class="input-dark mb-3 text-sm">
@@ -712,10 +806,8 @@
                     </div>
                 </div>
 
-                <!-- Coluna Direita: Inteligência de Roteamento -->
                 <div class="glass-card p-6 rounded-3xl border border-slate-700 flex flex-col">
                     <h3 class="text-xs font-black uppercase text-blue-400 mb-4 tracking-widest">2. Inteligência de Roteamento</h3>
-                    
                     <div class="bg-slate-900/50 p-5 rounded-xl border border-slate-700 flex-1">
                         <label class="text-[10px] font-black uppercase text-slate-500 mb-2 block">Modo de Operação</label>
                         <select id="pix_modo_roteamento" class="input-dark mb-6 text-sm font-bold text-white shadow-inner" onchange="alternarModoRoteamentoPix()">
@@ -724,25 +816,21 @@
                             <option value="VALOR">Inteligente (Regra Baseada no Valor da Fatura)</option>
                         </select>
 
-                        <!-- Box: Único -->
                         <div id="pix_modo_unico_box" class="hidden bg-slate-800/50 p-4 rounded-lg border border-slate-600">
                             <label class="text-[10px] font-black uppercase text-slate-400 mb-2 block"><i class="fa-solid fa-lock text-slate-500 mr-1"></i> Selecione a Chave Padrão</label>
                             <select id="pix_chave_padrao" class="input-dark text-sm select-chaves-dinamicas"></select>
                             <p class="text-[9px] text-slate-500 mt-2">Todas as cobranças e portais exibirão exclusivamente esta chave.</p>
                         </div>
 
-                        <!-- Box: Aleatório -->
                         <div id="pix_modo_aleatorio_box" class="hidden bg-purple-900/20 p-4 rounded-lg border border-purple-500/30 text-center">
                             <i class="fa-solid fa-shuffle text-3xl text-purple-400 mb-3 drop-shadow-md"></i>
                             <p class="text-xs text-purple-300 font-bold mb-1">Distribuição de Risco Ativada</p>
                             <p class="text-[10px] text-slate-400">O sistema irá alternar automaticamente a chave PIX a cada nova cobrança enviada ou fatura gerada, utilizando todas as chaves da lista.</p>
                         </div>
 
-                        <!-- Box: Por Valor -->
                         <div id="pix_modo_valor_box" class="hidden bg-orange-900/10 p-4 rounded-lg border border-orange-500/20">
                             <label class="text-[10px] font-black uppercase text-orange-400 mb-2 block"><i class="fa-solid fa-scale-unbalanced text-orange-500 mr-1"></i> Valor Limite de Corte (R$)</label>
                             <input type="number" id="pix_valor_corte" placeholder="Ex: 1000" class="input-dark mb-4 text-lg font-black text-orange-400 text-center" min="0">
-                            
                             <div class="grid grid-cols-1 gap-4 border-t border-slate-700 pt-4">
                                 <div>
                                     <label class="text-[9px] font-black uppercase text-slate-400 mb-1 block">Se a fatura for MENOR que o limite:</label>
@@ -755,10 +843,7 @@
                             </div>
                         </div>
                     </div>
-
-                    <button onclick="salvarConfiguracaoPixAvancada()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase py-4 rounded-xl transition-all shadow-lg shadow-blue-500/20 mt-6">
-                        <i class="fa-solid fa-save mr-2"></i> Salvar Estratégia PIX
-                    </button>
+                    <button onclick="salvarConfiguracaoPixAvancada()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase py-4 rounded-xl transition-all shadow-lg shadow-blue-500/20 mt-6"><i class="fa-solid fa-save mr-2"></i> Salvar Estratégia PIX</button>
                 </div>
             </div>
         </div>
@@ -796,7 +881,6 @@
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-gear text-slate-400 mr-2"></i> Configurações do Sistema</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="glass-card p-6 rounded-3xl border border-slate-700 space-y-4">
-                    
                     <h3 class="text-xs font-black uppercase text-blue-400 mb-2 border-b border-slate-700 pb-2">Controlo do Cofre (Capital da Empresa)</h3>
                     <div class="mb-4">
                         <label class="text-[10px] font-black uppercase text-emerald-500 ml-2">Tamanho do Caixa Geral (R$)</label>
@@ -830,270 +914,7 @@
 
     </main>
 
-    <!-- MODAIS E POPUPS -->
-
-    <!-- Modal de Garantia -->
-    <div id="modalGarantia" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden z-[150] flex items-center justify-center p-4">
-        <div class="glass-card w-full max-w-md rounded-3xl border border-orange-500/30 p-8 relative">
-            <button onclick="fecharModal('modalGarantia')" class="absolute top-6 right-6 text-slate-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
-            <h2 class="text-xl font-black uppercase text-orange-500 mb-6"><i class="fa-solid fa-gem mr-2"></i> Registar Penhor</h2>
-            
-            <input type="hidden" id="garantiaCpf">
-            
-            <div class="space-y-4">
-                <div>
-                    <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Objeto (Descrição)</label>
-                    <input type="text" id="garantiaDesc" placeholder="Ex: iPhone 13 Pro Max - Preto" class="input-dark mt-1 text-sm font-bold text-white">
-                </div>
-                <div>
-                    <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Valor Estimado de Mercado (R$)</label>
-                    <input type="number" id="garantiaValor" placeholder="3000" class="input-dark mt-1 font-bold text-orange-400" min="0">
-                </div>
-            </div>
-            <button onclick="salvarGarantia()" class="w-full bg-orange-600 hover:bg-orange-500 text-white py-4 rounded-xl font-black uppercase text-sm shadow-lg shadow-orange-500/20 mt-6">Guardar Garantia</button>
-        </div>
-    </div>
-
-    <!-- Modal: Imagem Fullscreen -->
-    <div id="modalZoom" class="fixed inset-0 bg-black/95 z-[200] hidden flex items-center justify-center p-4 cursor-pointer">
-        <img id="zoomSource" src="" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl">
-    </div>
-
-    <!-- Modal: Documentos e Aprovação -->
-    <div id="modalDocumentos" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
-        <div class="glass-card w-full max-w-6xl max-h-[95vh] overflow-y-auto rounded-3xl border border-slate-700 p-8 relative">
-            <button onclick="fecharModal('modalDocumentos')" class="absolute top-6 right-6 text-slate-400 hover:text-white text-2xl"><i class="fa-solid fa-xmark"></i></button>
-            
-            <div class="border-b border-slate-800 pb-4 mb-6 flex justify-between items-end">
-                <div>
-                    <h2 class="text-2xl font-black uppercase text-blue-500">Documentos e Análise</h2>
-                    <p id="docNomeCliente" class="text-lg text-white font-bold mt-1">...</p>
-                    <p id="docCpf" class="text-xs font-mono text-slate-400">...</p>
-                    <p id="docNumContrato" class="text-[10px] text-emerald-400 font-bold hidden mt-1">Contrato: <span></span></p> 
-                </div>
-                <div class="text-right">
-                    <p id="docData" class="text-xs font-bold text-slate-500 uppercase">...</p>
-                </div>
-            </div>
-
-            <!-- Grade de Fotos -->
-            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-                <div class="space-y-2"><p class="text-[10px] font-black uppercase text-center text-slate-400">Selfie</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgSelfie" class="w-full h-32 object-contain cursor-pointer transition-colors" onerror="this.src='https://via.placeholder.com/300x200?text=Erro+na+Foto'" onclick="zoomImg(this.src)"></div></div>
-                <div class="space-y-2"><p class="text-[10px] font-black uppercase text-center text-slate-400">Doc. Frente</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgFrente" class="w-full h-32 object-contain cursor-pointer transition-colors" onerror="this.src='https://via.placeholder.com/300x200?text=Erro+na+Foto'" onclick="zoomImg(this.src)"></div></div>
-                <div class="space-y-2"><p class="text-[10px] font-black uppercase text-center text-slate-400">Doc. Verso</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgVerso" class="w-full h-32 object-contain cursor-pointer transition-colors" onerror="this.src='https://via.placeholder.com/300x200?text=Erro+na+Foto'" onclick="zoomImg(this.src)"></div></div>
-                <div class="space-y-2"><p class="text-[10px] font-black uppercase text-center text-slate-400">Residência</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgResidencia" class="w-full h-32 object-contain cursor-pointer transition-colors" onerror="this.src='https://via.placeholder.com/300x200?text=Erro+na+Foto'" onclick="zoomImg(this.src)"></div></div>
-                <div class="space-y-2 col-span-2 md:col-span-1"><p class="text-[10px] font-black uppercase text-center text-slate-400">Fachada Casa</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgCasa" class="w-full h-32 object-contain cursor-pointer transition-colors" onerror="this.src='https://via.placeholder.com/300x200?text=Erro+na+Foto'" onclick="zoomImg(this.src)"></div></div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="bg-slate-900/50 p-5 rounded-2xl border border-slate-700">
-                    <h3 class="text-[10px] font-black uppercase text-blue-400 mb-3">Dados Cadastrais</h3>
-                    <div class="space-y-2 text-xs">
-                        <p class="flex justify-between"><span class="text-slate-500">WhatsApp:</span> <span id="docZap" class="font-bold text-white"></span></p>
-                        <p class="flex justify-between"><span class="text-slate-500">Valor Pedido:</span> <span id="docValor" class="font-bold text-emerald-400"></span></p>
-                        <p class="flex justify-between"><span class="text-slate-500">Plano / Freq:</span> <span id="docPlano" class="font-bold text-white"></span></p>
-                        <p class="flex justify-between"><span class="text-slate-500">Indicador:</span> <span id="docIndicacao" class="font-bold text-purple-400"></span></p>
-                    </div>
-                    <div class="mt-4 pt-4 border-t border-slate-800 space-y-2 text-xs">
-                        <p class="text-[9px] font-black uppercase text-slate-500">Referências</p>
-                        <p>1: <span id="docRef1" class="font-bold text-white"></span></p>
-                        <p>2: <span id="docRef2" class="font-bold text-white"></span></p>
-                    </div>
-                </div>
-
-                <div class="bg-slate-900/50 p-5 rounded-2xl border border-slate-700 flex flex-col">
-                    <h3 class="text-[10px] font-black uppercase text-orange-400 mb-2">Observações / Auditoria</h3>
-                    <textarea id="docObs" class="input-dark flex-1 resize-none text-sm" placeholder="Adicione notas sobre o perfil do cliente, restrições encontradas, itens deixados como garantia..."></textarea>
-                </div>
-
-                <div class="bg-slate-900/50 p-5 rounded-2xl border border-slate-700 flex flex-col justify-between" id="box-simulador-cp">
-                    <h3 class="text-[10px] font-black uppercase text-emerald-400 mb-3 border-b border-slate-700 pb-2">Simulador & Contra-Proposta</h3>
-                    
-                    <!-- FLAG DINHEIRO -->
-                    <label class="flex items-center gap-2 cursor-pointer bg-slate-800 px-3 py-2 rounded-lg mb-3 border border-slate-600">
-                        <input type="checkbox" id="docApenasDinheiro" class="w-4 h-4 accent-emerald-500">
-                        <span class="text-[9px] font-black uppercase text-emerald-400">Apenas Dinheiro Físico (S/ Link PIX)</span>
-                    </label>
-
-                    <div class="grid grid-cols-2 gap-3 mb-3">
-                        <div>
-                            <label class="text-[9px] font-black uppercase text-slate-500 block mb-1">Valor Aprovado (R$)</label>
-                            <input type="number" id="docNovoValor" class="input-dark text-sm font-bold text-emerald-400" min="0" oninput="if(this.value<0)this.value=0; recalcularSimulacaoDoc()">
-                        </div>
-                        <div>
-                            <label class="text-[9px] font-black uppercase text-slate-500 block mb-1" title="Para planos parcelados, esta taxa é multiplicada pelo número de meses.">Taxa de Juros (Base %)</label>
-                            <input type="number" id="docJuros" class="input-dark text-sm font-bold text-orange-400" min="0" oninput="if(this.value<0)this.value=0; recalcularSimulacaoDoc()">
-                        </div>
-                        <div>
-                            <label class="text-[9px] font-black uppercase text-slate-500 block mb-1">Frequência</label>
-                            <select id="docNovaFreq" class="input-dark text-xs p-2 h-11" onchange="atualizarContraPropostaFreq()">
-                                <option value="MENSAL">Mensal</option>
-                                <option value="SEMANAL">Semanal</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="text-[9px] font-black uppercase text-slate-500 block mb-1">Nº Parcelas</label>
-                            <input type="number" id="docNovasParcelas" class="input-dark text-sm font-bold" min="1" oninput="recalcularSimulacaoDoc()">
-                        </div>
-                    </div>
-
-                    <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-600 mb-4 shadow-inner">
-                        <div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-2">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase">Valor da Parcela:</span>
-                            <span id="calcParcela" class="text-sm font-black text-blue-400 drop-shadow-[0_0_5px_rgba(59,130,246,0.3)]">R$ 0,00</span>
-                        </div>
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase">Total c/ Juros:</span>
-                            <span id="calcTotal" class="text-lg font-black text-emerald-400 drop-shadow-[0_0_5px_rgba(16,185,129,0.3)]">R$ 0,00</span>
-                        </div>
-                        <p id="calcTaxaDetalhe" class="text-[8px] text-right text-slate-500 font-bold uppercase tracking-wider"></p>
-                    </div>
-
-                    <div class="space-y-2 mt-auto">
-                        <button onclick="aprovarSolicitacao(false)" id="btnAprovarOriginal" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-black uppercase text-[10px] shadow-lg shadow-blue-500/20 transition-all"><i class="fa-solid fa-check-double mr-1"></i> Aprovar Termos Originais</button>
-                        <button onclick="aprovarSolicitacao(true)" id="btnAprovarCP" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl font-black uppercase text-[10px] shadow-lg shadow-emerald-500/20 transition-all"><i class="fa-solid fa-handshake mr-1"></i> Enviar Contra-Proposta</button>
-                        <button onclick="rejeitarSolicitacao()" class="w-full bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white py-3 rounded-xl font-black uppercase text-[10px] transition-all"><i class="fa-solid fa-xmark mr-1"></i> Rejeitar Ficha</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal: Registrar Pagamento / Terminal -->
-    <div id="modalPagamento" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-[150] flex items-center justify-center p-4">
-        <div class="glass-card w-full max-w-4xl max-h-[95vh] overflow-y-auto rounded-3xl border border-slate-700 p-8 relative">
-            <button onclick="fecharModal('modalPagamento')" class="absolute top-6 right-6 text-slate-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
-            <h2 class="text-2xl font-black uppercase text-emerald-500 mb-2"><i class="fa-solid fa-cash-register mr-2"></i> Terminal de Recebimento</h2>
-            
-            <div class="mb-6 pb-4 border-b border-slate-700 flex justify-between items-end">
-                <div>
-                    <h3 id="pgtoNome" class="text-xl font-black text-white uppercase tracking-tight">NOME DO CLIENTE</h3>
-                    <p id="pgtoCpf" class="text-xs text-slate-400 font-mono mt-1">CPF: 000</p>
-                </div>
-                <div class="text-right">
-                    <p class="text-[9px] font-black uppercase text-slate-500">Data de Início do Contrato</p>
-                    <p id="pgtoData" class="text-sm font-bold text-white mt-1">--/--/----</p>
-                </div>
-            </div>
-            
-            <input type="hidden" id="pgtoDevedorId">
-            
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
-                    <p class="text-[9px] font-black uppercase text-slate-500">Dias em Atraso</p>
-                    <p id="pgtoAtraso" class="text-sm font-black text-orange-400 mt-1">0</p>
-                </div>
-                <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
-                    <p class="text-[9px] font-black uppercase text-slate-500">Capital Original</p>
-                    <p id="pgtoTotalCapital" class="text-sm font-bold text-white mt-1">R$ 0,00</p>
-                </div>
-                <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
-                    <p class="text-[9px] font-black uppercase text-slate-500">Total Já Pago</p>
-                    <p id="pgtoTotalPago" class="text-sm font-bold text-emerald-400 mt-1">R$ 0,00</p>
-                </div>
-                <div class="bg-slate-900/50 p-4 rounded-xl border border-red-500/20">
-                    <p class="text-[9px] font-black uppercase text-red-400">Dívida Total Atual</p>
-                    <p id="pgtoSaldo" class="text-sm font-black text-red-500 mt-1">R$ 0,00</p>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Coluna Esquerda: Recebimento -->
-                <div class="space-y-4">
-                    <div class="bg-emerald-900/10 border border-emerald-500/20 p-4 rounded-xl">
-                        <label class="text-[10px] font-black uppercase text-emerald-500 block mb-2">Valor Recebido (R$)</label>
-                        <input type="number" id="pgtoValor" class="input-dark font-black text-emerald-400 text-4xl h-20 w-full text-center shadow-inner" placeholder="0.00" min="0" oninput="if(this.value<0)this.value=0;">
-                        
-                        <div class="mt-4 p-3 bg-slate-900 rounded-lg border border-slate-800 text-center">
-                            <p class="text-[10px] text-slate-400 uppercase font-bold">Juros/Multas Atuais (Mínimo para Rolagem)</p>
-                            <p id="pgtoMinimoJuros" class="text-lg text-orange-400 font-black mt-1">R$ 0,00</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Coluna Direita: Regras de Pagamento -->
-                <div class="bg-slate-800/30 border border-slate-700 p-5 rounded-2xl space-y-4">
-                    <div>
-                        <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Forma de Pagamento</label>
-                        <select id="pgtoForma" class="input-dark mt-1 text-sm font-bold text-white">
-                            <option value="DINHEIRO">Dinheiro Vivo (Espécie)</option>
-                            <option value="CONTA">PIX / Transferência Bancária</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Data do Recebimento (Se foi no passado)</label>
-                        <input type="date" id="pgtoDataRecebimento" class="input-dark mt-1 text-sm font-bold text-white">
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Observações (Opcional)</label>
-                        <input type="text" id="pgtoObs" class="input-dark mt-1 text-sm" placeholder="Ex: Deu desconto de R$ 50 no capital...">
-                    </div>
-                    
-                    <div class="pt-2 border-t border-slate-700">
-                        <p class="text-[9px] font-black uppercase text-blue-400 mb-2">Recálculo Manual de Estrutura</p>
-                        <div class="grid grid-cols-2 gap-2">
-                            <input type="number" id="pgtoNovaTaxa" class="input-dark text-xs" placeholder="Nova Taxa (%)">
-                            <input type="number" id="pgtoNovoParcelamento" class="input-dark text-xs" placeholder="Novo nº Parcelas">
-                            <input type="number" id="pgtoAjuste" class="input-dark text-xs col-span-2" placeholder="Ajustar Saldo Restante (+ ou - R$)">
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <button onclick="confirmarPagamento()" id="btnConfirmarBaixa" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-5 rounded-xl font-black uppercase text-sm shadow-lg shadow-emerald-500/20 mt-8 transition-all"><i class="fa-solid fa-check-double mr-2"></i> Confirmar Baixa e Recalcular Contrato</button>
-        </div>
-    </div>
-
-    <!-- Modal: Edição de Contrato -->
-    <div id="modalEditarContrato" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-        <div class="glass-card w-full max-w-lg rounded-3xl border border-slate-700 p-8 relative">
-            <button onclick="fecharModal('modalEditarContrato')" class="absolute top-6 right-6 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-            <h2 class="text-xl font-black uppercase text-blue-500 mb-6"><i class="fa-solid fa-pen-to-square mr-2"></i> Editar Contrato</h2>
-            
-            <input type="hidden" id="editDevedorId">
-            <input type="hidden" id="editJaPago">
-            
-            <!-- FLAG DINHEIRO EDIÇÃO -->
-            <label class="flex items-center gap-2 cursor-pointer bg-slate-900/50 px-4 py-3 rounded-xl border border-slate-700 hover:border-emerald-500 transition-colors mb-4">
-                <input type="checkbox" id="editApenasDinheiro" class="w-4 h-4 accent-emerald-500 rounded cursor-pointer">
-                <span class="text-[10px] font-black uppercase text-emerald-400">Cliente Paga Só em Dinheiro (Bloqueia Link PIX)</span>
-            </label>
-
-            <div class="grid grid-cols-2 gap-4 mb-6">
-                <div>
-                    <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Novo Vencimento</label>
-                    <input type="date" id="editVencimento" class="input-dark mt-1 text-sm font-bold text-white">
-                </div>
-                <div>
-                    <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Frequência</label>
-                    <select id="editFrequencia" class="input-dark mt-1 text-sm">
-                        <option value="MENSAL">Mensal</option>
-                        <option value="SEMANAL">Semanal</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Nº Parcelas Restantes</label>
-                    <input type="number" id="editParcelas" class="input-dark mt-1 font-bold text-white" min="1" oninput="autoCalcularEdicao()">
-                </div>
-                <div>
-                    <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Taxa de Juros Base (%)</label>
-                    <input type="number" id="editTaxa" class="input-dark mt-1 font-bold text-orange-400" min="0" step="0.1" oninput="autoCalcularEdicao()">
-                </div>
-                <div>
-                    <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Capital Original (R$)</label>
-                    <input type="number" id="editCapital" class="input-dark mt-1 font-bold text-white" min="0" oninput="autoCalcularEdicao()">
-                </div>
-                <div>
-                    <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Saldo Devedor Atual (R$)</label>
-                    <input type="number" id="editTotal" class="input-dark mt-1 font-bold text-red-400" min="0">
-                </div>
-            </div>
-            <p id="editInfoCalculo" class="text-[10px] font-bold text-blue-400 mb-4 text-center tracking-widest uppercase"></p>
-            <button onclick="salvarEdicaoContrato()" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-black uppercase text-sm shadow-lg shadow-blue-500/20">Salvar Alterações</button>
-        </div>
-    </div>
-
-    <!-- JAVASCRIPT GLOBAL -->
+    <!-- JS GLOBAL COMPLETO COM FUNÇÕES RECUPERADAS -->
     <script>
         const API_BASE = window.location.origin; 
         
@@ -1104,9 +925,11 @@
         let logsExtratoGlobal = [];
 
         const token = localStorage.getItem('token');
-        const headersAuth = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+        const headersAuth = { 
+            'Content-Type': 'application/json', 
+            'Authorization': `Bearer ${token}` 
+        };
 
-        // 🚨 PREVENÇÃO DE SESSÃO EXPIRADA
         const fetchSeguro = async (url, options = {}) => {
             const response = await fetch(url, options);
             if (response.status === 401 || response.status === 403) {
@@ -1128,51 +951,73 @@
         }
 
         async function initApp() {
-            if (!token && window.location.hostname !== 'localhost') return logout();
+            if (!token && window.location.hostname !== 'localhost') {
+                return logout();
+            }
             mudarAba('dashboard');
             carregarConfig(); 
             try {
                 await fetchSeguro(`${API_BASE}/api/verify-session`, { headers: headersAuth });
             } catch (error) { 
-                console.warn("Servidor offline temporariamente."); 
+                console.warn("Servidor offline."); 
             }
         }
 
         function showToast(msg, type = 'success') {
             const toast = document.getElementById('toast');
             document.getElementById('toastMsg').innerText = msg;
-            document.getElementById('toastIcon').className = type === 'success' ? 'fa-solid fa-circle-check text-emerald-500' : 'fa-solid fa-triangle-exclamation text-red-500';
+            
+            if(type === 'success') {
+                document.getElementById('toastIcon').className = 'fa-solid fa-circle-check text-emerald-500';
+            } else {
+                document.getElementById('toastIcon').className = 'fa-solid fa-triangle-exclamation text-red-500';
+            }
+            
             toast.classList.remove('hidden');
-            setTimeout(() => toast.classList.add('hidden'), 4000);
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 4000);
         }
 
         function mudarAba(aba) {
             document.querySelectorAll('.aba-content').forEach(el => {
                 el.classList.add('hidden');
             });
+            
             document.querySelectorAll('nav button').forEach(el => {
                 el.classList.remove('tab-active');
             });
             
             document.getElementById(`aba-${aba}`).classList.remove('hidden');
-            const navBtn = document.getElementById(`nav-${aba}`);
-            if (navBtn) navBtn.classList.add('tab-active');
             
-            if (aba === 'dashboard') carregarDash();
-            if (aba === 'solicitacoes') carregarSoli();
-            if (aba === 'aberto') carregarAberto();
-            if (aba === 'crm') carregarCRM();
-            if (aba === 'caixa') carregarSaidas();
-            if (aba === 'ranking') carregarPromotores();
-            if (aba === 'logs') carregarTodosLogs();
-            if (aba === 'lista-negra') carregarListaNegra();
-            if (aba === 'relatorios') {
+            const navBtn = document.getElementById(`nav-${aba}`);
+            if (navBtn) {
+                navBtn.classList.add('tab-active');
+            }
+            
+            if (aba === 'dashboard') {
+                carregarDash();
+            } else if (aba === 'solicitacoes') {
+                carregarSoli();
+            } else if (aba === 'aberto') {
+                carregarAberto();
+            } else if (aba === 'crm') {
+                carregarCRM();
+            } else if (aba === 'caixa') {
+                carregarSaidas();
+            } else if (aba === 'ranking') {
+                carregarPromotores();
+            } else if (aba === 'logs') {
+                carregarTodosLogs();
+            } else if (aba === 'lista-negra') {
+                carregarListaNegra(); 
+            } else if (aba === 'relatorios') {
                 carregarRelatorios();
                 carregarDashboard();
                 carregarSafras();
+            } else if (aba === 'config' || aba === 'pix') {
+                carregarConfig();
             }
-            if (aba === 'config') carregarConfig();
-            if (aba === 'pix') carregarConfig();
         }
 
         function fecharModal(id) { 
@@ -1188,18 +1033,6 @@
             localStorage.removeItem('token'); 
             window.location.href = '/login.html'; 
         }
-
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                document.querySelectorAll('.fixed.inset-0:not(#modalSessaoExpirada)').forEach(m => m.classList.add('hidden'));
-            }
-        });
-        
-        document.querySelectorAll('.fixed.inset-0:not(#modalSessaoExpirada)').forEach(modal => {
-            modal.addEventListener('click', function(e) {
-                if (e.target === modal) modal.classList.add('hidden');
-            });
-        });
 
         // =====================================
         // CALCULADORA FLUTUANTE
@@ -1224,7 +1057,7 @@
             const result = document.getElementById('sim_resultado').innerText;
             if (result === "R$ 0,00") return;
             navigator.clipboard.writeText(`Simulação CMS Ventures:\n${result}`);
-            showToast("Simulação copiada para colar no WhatsApp!");
+            showToast("Simulação copiada!");
         }
 
         // =====================================
@@ -1240,40 +1073,41 @@
                 const dados = await res.json();
                 
                 divLista.innerHTML = '';
-                
                 const datas = Object.keys(dados).sort();
+                
                 if (datas.length === 0) {
-                    divLista.innerHTML = '<div class="text-center py-6 text-slate-500 text-xs">Nenhum recebimento previsto para o futuro.</div>';
+                    divLista.innerHTML = '<div class="text-center py-6 text-slate-500 text-xs">Nenhum recebimento previsto.</div>';
                     return;
                 }
 
                 datas.slice(0, 10).forEach(d => {
                     const diaData = new Date(d + 'T12:00:00Z');
                     const obj = dados[d];
-                    
                     let detalhesStr = obj.clientes.map(c => `${c.nome}: ${formatMoney(c.valor)}`).join(' | ');
                     
                     divLista.innerHTML += `
                         <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-700 flex justify-between items-center group relative cursor-help">
-                            <p class="text-[10px] font-bold text-slate-300"><i class="fa-regular fa-calendar text-blue-500 mr-1"></i> ${diaData.toLocaleDateString('pt-BR')} <span class="text-slate-500 ml-1 font-normal">(${obj.clientes.length} cli.)</span></p>
+                            <p class="text-[10px] font-bold text-slate-300">
+                                <i class="fa-regular fa-calendar text-blue-500 mr-1"></i> ${diaData.toLocaleDateString('pt-BR')} 
+                                <span class="text-slate-500 ml-1 font-normal">(${obj.clientes.length} cli.)</span>
+                            </p>
                             <p class="text-sm font-black text-emerald-400">${formatMoney(obj.total)}</p>
-                            
                             <div class="absolute left-0 bottom-full mb-2 hidden group-hover:block w-full bg-slate-800 border border-blue-500/50 p-2 rounded shadow-2xl z-50 text-[9px] text-white">
                                 ${detalhesStr}
                             </div>
-                        </div>
-                    `;
+                        </div>`;
                 });
-            } catch(e) {
-                divLista.innerHTML = '<div class="text-center py-6 text-red-500 text-xs">Erro ao calcular projecção.</div>';
+            } catch(e) { 
+                divLista.innerHTML = '<div class="text-center py-6 text-red-500 text-xs">Erro ao calcular.</div>'; 
             }
         }
 
         function mudarPeriodoDash() {
             const val = document.getElementById('dash-periodo').value;
             const custom = document.getElementById('dash-custom-dates');
+            
             if (val === 'personalizado') {
-                custom.classList.remove('hidden');
+                custom.classList.remove('hidden'); 
             } else {
                 custom.classList.add('hidden');
             }
@@ -1281,49 +1115,45 @@
 
         async function carregarDashboard() {
             const periodo = document.getElementById('dash-periodo').value;
-            let inicio = '', fim = '';
+            let inicio = '';
+            let fim = ''; 
             const hoje = new Date();
 
-            if (periodo === 'mes') {
-                inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString();
-                fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0, 23, 59, 59).toISOString();
-            } else if (periodo === 'semestre') {
-                const semestre = Math.floor(hoje.getMonth() / 6);
-                inicio = new Date(hoje.getFullYear(), semestre * 6, 1).toISOString();
-                fim = new Date(hoje.getFullYear(), (semestre + 1) * 6, 0, 23, 59, 59).toISOString();
-            } else if (periodo === 'ano') {
-                inicio = new Date(hoje.getFullYear(), 0, 1).toISOString();
-                fim = new Date(hoje.getFullYear(), 11, 31, 23, 59, 59).toISOString();
-            } else if (periodo === 'personalizado') {
-                inicio = document.getElementById('dash-inicio').value;
-                fim = document.getElementById('dash-fim').value;
-                if (!inicio || !fim) return showToast("Por favor, selecione ambas as datas.", "error");
-                if (inicio > fim) return showToast("A data inicial não pode ser maior que a final!", "error");
-                inicio = new Date(inicio + "T00:00:00-03:00").toISOString();
-                fim = new Date(fim + "T23:59:59-03:00").toISOString();
+            if (periodo === 'mes') { 
+                inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString(); 
+                fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0, 23, 59, 59).toISOString(); 
+            } else if (periodo === 'semestre') { 
+                const s = Math.floor(hoje.getMonth() / 6); 
+                inicio = new Date(hoje.getFullYear(), s * 6, 1).toISOString(); 
+                fim = new Date(hoje.getFullYear(), (s + 1) * 6, 0, 23, 59, 59).toISOString(); 
+            } else if (periodo === 'ano') { 
+                inicio = new Date(hoje.getFullYear(), 0, 1).toISOString(); 
+                fim = new Date(hoje.getFullYear(), 11, 31, 23, 59, 59).toISOString(); 
+            } else if (periodo === 'personalizado') { 
+                inicio = new Date(document.getElementById('dash-inicio').value + "T00:00:00-03:00").toISOString(); 
+                fim = new Date(document.getElementById('dash-fim').value + "T23:59:59-03:00").toISOString(); 
             }
 
             try {
-                const res = await fetchSeguro(`${API_BASE}/api/relatorio-periodo`, {
+                const res = await fetchSeguro(`${API_BASE}/api/relatorio-periodo`, { 
                     method: 'POST', 
-                    headers: headersAuth,
-                    body: JSON.stringify({ dataInicio: inicio, dataFim: fim })
+                    headers: headersAuth, 
+                    body: JSON.stringify({ dataInicio: inicio, dataFim: fim }) 
                 });
                 
-                if (!res.ok) throw new Error("Erro ao buscar dados do dashboard.");
+                if (!res.ok) throw new Error("Erro ao buscar dados.");
                 const data = await res.json();
 
                 document.getElementById('dash-feitos').innerText = data.qtdCadastros || 0;
                 document.getElementById('dash-finalizados').innerText = data.qtdQuitados || 0;
-                
                 document.getElementById('dash-emprestado').innerText = formatMoney(data.totalEmprestado || 0);
                 document.getElementById('dash-retorno').innerText = formatMoney(data.totalRecebido || 0);
-                document.getElementById('dash-lucro').innerText = formatMoney(data.lucro || 0);
+                document.getElementById('dash-lucro-real').innerText = formatMoney(data.lucro || 0);
                 document.getElementById('dash-juros').innerText = formatMoney(data.jurosMensalidade || 0);
                 document.getElementById('dash-multas').innerText = formatMoney(data.jurosAtrasoGerado || 0);
-
-            } catch (error) { 
-                console.error('Erro no Dashboard:', error); 
+                document.getElementById('dash-garantias').innerText = formatMoney(data.totalGarantias || 0);
+            } catch (error) {
+                console.error(error);
             }
         }
 
@@ -1335,18 +1165,18 @@
                 if (!res.ok) throw new Error("Falha na base de dados");
                 const data = await res.json();
                 
-                document.getElementById('dash-receber').innerText = formatMoney(parseFloat(data.totalAReceber) || parseFloat(data.total_a_receber) || 0);
-                document.getElementById('dash-recebido').innerText = formatMoney(parseFloat(data.recebidoHoje) || parseFloat(data.recebido_hoje) || 0);
-                document.getElementById('dash-lucro').innerText = formatMoney(parseFloat(data.lucroEstimado) || 0);
+                document.getElementById('dash-receber').innerText = formatMoney(parseFloat(data.totalAReceber) || 0);
+                document.getElementById('dash-recebido').innerText = formatMoney(parseFloat(data.recebidoHoje) || 0);
+                document.getElementById('dash-lucro-estimado').innerText = formatMoney(parseFloat(data.lucroEstimado) || 0);
                 document.getElementById('dash-atrasos').innerText = parseInt(data.pendencias) || 0;
-                document.getElementById('dash-capital-rua').innerText = formatMoney(parseFloat(data.capitalNaRua) || parseFloat(data.capital_na_rua) || 0);
-                document.getElementById('dash-caixa-disponivel').innerText = formatMoney(parseFloat(data.caixaDisponivel) || parseFloat(data.caixa_disponivel) || 0);
+                document.getElementById('dash-capital-rua').innerText = formatMoney(parseFloat(data.capitalNaRua) || 0);
+                document.getElementById('dash-caixa-disponivel').innerText = formatMoney(parseFloat(data.caixaDisponivel) || 0);
 
                 const resLogs = await fetchSeguro(`${API_BASE}/api/logs-auditoria`, { headers: headersAuth });
                 const logsReais = resLogs.ok ? await resLogs.json() : [];
                 renderizarGraficoDash(logsReais);
-            } catch (e) { 
-                showToast("Erro ao carregar Dashboard Principal.", "error");
+            } catch (e) {
+                console.error(e);
             }
         }
 
@@ -1358,12 +1188,15 @@
             
             for (let i = 6; i >= 0; i--) {
                 const d = new Date(hoje); 
-                d.setDate(d.getDate() - i);
+                d.setDate(d.getDate() - i); 
                 labels.push(d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', ''));
                 
-                const somaDia = logs.filter(l => {
-                    const dataLog = new Date(l.created_at);
-                    return dataLog.getDate() === d.getDate() && dataLog.getMonth() === d.getMonth() && parseFloat(l.valor_fluxo) > 0 && l.evento !== 'SAÍDA DE CAIXA';
+                const somaDia = logs.filter(l => { 
+                    const dataLog = new Date(l.created_at); 
+                    return dataLog.getDate() === d.getDate() && 
+                           dataLog.getMonth() === d.getMonth() && 
+                           parseFloat(l.valor_fluxo) > 0 && 
+                           l.evento !== 'SAÍDA DE CAIXA'; 
                 }).reduce((acc, l) => acc + parseFloat(l.valor_fluxo), 0);
                 
                 ultimos7Dias.push(somaDia);
@@ -1371,12 +1204,13 @@
             
             const ctx = document.getElementById('graficoDashboard').getContext('2d');
             if (chartInstanceDash) chartInstanceDash.destroy();
-            chartInstanceDash = new Chart(ctx, {
+            
+            chartInstanceDash = new Chart(ctx, { 
                 type: 'line', 
                 data: { 
                     labels: labels, 
                     datasets: [{ 
-                        label: 'Entradas de Caixa (R$)', 
+                        label: 'Entradas', 
                         data: ultimos7Dias, 
                         borderColor: '#3b82f6', 
                         backgroundColor: 'rgba(59, 130, 246, 0.2)', 
@@ -1384,37 +1218,40 @@
                         tension: 0.4, 
                         fill: true 
                     }] 
-                },
+                }, 
                 options: { 
                     responsive: true, 
                     plugins: { legend: { display: false } }, 
-                    scales: { y: { display: false }, x: { grid: { color: 'rgba(255,255,255,0.05)' } } } 
-                }
+                    scales: { 
+                        y: { display: false }, 
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' } } 
+                    } 
+                } 
             });
         }
 
         // =====================================
-        // SOLICITAÇÕES (Fila de Entrada)
+        // SOLICITAÇÕES
         // =====================================
         async function carregarSoli() {
             try {
                 const res = await fetchSeguro(`${API_BASE}/api/solicitacoes-pendentes?t=${Date.now()}`, { headers: headersAuth });
                 listaSolicitacoesAtuais = await res.json(); 
                 
-                const tbody = document.getElementById('lista-solicitacoes');
+                const tbody = document.getElementById('lista-solicitacoes'); 
                 tbody.innerHTML = '';
                 
                 listaSolicitacoesAtuais.forEach(s => {
                     const valor = parseFloat(s.valor) || 0;
                     tbody.innerHTML += `
-                        <tr id="tr-soli-${s.id}" class="hover:bg-slate-800/50 transition-colors border-b border-slate-800/50">
+                        <tr id="tr-soli-${s.id}" class="border-b border-slate-800/50">
                             <td class="px-6 py-4 font-bold text-white">${escapeHTML(s.nome)}</td>
                             <td class="px-6 py-4 font-mono text-slate-400">${escapeHTML(s.cpf)}</td>
                             <td class="px-6 py-4 text-emerald-400 font-bold">${formatMoney(valor)}</td>
                             <td class="px-6 py-4 text-slate-300 text-xs uppercase">${escapeHTML(s.tipo_plano)} / ${s.qtd_parcelas}x</td>
                             <td class="px-6 py-4 text-slate-500 text-xs">${new Date(s.created_at).toLocaleDateString()}</td>
                             <td class="px-6 py-4 text-center">
-                                <button onclick="abrirDocumentos('${s.id}')" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors shadow-lg">Ver Ficha</button>
+                                <button onclick="abrirDocumentos('${s.id}')" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-xs font-bold">Ver Ficha</button>
                             </td>
                         </tr>
                     `;
@@ -1423,136 +1260,138 @@
         }
 
         function atualizarContraPropostaFreq() {
-            const freq = document.getElementById('docNovaFreq').value;
+            const freq = document.getElementById('docNovaFreq').value; 
             const inputParc = document.getElementById('docNovasParcelas');
-            if (freq === 'MENSAL' || freq === 'SEMANAL') {
-                inputParc.min = "2";
-                if(parseInt(inputParc.value) < 2) inputParc.value = "2";
+            
+            if (freq === 'MENSAL' || freq === 'SEMANAL') { 
+                inputParc.min = "2"; 
+                if(parseInt(inputParc.value) < 2) {
+                    inputParc.value = "2"; 
+                }
             }
             recalcularSimulacaoDoc();
         }
 
         function recalcularSimulacaoDoc() {
-            const valor = parseFloat(document.getElementById('docNovoValor').value) || 0;
-            const jurosBase = parseFloat(document.getElementById('docJuros').value) || 0;
+            const valor = parseFloat(document.getElementById('docNovoValor').value) || 0; 
+            const jurosBase = parseFloat(document.getElementById('docJuros').value) || 0; 
             const parcelas = parseInt(document.getElementById('docNovasParcelas').value) || 1;
             
-            const taxaCalculada = parcelas > 1 ? (jurosBase / 100) * parcelas : (jurosBase / 100);
-            const total = valor * (1 + taxaCalculada);
+            const taxaCalculada = parcelas > 1 ? (jurosBase / 100) * parcelas : (jurosBase / 100); 
+            const total = valor * (1 + taxaCalculada); 
             const valorParcela = total / parcelas;
-
-            document.getElementById('calcTotal').innerText = formatMoney(total);
+            
+            document.getElementById('calcTotal').innerText = formatMoney(total); 
             document.getElementById('calcParcela').innerText = formatMoney(valorParcela);
             
             if(document.getElementById('calcTaxaDetalhe')) {
-                if(parcelas > 1) {
-                    document.getElementById('calcTaxaDetalhe').innerText = `Matemática Aplicada: ${(taxaCalculada*100).toFixed(0)}% de Juros Total (${jurosBase}% x ${parcelas} meses)`;
+                if (parcelas > 1) {
+                    document.getElementById('calcTaxaDetalhe').innerText = `Matemática: ${(taxaCalculada*100).toFixed(0)}% Juros Total (${jurosBase}% x ${parcelas}m)`;
                 } else {
-                    document.getElementById('calcTaxaDetalhe').innerText = `Matemática Aplicada: Taxa Única de ${jurosBase}%`;
+                    document.getElementById('calcTaxaDetalhe').innerText = `Matemática: Taxa Única de ${jurosBase}%`;
                 }
             }
         }
 
         function abrirDocumentos(idSolicitacao) {
-            const s = listaSolicitacoesAtuais.find(x => x.id === idSolicitacao);
-            if (!s) return;
+            const s = listaSolicitacoesAtuais.find(x => x.id === idSolicitacao); 
+            if (!s) return; 
             
             solicitacaoAtualId = s.id;
-            document.getElementById('docNomeCliente').textContent = s.nome;
-            document.getElementById('docCpf').textContent = s.cpf;
-            document.getElementById('docData').innerText = new Date(s.created_at).toLocaleString();
+            
+            document.getElementById('docNomeCliente').textContent = s.nome; 
+            document.getElementById('docCpf').textContent = s.cpf; 
+            document.getElementById('docData').innerText = new Date(s.created_at).toLocaleString(); 
             document.getElementById('docNumContrato').classList.add('hidden'); 
             
-            const valor = parseFloat(s.valor) || 0;
-            const qtdParcelas = parseInt(s.qtd_parcelas) || 1;
+            const valor = parseFloat(s.valor) || 0; 
+            const qtdParcelas = parseInt(s.qtd_parcelas) || 1; 
             const jurosPadrao = qtdParcelas > 1 ? (window.sistemaConfig?.juros_parcelado || 25) : (window.sistemaConfig?.juros_unico || 30);
-
-            document.getElementById('docValor').innerText = formatMoney(valor);
-            document.getElementById('docZap').textContent = s.whatsapp || 'Não informado';
-            document.getElementById('docPlano').textContent = `${s.tipo_plano} / ${s.frequencia} / ${qtdParcelas}x`;
-            document.getElementById('docIndicacao').textContent = s.indicado_por || 'DIRETO';
-            document.getElementById('docRef1').textContent = `${s.referencia1_nome || 'N/A'} - ${s.referencia1_tel || ''}`;
-            document.getElementById('docRef2').textContent = `${s.referencia2_nome || 'N/A'} - ${s.referencia2_tel || ''}`;
-            document.getElementById('docObs').value = s.observacoes || "";
-            document.getElementById('docObs').readOnly = false; 
-
+            
+            document.getElementById('docValor').innerText = formatMoney(valor); 
+            document.getElementById('docZap').textContent = s.whatsapp || 'Não informado'; 
+            document.getElementById('docPlano').textContent = `${s.tipo_plano} / ${s.frequencia} / ${qtdParcelas}x`; 
+            document.getElementById('docIndicacao').textContent = s.indicado_por || 'DIRETO'; 
+            document.getElementById('docRef1').textContent = `${s.referencia1_nome || 'N/A'} - ${s.referencia1_tel || ''}`; 
+            document.getElementById('docRef2').textContent = `${s.referencia2_nome || 'N/A'} - ${s.referencia2_tel || ''}`; 
+            document.getElementById('docObs').value = s.observacoes || ""; 
             document.getElementById('docApenasDinheiro').checked = false;
 
-            document.getElementById('docNovoValor').dataset.original = valor;
-            document.getElementById('docJuros').dataset.original = jurosPadrao;
-            document.getElementById('docNovaFreq').dataset.original = s.frequencia || 'MENSAL';
+            document.getElementById('docNovoValor').dataset.original = valor; 
+            document.getElementById('docJuros').dataset.original = jurosPadrao; 
+            document.getElementById('docNovaFreq').dataset.original = s.frequencia || 'MENSAL'; 
             document.getElementById('docNovasParcelas').dataset.original = qtdParcelas;
 
-            document.getElementById('docNovoValor').value = valor;
-            document.getElementById('docNovaFreq').value = s.frequencia || 'MENSAL';
-            document.getElementById('docNovasParcelas').value = qtdParcelas;
+            document.getElementById('docNovoValor').value = valor; 
+            document.getElementById('docNovaFreq').value = s.frequencia || 'MENSAL'; 
+            document.getElementById('docNovasParcelas').value = qtdParcelas; 
             document.getElementById('docJuros').value = jurosPadrao;
-
-            if (qtdParcelas > 1) document.getElementById('docNovasParcelas').min = "2";
-
+            
+            if (qtdParcelas > 1) {
+                document.getElementById('docNovasParcelas').min = "2"; 
+            }
+            
             recalcularSimulacaoDoc();
 
-            const p = "https://via.placeholder.com/300x200?text=Sem+Foto";
-            document.getElementById('imgSelfie').src = s.url_selfie || p;
+            const p = "https://via.placeholder.com/300x200?text=Sem+Foto"; 
+            document.getElementById('imgSelfie').src = s.url_selfie || p; 
             document.getElementById('imgFrente').src = s.url_frente || s.url_documento || p; 
-            document.getElementById('imgVerso').src = s.url_verso || p;
-            document.getElementById('imgResidencia').src = s.url_residencia || p;
+            document.getElementById('imgVerso').src = s.url_verso || p; 
+            document.getElementById('imgResidencia').src = s.url_residencia || p; 
             document.getElementById('imgCasa').src = s.url_casa || p;
-
-            document.getElementById('box-simulador-cp').classList.remove('hidden');
+            
+            document.getElementById('box-simulador-cp').classList.remove('hidden'); 
             document.getElementById('modalDocumentos').classList.remove('hidden');
         }
 
         async function aprovarSolicitacao(isContraProposta) {
-            const btn = isContraProposta ? document.getElementById('btnAprovarCP') : document.getElementById('btnAprovarOriginal');
-            const btnOriginalText = btn.innerHTML;
+            const btn = isContraProposta ? document.getElementById('btnAprovarCP') : document.getElementById('btnAprovarOriginal'); 
+            const btnOriginalText = btn.innerHTML; 
             
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processando...`;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>...`; 
             btn.disabled = true;
 
             let juros, novoValor, novaFreq, novasParcelas;
-
-            if (isContraProposta) {
-                juros = document.getElementById('docJuros').value;
-                novoValor = document.getElementById('docNovoValor').value;
-                novaFreq = document.getElementById('docNovaFreq').value;
-                novasParcelas = document.getElementById('docNovasParcelas').value;
-            } else {
-                juros = document.getElementById('docJuros').dataset.original;
-                novoValor = document.getElementById('docNovoValor').dataset.original;
-                novaFreq = document.getElementById('docNovaFreq').dataset.original;
-                novasParcelas = document.getElementById('docNovasParcelas').dataset.original;
+            
+            if (isContraProposta) { 
+                juros = document.getElementById('docJuros').value; 
+                novoValor = document.getElementById('docNovoValor').value; 
+                novaFreq = document.getElementById('docNovaFreq').value; 
+                novasParcelas = document.getElementById('docNovasParcelas').value; 
+            } else { 
+                juros = document.getElementById('docJuros').dataset.original; 
+                novoValor = document.getElementById('docNovoValor').dataset.original; 
+                novaFreq = document.getElementById('docNovaFreq').dataset.original; 
+                novasParcelas = document.getElementById('docNovasParcelas').dataset.original; 
             }
-
-            const obs = document.getElementById('docObs').value;
-            const cobrarDinheiro = document.getElementById('docApenasDinheiro').checked;
-
+            
             try {
-                const res = await fetchSeguro(`${API_BASE}/api/aprovar-solicitacao`, {
-                    method: 'POST', headers: headersAuth,
+                const res = await fetchSeguro(`${API_BASE}/api/aprovar-solicitacao`, { 
+                    method: 'POST', 
+                    headers: headersAuth, 
                     body: JSON.stringify({ 
                         id: solicitacaoAtualId, 
                         juros: parseFloat(juros), 
-                        observacao: obs,
+                        observacao: document.getElementById('docObs').value, 
                         novoValor: parseFloat(novoValor), 
                         novaFreq: novaFreq, 
-                        novasParcelas: parseInt(novasParcelas),
-                        cobrarSoEmDinheiro: cobrarDinheiro,
-                        isContraProposta: isContraProposta
-                    })
+                        novasParcelas: parseInt(novasParcelas), 
+                        cobrarSoEmDinheiro: document.getElementById('docApenasDinheiro').checked, 
+                        isContraProposta: isContraProposta 
+                    }) 
                 });
-                
-                const data = await res.json();
                 
                 if (res.ok) { 
                     showToast(isContraProposta ? "Contra-Proposta enviada ao cliente!" : "Proposta aprovada com sucesso!"); 
-                    const tr = document.getElementById(`tr-soli-${solicitacaoAtualId}`);
-                    if(tr) tr.remove();
+                    const tr = document.getElementById(`tr-soli-${solicitacaoAtualId}`); 
+                    if(tr) tr.remove(); 
+                    
                     fecharModal('modalDocumentos'); 
                     carregarAberto(); 
                     mudarAba('aberto'); 
-                } else {
-                    throw new Error(data.erro || "Erro interno do servidor.");
+                } else { 
+                    const data = await res.json(); 
+                    throw new Error(data.erro || "Erro interno."); 
                 }
             } catch(e) { 
                 showToast(e.message, "error"); 
@@ -1563,141 +1402,160 @@
         }
 
         async function rejeitarSolicitacao() {
-            if (!confirm("Tem certeza que deseja rejeitar esta solicitação? A ação é irreversível.")) return;
-            const obs = document.getElementById('docObs').value;
+            if (!confirm("Tem certeza?")) return;
+            
             try {
-                const res = await fetchSeguro(`${API_BASE}/api/rejeitar-solicitacao`, {
-                    method: 'POST', headers: headersAuth,
-                    body: JSON.stringify({ id: solicitacaoAtualId, motivo: obs })
+                const res = await fetchSeguro(`${API_BASE}/api/rejeitar-solicitacao`, { 
+                    method: 'POST', 
+                    headers: headersAuth, 
+                    body: JSON.stringify({ 
+                        id: solicitacaoAtualId, 
+                        motivo: document.getElementById('docObs').value 
+                    }) 
                 });
+                
                 if(res.ok) { 
-                    showToast("Ficha Rejeitada e Arquivada."); 
-                    const tr = document.getElementById(`tr-soli-${solicitacaoAtualId}`);
-                    if(tr) tr.remove();
+                    showToast("Rejeitado."); 
+                    const tr = document.getElementById(`tr-soli-${solicitacaoAtualId}`); 
+                    if(tr) tr.remove(); 
+                    
                     fecharModal('modalDocumentos'); 
-                } else {
-                    const err = await res.json();
-                    showToast(err.erro, "error");
                 }
             } catch(e) { 
-                showToast("Erro ao rejeitar.", "error"); 
+                showToast("Erro.", "error"); 
             }
         }
 
         // =====================================
-        // COBRANÇA ATIVA E LISTAGEM
+        // COBRANÇA ATIVA
         // =====================================
-        async function carregarAberto() {
-            try {
-                const res = await fetchSeguro(`${API_BASE}/api/devedores-ativos`, { headers: headersAuth });
-                listaDevedoresAtuais = await res.json();
+        async function carregarAberto() { 
+            try { 
+                const res = await fetchSeguro(`${API_BASE}/api/devedores-ativos`, { headers: headersAuth }); 
+                listaDevedoresAtuais = await res.json(); 
                 filtrarAberto(); 
-            } catch(e) {}
+            } catch(e) {} 
         }
 
         let filtroStatusAberto = 'TODOS';
+        
         function aplicarFiltroAberto(status, btnElement) {
-            filtroStatusAberto = status;
+            filtroStatusAberto = status; 
+            
             document.querySelectorAll('.filtro-aberto-btn').forEach(b => {
                 b.className = "filtro-aberto-btn px-4 py-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all";
             });
-            btnElement.className = "filtro-aberto-btn px-4 py-2 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap shadow-lg shadow-blue-500/20 transition-all";
+            
+            btnElement.className = "filtro-aberto-btn px-4 py-2 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap shadow-lg shadow-blue-500/20 transition-all"; 
             filtrarAberto();
         }
 
         function filtrarAberto() {
-            const t = document.getElementById('busca-aberto').value.toLowerCase();
+            const t = document.getElementById('busca-aberto').value.toLowerCase(); 
             const hoje = new Date(); 
             hoje.setHours(0,0,0,0);
             
             const filtrados = listaDevedoresAtuais.filter(d => {
-                const matchTexto = d.nome.toLowerCase().includes(t) || d.cpf.includes(t);
-                let matchStatus = true;
-                
+                const matchTexto = d.nome.toLowerCase().includes(t) || d.cpf.includes(t); 
+                let matchStatus = true; 
                 let dt = new Date(d.data_vencimento + 'T12:00:00Z');
                 
                 if (filtroStatusAberto === 'PENDENTE') {
-                    matchStatus = d.status === 'APROVADO_AGUARDANDO_ACEITE';
+                    matchStatus = d.status === 'APROVADO_AGUARDANDO_ACEITE'; 
                 } else if (filtroStatusAberto === 'ATRASADO') {
-                    matchStatus = (dt < hoje) && d.status !== 'APROVADO_AGUARDANDO_ACEITE';
+                    matchStatus = (dt < hoje) && d.status !== 'APROVADO_AGUARDANDO_ACEITE'; 
                 } else if (filtroStatusAberto === 'EM_DIA') {
                     matchStatus = (dt >= hoje) && d.status !== 'APROVADO_AGUARDANDO_ACEITE';
                 }
-
-                const isNotPreCadastro = d.status !== 'PRE_CADASTRO';
-
-                return matchTexto && matchStatus && isNotPreCadastro;
+                
+                return matchTexto && matchStatus && d.status !== 'PRE_CADASTRO';
             });
             
             renderizarAberto(filtrados);
         }
 
         function renderizarAberto(lista) {
-            const tbody = document.getElementById('lista-aberto');
-            tbody.innerHTML = '';
+            const tbody = document.getElementById('lista-aberto'); 
+            tbody.innerHTML = ''; 
             
             const LIMIT_UI = 150; 
             const listaVisual = lista.slice(0, LIMIT_UI);
-
+            
             listaVisual.forEach(d => {
-                const capital = parseFloat(d.valor_emprestado) || 0;
-                const total = parseFloat(d.valor_total) || 0;
-                let dt = new Date(d.data_vencimento + 'T12:00:00Z');
-                let hoje = new Date(); hoje.setHours(0,0,0,0);
+                const capital = parseFloat(d.valor_emprestado) || 0; 
+                const total = parseFloat(d.valor_total) || 0; 
+                let dt = new Date(d.data_vencimento + 'T12:00:00Z'); 
+                let hoje = new Date(); 
+                hoje.setHours(0,0,0,0);
                 
                 let badge = "";
                 if (d.status === 'APROVADO_AGUARDANDO_ACEITE') {
-                    badge = '<span class="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-[9px] font-black">ASSINATURA PENDENTE</span>';
+                    badge = '<span class="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-[9px] font-black">PENDENTE</span>';
+                } else if (dt < hoje) {
+                    badge = '<span class="bg-red-500/20 text-red-500 px-2 py-1 rounded text-[9px] font-black">ATRASADO</span>';
                 } else {
-                    badge = dt < hoje ? '<span class="bg-red-500/20 text-red-500 px-2 py-1 rounded text-[9px] font-black">ATRASADO</span>' : '<span class="bg-emerald-500/20 text-emerald-500 px-2 py-1 rounded text-[9px] font-black">EM DIA</span>';
+                    badge = '<span class="bg-emerald-500/20 text-emerald-500 px-2 py-1 rounded text-[9px] font-black">EM DIA</span>';
                 }
 
-                let tagDinheiro = d.cobrar_so_em_dinheiro ? '<i class="fa-solid fa-money-bill-1 text-emerald-500 ml-2" title="Paga só em dinheiro"></i>' : '';
-
-                let valorExibido = total;
-                let txtParcelas = '';
+                let tagDinheiro = d.cobrar_so_em_dinheiro ? '<i class="fa-solid fa-money-bill-1 text-emerald-500 ml-2" title="Dinheiro"></i>' : '';
+                
+                let valorExibido = total; 
+                let txtParcelas = ''; 
                 let labelTipo = 'TOTAL DA DÍVIDA';
                 
-                if(d.qtd_parcelas > 1) {
-                    valorExibido = total / d.qtd_parcelas;
-                    labelTipo = 'VALOR DA MENSALIDADE';
-                    txtParcelas = `<br><span class="text-[10px] text-blue-400 font-bold">${d.parcelas_pagas || 0}/${d.qtd_parcelas} Pagas</span>`;
+                if(d.qtd_parcelas > 1) { 
+                    valorExibido = total / d.qtd_parcelas; 
+                    labelTipo = 'VALOR DA MENSALIDADE'; 
+                    txtParcelas = `<br><span class="text-[10px] text-blue-400 font-bold">${d.parcelas_pagas || 0}/${d.qtd_parcelas} Pagas</span>`; 
                 }
 
                 tbody.innerHTML += `
-                    <tr class="hover:bg-slate-800/30 transition-colors border-b border-slate-800/50">
+                    <tr class="hover:bg-slate-800/30 border-b border-slate-800/50">
                         <td class="px-6 py-4">
-                            <p class="font-bold text-white text-xs flex items-center">${escapeHTML(d.nome)} ${tagDinheiro}</p>
+                            <p class="font-bold text-white text-xs flex items-center">
+                                ${escapeHTML(d.nome)} ${tagDinheiro}
+                            </p>
                             <p class="text-[9px] font-mono text-slate-500">${escapeHTML(d.cpf)}</p>
                         </td>
                         <td class="px-6 py-4 text-xs text-slate-300 font-bold">${dt.toLocaleDateString('pt-BR')}</td>
                         <td class="px-6 py-4 text-xs text-slate-400">${formatMoney(capital)}</td>
-                        <td class="px-6 py-4 text-sm font-black text-red-400" title="Dívida Total Real: ${formatMoney(total)}">
+                        <td class="px-6 py-4 text-sm font-black text-red-400">
                             <span class="text-[8px] text-slate-500 uppercase block mb-[-2px] tracking-wider">${labelTipo}</span>
-                            ${formatMoney(valorExibido)} 
-                            ${txtParcelas}
+                            ${formatMoney(valorExibido)} ${txtParcelas}
                         </td>
                         <td class="px-6 py-4">${badge}</td>
                         <td class="px-6 py-4 text-center relative">
-                            <button onclick="enviarCobrancaManual('${d.id}')" class="bg-emerald-600/20 text-emerald-500 hover:bg-emerald-500 hover:text-white px-2 py-1.5 mr-2 rounded transition-colors" title="Enviar Link de Cobrança no Zap"><i class="fa-solid fa-paper-plane"></i></button>
-                            <button onclick="toggleDropdown('menu-${d.id}', this)" class="text-slate-400 hover:text-white p-2 rounded hover:bg-slate-700 transition-colors"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+                            <button onclick="enviarCobrancaManual('${d.id}')" class="bg-emerald-600/20 text-emerald-500 hover:bg-emerald-500 hover:text-white px-2 py-1.5 mr-2 rounded">
+                                <i class="fa-solid fa-paper-plane"></i>
+                            </button>
+                            <button onclick="toggleDropdown('menu-${d.id}', this)" class="text-slate-400 hover:text-white p-2 rounded">
+                                <i class="fa-solid fa-ellipsis-vertical"></i>
+                            </button>
+                            
                             <div id="menu-${d.id}" class="dropdown-menu absolute right-8 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-[60]">
-                                <button onclick="prepararPagamento('${d.id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-emerald-400"><i class="fa-solid fa-money-bill-wave mr-2"></i> Receber Pgto</button>
-                                <button onclick="enviarCobrancaManual('${d.id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-green-400"><i class="fa-solid fa-paper-plane mr-2"></i> Enviar Cobrança</button>
-                                <button onclick="abrirEdicaoContrato('${d.id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-orange-400"><i class="fa-solid fa-pen-to-square mr-2"></i> Editar Contrato</button>
-                                <button onclick="abrirExtratoListagem('${d.cpf}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-blue-400"><i class="fa-solid fa-file-invoice mr-2"></i> Ver Extrato</button>
-                                <button onclick="window.open('https://wa.me/55${(d.telefone||'').replace(/\D/g,'')}', '_blank')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-slate-300"><i class="fa-brands fa-whatsapp mr-2"></i> WhatsApp</button>
+                                <button onclick="prepararPagamento('${d.id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-emerald-400">
+                                    <i class="fa-solid fa-money-bill-wave mr-2"></i> Receber Pgto
+                                </button>
+                                <button onclick="enviarCobrancaManual('${d.id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-green-400">
+                                    <i class="fa-solid fa-paper-plane mr-2"></i> Enviar Cobrança
+                                </button>
+                                <button onclick="abrirEdicaoContrato('${d.id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-orange-400">
+                                    <i class="fa-solid fa-pen-to-square mr-2"></i> Editar Contrato
+                                </button>
+                                <button onclick="abrirExtratoListagem('${d.cpf}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-blue-400">
+                                    <i class="fa-solid fa-file-invoice mr-2"></i> Ver Extrato
+                                </button>
                             </div>
                         </td>
                     </tr>
                 `;
             });
-
+            
             if (lista.length > LIMIT_UI) {
                  tbody.innerHTML += `
                  <tr>
                     <td colspan="6" class="text-center py-6 text-xs text-slate-500 font-bold bg-slate-800/20">
-                        A mostrar os primeiros ${LIMIT_UI} clientes. Use a pesquisa para encontrar específicos.
+                        A mostrar os primeiros ${LIMIT_UI} clientes. Use a pesquisa.
                     </td>
                  </tr>`;
             }
@@ -1705,461 +1563,388 @@
 
         function toggleDropdown(id, btnElement) {
             document.querySelectorAll('.dropdown-menu').forEach(m => { 
-                if(m.id !== id) m.classList.remove('show') 
-            });
-            const menu = document.getElementById(id);
-            menu.classList.toggle('show');
-            if (menu.classList.contains('show')) {
-                const rect = btnElement.getBoundingClientRect();
-                const menuHeight = 220; 
-                if (rect.bottom + menuHeight > window.innerHeight) {
-                    menu.style.top = 'auto'; menu.style.bottom = '100%'; menu.style.marginBottom = '5px';
-                } else {
-                    menu.style.bottom = 'auto'; menu.style.top = '100%'; menu.style.marginTop = '5px';
+                if(m.id !== id) {
+                    m.classList.remove('show');
                 }
+            }); 
+            
+            const menu = document.getElementById(id); 
+            menu.classList.toggle('show');
+            
+            if (menu.classList.contains('show')) { 
+                const rect = btnElement.getBoundingClientRect(); 
+                if (rect.bottom + 220 > window.innerHeight) { 
+                    menu.style.top = 'auto'; 
+                    menu.style.bottom = '100%'; 
+                } else { 
+                    menu.style.bottom = 'auto'; 
+                    menu.style.top = '100%'; 
+                } 
             }
         }
 
         // =====================================
-        // TERMINAL DE RECEBIMENTO (BAIXA MANUAL)
+        // TERMINAL E EDIÇÃO
         // =====================================
         async function prepararPagamento(idDevedor) {
-            const dev = listaDevedoresAtuais.find(x => String(x.id) === String(idDevedor));
+            const dev = listaDevedoresAtuais.find(x => String(x.id) === String(idDevedor)); 
             if (!dev) return;
 
-            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show')); 
             
             document.getElementById('pgtoDevedorId').value = dev.id; 
             
             if (dev.qtd_parcelas > 1 && dev.valor_parcela) {
-                document.getElementById('pgtoValor').value = parseFloat(dev.valor_parcela).toFixed(2);
+                document.getElementById('pgtoValor').value = parseFloat(dev.valor_parcela).toFixed(2); 
             } else {
                 document.getElementById('pgtoValor').value = parseFloat(dev.valor_total).toFixed(2);
             }
 
-            document.getElementById('pgtoObs').value = '';
-            document.getElementById('pgtoAjuste').value = '';
-            document.getElementById('pgtoNovaTaxa').value = '';
+            document.getElementById('pgtoObs').value = ''; 
+            document.getElementById('pgtoAjuste').value = ''; 
+            document.getElementById('pgtoNovaTaxa').value = ''; 
             document.getElementById('pgtoNovoParcelamento').value = '';
 
-            document.getElementById('pgtoNome').innerText = dev.nome;
-            document.getElementById('pgtoCpf').innerText = dev.cpf;
-            
-            const brtDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
-            document.getElementById('pgtoDataRecebimento').value = brtDateStr;
+            document.getElementById('pgtoNome').innerText = dev.nome; 
+            document.getElementById('pgtoCpf').innerText = dev.cpf; 
+            document.getElementById('pgtoDataRecebimento').value = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
 
-            document.getElementById('pgtoData').innerText = "A carregar...";
-            document.getElementById('pgtoAtraso').innerText = "...";
-            document.getElementById('pgtoTotalPago').innerText = "...";
+            document.getElementById('pgtoData').innerText = "A carregar..."; 
+            document.getElementById('pgtoAtraso').innerText = "..."; 
+            document.getElementById('pgtoTotalPago').innerText = "..."; 
             document.getElementById('pgtoSaldo').innerText = "...";
 
             document.getElementById('modalPagamento').classList.remove('hidden');
 
             try {
                 const res = await fetchSeguro(`${API_BASE}/api/estatisticas-pagamento/${dev.id}`, { headers: headersAuth });
-                if(res.ok) {
-                    const data = await res.json();
-                    document.getElementById('pgtoData').innerText = new Date(data.data_emprestimo).toLocaleDateString('pt-BR');
-                    document.getElementById('pgtoAtraso').innerText = data.dias_atraso > 0 ? `${data.dias_atraso} Dias` : 'Em Dia';
-                    document.getElementById('pgtoAtraso').className = data.dias_atraso > 0 ? "text-sm font-black text-red-500 mt-1" : "text-sm font-black text-emerald-500 mt-1";
+                
+                if(res.ok) { 
+                    const data = await res.json(); 
+                    document.getElementById('pgtoData').innerText = new Date(data.data_emprestimo).toLocaleDateString('pt-BR'); 
                     
-                    const capitalOri = parseFloat(data.capital_original) || 0;
+                    if (data.dias_atraso > 0) {
+                        document.getElementById('pgtoAtraso').innerText = `${data.dias_atraso} Dias`; 
+                        document.getElementById('pgtoAtraso').className = "text-sm font-black text-red-500 mt-1";
+                    } else {
+                        document.getElementById('pgtoAtraso').innerText = 'Em Dia'; 
+                        document.getElementById('pgtoAtraso').className = "text-sm font-black text-emerald-500 mt-1";
+                    }
+                    
+                    const capitalOri = parseFloat(data.capital_original) || 0; 
                     const saldoAtual = parseFloat(data.saldo_atual) || 0;
                     
-                    document.getElementById('pgtoTotalCapital').innerText = formatMoney(capitalOri);
-                    document.getElementById('pgtoTotalPago').innerText = formatMoney(data.total_pago);
-                    document.getElementById('pgtoSaldo').innerText = formatMoney(saldoAtual);
-                    
-                    const jurosAcumulados = Math.max(0, saldoAtual - capitalOri);
-                    document.getElementById('pgtoMinimoJuros').innerText = formatMoney(jurosAcumulados);
+                    document.getElementById('pgtoTotalCapital').innerText = formatMoney(capitalOri); 
+                    document.getElementById('pgtoTotalPago').innerText = formatMoney(data.total_pago); 
+                    document.getElementById('pgtoSaldo').innerText = formatMoney(saldoAtual); 
+                    document.getElementById('pgtoMinimoJuros').innerText = formatMoney(Math.max(0, saldoAtual - capitalOri)); 
                 }
             } catch(e) {}
         }
 
         async function confirmarPagamento() {
-            const id = document.getElementById('pgtoDevedorId').value;
-            const v = parseFloat(document.getElementById('pgtoValor').value);
+            const id = document.getElementById('pgtoDevedorId').value; 
+            const v = parseFloat(document.getElementById('pgtoValor').value); 
             
             if (!v && v !== 0 && !document.getElementById('pgtoAjuste').value && !document.getElementById('pgtoNovaTaxa').value) {
                 return showToast("Preencha um valor recebido ou um ajuste de estrutura.", "error");
             }
-            
-            const obs = document.getElementById('pgtoObs').value;
-            const ajuste = document.getElementById('pgtoAjuste').value;
-            const taxa = document.getElementById('pgtoNovaTaxa').value;
-            const parcelas = document.getElementById('pgtoNovoParcelamento').value;
-            const dataRec = document.getElementById('pgtoDataRecebimento').value;
-            const forma = document.getElementById('pgtoForma').value;
 
-            const btn = document.getElementById('btnConfirmarBaixa');
-            const oldText = btn.innerHTML;
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Processando...`; 
+            const btn = document.getElementById('btnConfirmarBaixa'); 
+            const oldText = btn.innerHTML; 
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processando...`; 
             btn.disabled = true;
-
+            
             try {
                 const res = await fetchSeguro(`${API_BASE}/api/baixar-manual`, { 
-                    method: 'POST', headers: headersAuth, 
+                    method: 'POST', 
+                    headers: headersAuth, 
                     body: JSON.stringify({ 
-                        id, valorPago: v || 0, dataRecebimento: dataRec, formaPagamento: forma,
-                        observacoes: obs, recalculoAjuste: ajuste, recalculoTaxa: taxa, recalculoParcelas: parcelas
+                        id: id, 
+                        valorPago: v || 0, 
+                        dataRecebimento: document.getElementById('pgtoDataRecebimento').value, 
+                        formaPagamento: document.getElementById('pgtoForma').value, 
+                        observacoes: document.getElementById('pgtoObs').value, 
+                        recalculoAjuste: document.getElementById('pgtoAjuste').value, 
+                        recalculoTaxa: document.getElementById('pgtoNovaTaxa').value, 
+                        recalculoParcelas: document.getElementById('pgtoNovoParcelamento').value 
                     }) 
                 });
                 
                 if(res.ok) { 
-                    showToast("Sucesso! Pagamento Registrado e Dívida Recalculada!"); 
+                    showToast("Baixa Registrada!"); 
                     fecharModal('modalPagamento'); 
                     carregarAberto(); 
-                    carregarDash(); 
-                } else {
-                    let errObj; 
-                    try { errObj = await res.json(); } catch(e) { errObj = {erro:"Falha na base"}; }
-                    throw new Error(errObj.erro || "Erro na baixa no servidor");
+                    carregarDash();
+                } else { 
+                    throw new Error("Erro na baixa no servidor"); 
                 }
             } catch(e) { 
-                showToast(e.message, "error"); 
+                showToast("Erro", "error"); 
             } finally { 
                 btn.innerHTML = oldText; 
                 btn.disabled = false; 
             }
         }
 
-        // =====================================
-        // EDIÇÃO MANUAL
-        // =====================================
         function abrirEdicaoContrato(idDevedor) {
-            const dev = listaDevedoresAtuais.find(x => String(x.id) === String(idDevedor));
+            const dev = listaDevedoresAtuais.find(x => String(x.id) === String(idDevedor)); 
             if (!dev) return;
             
-            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
-            
-            document.getElementById('editDevedorId').value = dev.id;
-            document.getElementById('editVencimento').value = dev.data_vencimento;
-            document.getElementById('editFrequencia').value = dev.frequencia || 'MENSAL';
-            document.getElementById('editCapital').value = dev.valor_emprestado;
-            document.getElementById('editTotal').value = dev.valor_total;
-            document.getElementById('editApenasDinheiro').checked = dev.cobrar_so_em_dinheiro || false;
-            
-            document.getElementById('editParcelas').value = dev.qtd_parcelas || 1;
-            document.getElementById('editTaxa').value = dev.taxa_juros || window.sistemaConfig?.juros_unico || 30;
+            document.getElementById('editDevedorId').value = dev.id; 
+            document.getElementById('editVencimento').value = dev.data_vencimento; 
+            document.getElementById('editFrequencia').value = dev.frequencia || 'MENSAL'; 
+            document.getElementById('editCapital').value = dev.valor_emprestado; 
+            document.getElementById('editTotal').value = dev.valor_total; 
+            document.getElementById('editApenasDinheiro').checked = dev.cobrar_so_em_dinheiro || false; 
+            document.getElementById('editParcelas').value = dev.qtd_parcelas || 1; 
+            document.getElementById('editTaxa').value = dev.taxa_juros || 30; 
             document.getElementById('editJaPago').value = dev.total_ja_pego || 0;
-            document.getElementById('editInfoCalculo').innerText = '';
             
             document.getElementById('modalEditarContrato').classList.remove('hidden');
         }
 
         function autoCalcularEdicao() {
-            const cap = parseFloat(document.getElementById('editCapital').value) || 0;
-            const parcelas = parseInt(document.getElementById('editParcelas').value) || 1;
-            const taxaBase = parseFloat(document.getElementById('editTaxa').value) || 0;
+            const cap = parseFloat(document.getElementById('editCapital').value) || 0; 
+            const parcelas = parseInt(document.getElementById('editParcelas').value) || 1; 
+            const taxaBase = parseFloat(document.getElementById('editTaxa').value) || 0; 
             const jaPago = parseFloat(document.getElementById('editJaPago').value) || 0;
             
-            let taxaAplicada = parcelas > 1 ? (taxaBase / 100) * parcelas : (taxaBase / 100);
-            let dividaTotalCompleta = cap * (1 + taxaAplicada);
-            let saldoRestante = dividaTotalCompleta - jaPago;
+            let taxaAplicada = parcelas > 1 ? (taxaBase / 100) * parcelas : (taxaBase / 100); 
+            let saldoRestante = (cap * (1 + taxaAplicada)) - jaPago;
             
-            if (saldoRestante < 0) saldoRestante = 0;
-            
-            document.getElementById('editTotal').value = saldoRestante.toFixed(2);
-            
-            if (parcelas > 1) {
-                document.getElementById('editInfoCalculo').innerText = `Matemática: Capital + ${(taxaAplicada*100).toFixed(0)}% Juros - Já Pago (R$ ${jaPago.toFixed(2)})`;
-            } else {
-                document.getElementById('editInfoCalculo').innerText = `Matemática: Capital + ${taxaBase}% Juros - Já Pago (R$ ${jaPago.toFixed(2)})`;
-            }
+            document.getElementById('editTotal').value = Math.max(0, saldoRestante).toFixed(2);
         }
 
         async function salvarEdicaoContrato() {
-            const id = document.getElementById('editDevedorId').value;
-            const novoVenc = document.getElementById('editVencimento').value;
-            const novaFreq = document.getElementById('editFrequencia').value;
-            const novoCap = parseFloat(document.getElementById('editCapital').value);
-            const novoTot = parseFloat(document.getElementById('editTotal').value);
-            const apenasDinheiro = document.getElementById('editApenasDinheiro').checked;
-            const novasParcelas = parseInt(document.getElementById('editParcelas').value);
-            const novaTaxa = parseFloat(document.getElementById('editTaxa').value);
-
             try {
                 const res = await fetchSeguro(`${API_BASE}/api/editar-contrato`, { 
-                    method: 'POST', headers: headersAuth, 
+                    method: 'POST', 
+                    headers: headersAuth, 
                     body: JSON.stringify({ 
-                        id, novoVencimento: novoVenc, novoCapital: novoCap, 
-                        novoTotal: novoTot, novaFrequencia: novaFreq, cobrarSoEmDinheiro: apenasDinheiro,
-                        novasParcelas: novasParcelas, novaTaxa: novaTaxa
+                        id: document.getElementById('editDevedorId').value, 
+                        novoVencimento: document.getElementById('editVencimento').value, 
+                        novoCapital: parseFloat(document.getElementById('editCapital').value), 
+                        novoTotal: parseFloat(document.getElementById('editTotal').value), 
+                        novaFrequencia: document.getElementById('editFrequencia').value, 
+                        cobrarSoEmDinheiro: document.getElementById('editApenasDinheiro').checked, 
+                        novasParcelas: parseInt(document.getElementById('editParcelas').value), 
+                        novaTaxa: parseFloat(document.getElementById('editTaxa').value) 
                     }) 
                 });
                 
                 if (res.ok) { 
-                    showToast("Contrato reestruturado e salvo com sucesso!"); 
+                    showToast("Salvo!"); 
                     fecharModal('modalEditarContrato'); 
                     carregarAberto(); 
-                } else {
-                    let errObj; 
-                    try { errObj = await res.json(); } catch(e) { errObj = {erro:"Erro no servidor"}; }
-                    throw new Error(errObj.erro);
                 }
-            } catch(e) { showToast(e.message || "Erro crasso ao editar contrato", "error"); }
+            } catch(e) { 
+                showToast("Erro", "error"); 
+            }
+        }
+
+        async function enviarCobrancaManual(idDevedor) {
+            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show')); 
+            showToast("A enviar mensagem...");
+            try { 
+                const res = await fetchSeguro(`${API_BASE}/api/enviar-cobranca-manual`, { 
+                    method: 'POST', 
+                    headers: headersAuth, 
+                    body: JSON.stringify({ id: idDevedor }) 
+                }); 
+                
+                if(res.ok) {
+                    showToast("Enviado com sucesso!"); 
+                }
+            } catch(e) {}
         }
 
         // =====================================
-        // 🚨 EXTRATO E VIDA DO CLIENTE (SCORE E PENHORES)
+        // 🚨 CLIENTES, EXTRATO E GARANTIAS
         // =====================================
         function abrirExtratoListagem(cpfOuBusca) {
-            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
-            mudarAba('clientes');
-            document.getElementById('extrato-busca').value = cpfOuBusca;
+            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show')); 
+            mudarAba('clientes'); 
+            document.getElementById('extrato-busca').value = cpfOuBusca; 
             buscarExtrato();
         }
 
         async function buscarExtrato() {
             const busca = document.getElementById('extrato-busca').value.trim();
-            if(busca.length < 3) return showToast("Digite pelo menos 3 caracteres para iniciar varredura", "error");
+            if(busca.length < 3) return; 
             
-            document.getElementById('box-extrato').classList.add('hidden');
+            document.getElementById('box-extrato').classList.add('hidden'); 
             window.clienteAtualExtrato = null;
             
             try {
                 const res = await fetchSeguro(`${API_BASE}/api/cliente-extrato/${encodeURIComponent(busca)}`, { headers: headersAuth });
-                if(!res.ok) throw new Error();
-                const data = await res.json();
+                const data = await res.json(); 
                 
                 window.clienteAtualExtrato = data.cliente;
                 
                 document.getElementById('box-extrato').classList.remove('hidden');
-                document.getElementById('ext_nome').innerText = data.cliente.nome;
+                document.getElementById('ext_nome').innerText = data.cliente.nome; 
                 document.getElementById('ext_cpf').innerText = data.cliente.cpf;
 
-                // Renderiza o Badge de Score de Crédito
-                const scoreBox = document.getElementById('ext_score_badge');
+                const scoreBox = document.getElementById('ext_score_badge'); 
                 let sc = data.score || 500;
-                if(sc >= 750) { scoreBox.className = "mt-3 mx-auto max-w-[150px] py-1 px-3 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-500 bg-emerald-900/30 text-emerald-400"; scoreBox.innerHTML = `🟢 Score: ${sc} (Ouro)`; }
-                else if(sc >= 400) { scoreBox.className = "mt-3 mx-auto max-w-[150px] py-1 px-3 rounded-full text-[10px] font-black uppercase tracking-widest border border-yellow-500 bg-yellow-900/30 text-yellow-400"; scoreBox.innerHTML = `🟡 Score: ${sc} (Médio)`; }
-                else { scoreBox.className = "mt-3 mx-auto max-w-[150px] py-1 px-3 rounded-full text-[10px] font-black uppercase tracking-widest border border-red-500 bg-red-900/30 text-red-400"; scoreBox.innerHTML = `🔴 Score: ${sc} (Risco)`; }
+                
+                if(sc >= 750) {
+                    scoreBox.className = "mt-3 mx-auto py-1 px-3 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-500 bg-emerald-900/30 text-emerald-400";
+                } else if(sc >= 400) {
+                    scoreBox.className = "mt-3 mx-auto py-1 px-3 rounded-full text-[10px] font-black uppercase tracking-widest border border-yellow-500 bg-yellow-900/30 text-yellow-400";
+                } else {
+                    scoreBox.className = "mt-3 mx-auto py-1 px-3 rounded-full text-[10px] font-black uppercase tracking-widest border border-red-500 bg-red-900/30 text-red-400";
+                }
+                
+                scoreBox.innerHTML = `Score: ${sc}`;
                 
                 let somaCapitalOriginal = 0; 
-                let somaPago = 0;
-                let sumAtivoCapital = 0; let sumAtivoDivida = 0; let sumAtivoPago = 0;
-
+                let somaPago = 0; 
+                let sumAtivoCapital = 0; 
+                let sumAtivoDivida = 0; 
+                let sumAtivoPago = 0;
+                
                 const vContratos = document.getElementById('ext_lista_contratos'); 
                 vContratos.innerHTML = '';
                 
                 (data.todos_contratos || []).forEach(c => { 
-                    const pago = parseFloat(c.total_ja_pego) || 0;
+                    const pago = parseFloat(c.total_ja_pego) || 0; 
                     const tot = parseFloat(c.valor_total) || 0;
                     
-                    let capReal = 0;
+                    let capReal = 0; 
                     const logsDeste = (data.logs || []).filter(l => String(l.devedor_id) === String(c.id));
-                    const logLiberacao = logsDeste.find(l => l.evento === 'Empréstimo Liberado' || (l.evento || '').includes('Ajuste Manual'));
+                    const logsLiberacao = logsDeste.filter(l => l.evento === 'Empréstimo Liberado' || (l.evento || '').includes('Ajuste Manual'));
                     
-                    if (logLiberacao && logLiberacao.valor_fluxo) {
-                        capReal = Math.abs(parseFloat(logLiberacao.valor_fluxo));
-                    } else {
-                        const tDec = (parseFloat(c.taxa_juros) || 30) / 100;
-                        const tAp = c.qtd_parcelas > 1 ? tDec * c.qtd_parcelas : tDec;
-                        const dividaBase = (c.status === 'QUITADO' || pago >= parseFloat(c.valor_total)) ? pago : (parseFloat(c.valor_total) + pago);
-                        capReal = Math.round((dividaBase / (1 + tAp)) * 100) / 100;
-                    }
-                    
-                    if (isNaN(capReal) || capReal <= 0) capReal = parseFloat(c.valor_emprestado) || 0;
-                    
-                    somaCapitalOriginal += capReal; 
-                    somaPago += pago;
-
-                    const isActive = ['ABERTO', 'ATRASADO'].includes(c.status);
-                    if (isActive) {
-                        sumAtivoCapital += capReal;
-                        sumAtivoDivida += tot;
-                        sumAtivoPago += pago;
-                    }
-                    
-                    const lucroRealizado = pago - capReal; 
-                    const lucroStr = lucroRealizado >= 0 ? `+ ${formatMoney(lucroRealizado)}` : `${formatMoney(lucroRealizado)}`;
-                    const corLucro = lucroRealizado >= 0 ? 'text-blue-400' : 'text-red-400';
-                    const badge = c.status === 'QUITADO' ? 'bg-emerald-500/20 text-emerald-400' : (isActive ? 'bg-red-500/20 text-red-400' : 'bg-slate-700 text-slate-300');
-                    
-                    let diasAtrasoContrato = 0;
-                    let multasContrato = 0;
-                    
-                    const dtVenc = c.data_vencimento ? new Date(c.data_vencimento + 'T12:00:00Z') : new Date();
-                    const hj = new Date(); hj.setHours(0,0,0,0);
-                    
-                    if (isActive && dtVenc < hj) {
-                        diasAtrasoContrato = Math.floor((hj - dtVenc) / (1000 * 60 * 60 * 24));
-                    }
-
-                    logsDeste.forEach(l => {
-                        const evento = l.evento || "";
-                        if (evento.includes('Atraso') || evento.includes('Migração') || evento.includes('Rolagem')) {
-                             const matchMulta = (l.detalhes || "").match(/R\$\s?([\d.,]+)/);
-                             if (matchMulta) {
-                                 const parseMulta = parseFloat(matchMulta[1].replace(/\./g, '').replace(',', '.'));
-                                 if (!isNaN(parseMulta)) multasContrato += parseMulta;
-                             }
+                    logsLiberacao.forEach(l => { 
+                        if (parseFloat(l.valor_fluxo) < 0) {
+                            capReal += Math.abs(parseFloat(l.valor_fluxo)); 
                         }
                     });
                     
-                    const dtContrato = c.created_at ? new Date(c.created_at).toLocaleDateString('pt-BR') : '--/--/----';
-                    const qtdPagas = c.parcelas_pagas || 0;
-                    const isQuitado = c.pago || (pago >= tot && tot > 0) || c.status === 'QUITADO';
-                    let parcelasInfo = c.qtd_parcelas > 1 ? `${qtdPagas} de ${c.qtd_parcelas} pagas` : (isQuitado ? 'Quitada' : 'Pendente');
-
-                    let dataUltimoPgto = "Ainda não pagou";
-                    const pagamentos = logsDeste.filter(l => parseFloat(l.valor_fluxo) > 0 && !(l.evento || '').includes('Atraso'));
-                    if (pagamentos.length > 0) {
-                        dataUltimoPgto = new Date(pagamentos[0].created_at).toLocaleDateString('pt-BR');
+                    if (capReal <= 0) capReal = parseFloat(c.valor_emprestado) || 0;
+                    
+                    somaCapitalOriginal += capReal; 
+                    somaPago += pago;
+                    
+                    const isActive = ['ABERTO', 'ATRASADO'].includes(c.status);
+                    
+                    if (isActive) { 
+                        sumAtivoCapital += capReal; 
+                        sumAtivoDivida += tot; 
+                        sumAtivoPago += pago; 
                     }
                     
-                    let botoesAcao = '';
-                    if (isActive) {
-                        botoesAcao = `
-                            <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-700">
-                                <button onclick="prepararPagamento('${c.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white py-1.5 rounded text-[10px] font-black uppercase transition-all shadow-lg"><i class="fa-solid fa-money-bill-wave mr-1"></i> Receber Pgto</button>
-                                <button onclick="abrirEdicaoContrato('${c.id}')" class="bg-orange-600 hover:bg-orange-500 text-white py-1.5 rounded text-[10px] font-black uppercase transition-all shadow-lg"><i class="fa-solid fa-pen mr-1"></i> Editar</button>
-                            </div>
-                        `;
-                    }
-
                     vContratos.innerHTML += `
-                    <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700 mb-4 relative shadow-lg">
-                        <div class="flex justify-between items-center mb-3 border-b border-slate-700 pb-2">
-                            <p class="text-xs font-bold text-white"><i class="fa-solid fa-file-signature text-blue-400 mr-1"></i> Início: ${dtContrato} | Venc: ${dtVenc.toLocaleDateString('pt-BR')}</p>
-                            <span class="px-2 py-1 rounded text-[9px] font-black ${badge}">${c.status}</span>
+                    <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700 mb-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <p class="text-xs font-bold text-white">${c.created_at ? new Date(c.created_at).toLocaleDateString() : ''}</p>
+                            <span class="text-[9px] font-black ${isActive ? 'text-red-400' : 'text-emerald-400'}">${c.status}</span>
                         </div>
-
-                        <div class="grid grid-cols-3 gap-2 mb-3">
-                            <div class="bg-slate-900/50 p-2 rounded border border-slate-700 text-center">
-                                <p class="text-[8px] uppercase text-slate-500 font-bold mb-1">Plano & Taxa</p>
-                                <p class="text-[10px] text-white font-black">${c.qtd_parcelas}x ${c.frequencia} (${c.taxa_juros || '?'}%)</p>
+                        <div class="grid grid-cols-3 gap-2 text-[9px] text-center mb-2">
+                            <div class="bg-slate-900/50 rounded py-1 border border-slate-700">
+                                <span class="text-slate-500 block">Capital</span>
+                                <span class="font-bold text-white">${formatMoney(capReal)}</span>
                             </div>
-                            <div class="bg-slate-900/50 p-2 rounded border border-slate-700 text-center">
-                                <p class="text-[8px] uppercase text-slate-500 font-bold mb-1">Progresso (Parcelas)</p>
-                                <p class="text-[10px] text-blue-400 font-black">${parcelasInfo}</p>
+                            <div class="bg-slate-900/50 rounded py-1 border border-slate-700">
+                                <span class="text-slate-500 block">Dívida</span>
+                                <span class="font-bold text-red-400">${formatMoney(tot)}</span>
                             </div>
-                            <div class="bg-slate-900/50 p-2 rounded border border-slate-700 text-center">
-                                <p class="text-[8px] uppercase text-slate-500 font-bold mb-1">Último Pgto</p>
-                                <p class="text-[10px] text-emerald-400 font-black">${dataUltimoPgto}</p>
+                            <div class="bg-slate-900/50 rounded py-1 border border-slate-700">
+                                <span class="text-slate-500 block">Recebido</span>
+                                <span class="font-bold text-emerald-400">${formatMoney(pago)}</span>
                             </div>
                         </div>
-
-                        <div class="bg-orange-900/10 border border-orange-500/20 p-3 rounded-lg mb-3">
-                            <p class="text-[9px] font-black uppercase text-orange-400 mb-1"><i class="fa-solid fa-note-sticky mr-1"></i> Observações / Garantias</p>
-                            <p class="text-[11px] text-slate-300 italic">${escapeHTML(c.observacoes) || 'Nenhum item empenhado ou anotação extra.'}</p>
-                        </div>
-
-                        <div class="grid grid-cols-3 gap-2 text-[9px] mb-3 text-center">
-                            <div class="bg-slate-900/50 rounded py-1.5 border border-slate-700"><span class="text-slate-500 block text-[7px] uppercase mb-0.5">Capital Orig.</span><span class="font-bold text-white">${formatMoney(capReal)}</span></div>
-                            <div class="bg-slate-900/50 rounded py-1.5 border border-slate-700"><span class="text-slate-500 block text-[7px] uppercase mb-0.5">Dívida Atual</span><span class="font-bold text-red-400">${formatMoney(tot)}</span></div>
-                            <div class="bg-slate-900/50 rounded py-1.5 border border-slate-700"><span class="text-slate-500 block text-[7px] uppercase mb-0.5">Total Recebido</span><span class="font-bold text-emerald-400">${formatMoney(pago)}</span></div>
-                        </div>
-
-                        <button onclick="renderizarLogsExtrato(${c.id})" class="w-full bg-slate-900 hover:bg-blue-600 text-slate-400 hover:text-white py-2 rounded-lg text-[10px] font-black uppercase transition-all border border-slate-700 hover:border-blue-500 mb-1"><i class="fa-solid fa-clock-rotate-left mr-1"></i> Ver Histórico Financeiro Completo</button>
-                        ${botoesAcao}
+                        <button onclick="renderizarLogsExtrato(${c.id})" class="w-full bg-slate-900 text-slate-400 py-1 rounded text-[9px] border border-slate-700">Ver Histórico</button>
                     </div>`;
                 });
 
-                if(document.getElementById('ext_ativo_capital')) document.getElementById('ext_ativo_capital').innerText = formatMoney(sumAtivoCapital);
-                if(document.getElementById('ext_ativo_divida')) document.getElementById('ext_ativo_divida').innerText = formatMoney(sumAtivoDivida);
-                if(document.getElementById('ext_ativo_pago')) document.getElementById('ext_ativo_pago').innerText = formatMoney(sumAtivoPago);
-
-                if(document.getElementById('ext_global_emprestado')) document.getElementById('ext_global_emprestado').innerText = formatMoney(somaCapitalOriginal);
-                if(document.getElementById('ext_global_pago')) document.getElementById('ext_global_pago').innerText = formatMoney(somaPago);
+                document.getElementById('ext_ativo_capital').innerText = formatMoney(sumAtivoCapital); 
+                document.getElementById('ext_ativo_divida').innerText = formatMoney(sumAtivoDivida); 
+                document.getElementById('ext_ativo_pago').innerText = formatMoney(sumAtivoPago);
                 
-                const lucroGlobal = somaPago - somaCapitalOriginal;
-                const lucroDOM = document.getElementById('ext_global_lucro');
-                if(lucroDOM) {
-                    lucroDOM.innerText = formatMoney(lucroGlobal);
-                    lucroDOM.className = `text-lg font-black drop-shadow-md ${lucroGlobal >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
-                }
+                document.getElementById('ext_global_emprestado').innerText = formatMoney(somaCapitalOriginal); 
+                document.getElementById('ext_global_pago').innerText = formatMoney(somaPago);
+                document.getElementById('ext_global_lucro').innerText = formatMoney(somaPago - somaCapitalOriginal);
 
-                logsExtratoGlobal = data.logs || [];
-                renderizarLogsExtrato(null);
-                
+                logsExtratoGlobal = data.logs || []; 
+                renderizarLogsExtrato(null); 
                 carregarGarantiasDoCliente(data.cliente.cpf);
-
-            } catch(e) { showToast("Erro ao carregar o extrato.", "error"); }
+                
+            } catch(e) {}
         }
 
         function renderizarLogsExtrato(idContrato) {
             const tbody = document.getElementById('lista-extrato-movimentacoes'); 
             tbody.innerHTML = '';
+            
             let logsF = idContrato ? logsExtratoGlobal.filter(l => String(l.devedor_id) === String(idContrato)) : logsExtratoGlobal;
             
-            document.getElementById('titulo_logs_extrato').innerHTML = idContrato ? `<i class="fa-solid fa-filter mr-2 text-emerald-500"></i> Movimentações do Contrato Filtrado` : `<i class="fa-solid fa-list mr-2 text-blue-500"></i> Últimas Movimentações (Todos os Contratos)`;
-            
-            if(logsF.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-6 text-slate-500">Nenhum registo.</td></tr>';
-                return;
-            }
-            
             logsF.forEach(l => {
-                const val = parseFloat(l.valor_fluxo) || 0;
+                const val = parseFloat(l.valor_fluxo) || 0; 
                 let cor = val > 0 ? "text-emerald-400" : (val < 0 ? "text-red-400" : "text-slate-500");
                 
                 tbody.innerHTML += `
-                    <tr class="hover:bg-slate-800/30 transition-colors border-b border-slate-800/50">
-                        <td class="py-3 px-2 font-mono text-[9px] text-slate-400">${new Date(l.created_at).toLocaleString()}</td>
-                        <td class="py-3 px-2 font-bold text-[10px] text-blue-400 uppercase">${escapeHTML(l.evento)}</td>
-                        <td class="py-3 px-2 text-[10px] text-slate-300 min-w-[200px]">${escapeHTML(l.detalhes)}</td>
-                        <td class="py-3 px-2 text-right font-black ${cor}">${val !== 0 ? formatMoney(val) : '-'}</td>
+                    <tr class="border-b border-slate-800/50">
+                        <td class="py-2 px-2 text-[9px] text-slate-400">${new Date(l.created_at).toLocaleString()}</td>
+                        <td class="py-2 px-2 text-[10px] text-blue-400">${escapeHTML(l.evento)}</td>
+                        <td class="py-2 px-2 text-[10px] text-slate-300">${escapeHTML(l.detalhes)}</td>
+                        <td class="py-2 px-2 text-right font-black ${cor}">${val !== 0 ? formatMoney(val) : '-'}</td>
                     </tr>
                 `;
             });
         }
 
-        // =====================================
-        // MÓDULO DE PENHORES E GARANTIAS
-        // =====================================
         function abrirModalGarantia() {
-            if(!window.clienteAtualExtrato) return showToast("Selecione um cliente primeiro.", "error");
-            document.getElementById('garantiaCpf').value = window.clienteAtualExtrato.cpf;
-            document.getElementById('garantiaDesc').value = '';
-            document.getElementById('garantiaValor').value = '';
+            if(!window.clienteAtualExtrato) return;
+            document.getElementById('garantiaCpf').value = window.clienteAtualExtrato.cpf; 
             document.getElementById('modalGarantia').classList.remove('hidden');
         }
 
         async function salvarGarantia() {
-            const cpf = document.getElementById('garantiaCpf').value;
-            const desc = document.getElementById('garantiaDesc').value;
-            const val = document.getElementById('garantiaValor').value;
-
-            if(!desc || !val) return showToast("Preencha a descrição e o valor do penhor.", "error");
-
             try {
                 await fetchSeguro(`${API_BASE}/api/garantias`, { 
-                    method: 'POST', headers: headersAuth, body: JSON.stringify({ cpf, descricao: desc, valor_estimado: val }) 
+                    method: 'POST', 
+                    headers: headersAuth, 
+                    body: JSON.stringify({ 
+                        cpf: document.getElementById('garantiaCpf').value, 
+                        descricao: document.getElementById('garantiaDesc').value, 
+                        valor_estimado: document.getElementById('garantiaValor').value 
+                    }) 
                 });
-                showToast("Garantia Registada!");
-                fecharModal('modalGarantia');
-                carregarGarantiasDoCliente(cpf);
-            } catch(e) { showToast("Erro ao gravar garantia.", "error"); }
+                
+                fecharModal('modalGarantia'); 
+                carregarGarantiasDoCliente(document.getElementById('garantiaCpf').value);
+            } catch(e) {}
         }
 
         async function carregarGarantiasDoCliente(cpf) {
             const divGarantias = document.getElementById('lista-garantias-extrato');
-            divGarantias.innerHTML = '<p class="text-xs text-slate-500 italic col-span-2">A carregar...</p>';
-            
             try {
                 const res = await fetchSeguro(`${API_BASE}/api/garantias/${encodeURIComponent(cpf)}`, { headers: headersAuth });
-                const garantias = await res.json();
-                
-                if(!garantias || garantias.length === 0) {
-                    divGarantias.innerHTML = '<p class="text-xs text-slate-500 italic col-span-2">Nenhum item registado como garantia.</p>';
-                    return;
-                }
+                const garantias = await res.json(); 
                 
                 divGarantias.innerHTML = '';
+                
+                if(garantias.length === 0) { 
+                    divGarantias.innerHTML = '<p class="text-xs text-slate-500 col-span-2">Nenhum penhor registado.</p>'; 
+                    return; 
+                }
+                
                 garantias.forEach(g => {
                     let badge = '';
                     let acoes = '';
+                    
                     if(g.status === 'ATIVO') {
                         badge = '<span class="bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded text-[8px] font-black uppercase">Ativo</span>';
                         acoes = `
-                            <button onclick="alterarStatusGarantia(${g.id}, 'DEVOLVIDO')" class="text-[9px] text-blue-400 hover:text-white uppercase mr-2" title="Devolver ao Cliente"><i class="fa-solid fa-hand-holding-hand"></i> Devolver</button>
-                            <button onclick="alterarStatusGarantia(${g.id}, 'LIQUIDADO')" class="text-[9px] text-red-400 hover:text-white uppercase" title="Liquidar / Vender"><i class="fa-solid fa-gavel"></i> Liquidar</button>
+                            <button onclick="alterarStatusGarantia(${g.id}, 'DEVOLVIDO')" class="text-[9px] text-blue-400 hover:text-white uppercase mr-2"><i class="fa-solid fa-hand-holding-hand"></i> Devolver</button>
+                            <button onclick="alterarStatusGarantia(${g.id}, 'LIQUIDADO')" class="text-[9px] text-red-400 hover:text-white uppercase"><i class="fa-solid fa-gavel"></i> Liquidar</button>
                         `;
                     } else if(g.status === 'DEVOLVIDO') {
                         badge = '<span class="bg-slate-500/20 text-slate-400 px-2 py-0.5 rounded text-[8px] font-black uppercase">Devolvido</span>';
                     } else {
-                        badge = '<span class="bg-red-500/20 text-red-400 px-2 py-0.5 rounded text-[8px] font-black uppercase">Liquidado (Vendido)</span>';
+                        badge = '<span class="bg-red-500/20 text-red-400 px-2 py-0.5 rounded text-[8px] font-black uppercase">Vendido</span>';
                     }
 
                     divGarantias.innerHTML += `
@@ -2174,21 +1959,27 @@
                             <div class="mt-2 pt-2 border-t border-slate-800 text-right">
                                 ${acoes}
                             </div>
-                        </div>
-                    `;
+                        </div>`;
                 });
-            } catch(e) { divGarantias.innerHTML = '<p class="text-xs text-red-500 italic col-span-2">Erro ao carregar garantias.</p>'; }
+            } catch(e) {}
         }
-
+        
         async function alterarStatusGarantia(idGarantia, novoStatus) {
-            if(!confirm(`Tem a certeza que deseja marcar este penhor como ${novoStatus}?`)) return;
+            if(!confirm(`Deseja marcar este penhor como ${novoStatus}?`)) return;
             try {
                 await fetchSeguro(`${API_BASE}/api/garantias/${idGarantia}/status`, { 
-                    method: 'PUT', headers: headersAuth, body: JSON.stringify({ status: novoStatus }) 
+                    method: 'PUT', 
+                    headers: headersAuth, 
+                    body: JSON.stringify({ status: novoStatus }) 
                 });
-                showToast(`Garantia marcada como ${novoStatus}!`);
-                if(window.clienteAtualExtrato) carregarGarantiasDoCliente(window.clienteAtualExtrato.cpf);
-            } catch(e) { showToast("Erro.", "error"); }
+                
+                showToast(`Garantia atualizada!`);
+                if(window.clienteAtualExtrato) {
+                    carregarGarantiasDoCliente(window.clienteAtualExtrato.cpf);
+                }
+            } catch(e) { 
+                showToast("Erro.", "error"); 
+            }
         }
 
         function abrirDossieCliente() {
@@ -2196,69 +1987,15 @@
             if (!c) return;
             
             document.getElementById('docNomeCliente').textContent = c.nome; 
-            document.getElementById('docCpf').textContent = c.cpf;
-            document.getElementById('docData').innerText = new Date(c.created_at).toLocaleString();
-            document.getElementById('docValor').innerText = formatMoney(c.valor_emprestado || 0);
-            document.getElementById('docZap').textContent = c.telefone || 'N/A';
-            document.getElementById('docPlano').textContent = `${c.tipo_plano || 'N/A'} / ${c.frequencia} / ${c.qtd_parcelas || 1}x`;
-            
-            const p = "https://via.placeholder.com/300x200?text=Indisponivel";
-            document.getElementById('imgSelfie').src = c.url_selfie || p; 
-            document.getElementById('imgFrente').src = c.url_frente || p; 
-            document.getElementById('imgVerso').src = c.url_verso || p; 
-            document.getElementById('imgResidencia').src = c.url_residencia || p; 
-            document.getElementById('imgCasa').src = c.url_casa || p;
-            
+            document.getElementById('docCpf').textContent = c.cpf; 
             document.getElementById('box-simulador-cp').classList.add('hidden'); 
             document.getElementById('modalDocumentos').classList.remove('hidden');
         }
 
         // =====================================
-        // CADASTRO MANUAL (LIVE SEARCH E AUTO-JUROS)
+        // CADASTRO MANUAL (RECUPERADO)
         // =====================================
-        function togglePreCadastro() {
-            const isPre = document.getElementById('check_precadastro').checked;
-            const areasDiv = document.getElementById('cad_area_financeira');
-            if (isPre) {
-                areasDiv.classList.add('hidden');
-                document.getElementById('cad_capital').removeAttribute('required'); 
-                document.getElementById('cad_saldo').removeAttribute('required'); 
-                document.getElementById('cad_venc').removeAttribute('required');
-            } else {
-                areasDiv.classList.remove('hidden');
-                document.getElementById('cad_capital').setAttribute('required', 'true'); 
-                document.getElementById('cad_saldo').setAttribute('required', 'true'); 
-                document.getElementById('cad_venc').setAttribute('required', 'true');
-            }
-        }
-
-        function autoCalcularSaldoCadastro() {
-            const cap = parseFloat(document.getElementById('cad_capital').value);
-            if (isNaN(cap) || cap <= 0) { 
-                document.getElementById('cad_saldo').value = ''; 
-                document.getElementById('cad_taxa_aplicada_txt').innerText = ''; 
-                return; 
-            }
-            
-            const parcelas = parseInt(document.getElementById('cad_parcelas').value) || 1;
-            const jU = window.sistemaConfig?.juros_unico || 30; 
-            const jP = window.sistemaConfig?.juros_parcelado || 25;
-            
-            let tx = 0;
-            if (parcelas > 1) {
-                tx = (jP / 100) * parcelas;
-                document.getElementById('cad_taxa_aplicada_txt').innerText = `Taxa Aplicada: ${jP}% x ${parcelas} parcelas = ${(jP * parcelas)}%`;
-            } else {
-                tx = (jU / 100);
-                document.getElementById('cad_taxa_aplicada_txt').innerText = `Taxa Aplicada: ${jU}% (Única 30 Dias)`;
-            }
-            
-            document.getElementById('cad_saldo').value = (cap * (1 + tx)).toFixed(2);
-        }
-
-        let debounceTimerCad;
         async function buscarParaCadastroLive() {
-            clearTimeout(debounceTimerCad);
             const busca = document.getElementById('busca_cliente_cad').value.trim();
             const box = document.getElementById('autocomplete_resultados');
             
@@ -2267,30 +2004,28 @@
                 return; 
             }
             
-            debounceTimerCad = setTimeout(async () => {
-                try {
-                    const res = await fetchSeguro(`${API_BASE}/api/buscar-cliente-admin/${encodeURIComponent(busca)}`, { headers: headersAuth });
-                    if(res.ok) {
-                        const clientes = await res.json(); 
-                        box.innerHTML = '';
-                        if(clientes.length > 0) {
-                            clientes.forEach(c => {
-                                box.innerHTML += `
-                                <div class="p-3 border-b border-slate-700 hover:bg-slate-700 cursor-pointer transition-colors" onclick="selecionarClienteCad('${c.id}', '${escapeHTML(c.nome)}', '${c.cpf}', '${c.telefone}', '${c.status}')">
-                                    <p class="font-bold text-white text-xs">${escapeHTML(c.nome)}</p>
-                                    <p class="text-[10px] text-slate-400 font-mono mt-1">CPF: ${c.cpf} | Zap: ${c.telefone}</p>
-                                </div>
-                                `;
-                            });
-                        } else { 
-                            box.innerHTML = '<div class="p-3 text-xs text-slate-500 font-bold">Nenhum registo na base.</div>'; 
-                        }
-                        box.classList.remove('hidden');
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/buscar-cliente-admin/${encodeURIComponent(busca)}`, { headers: headersAuth });
+                if(res.ok) {
+                    const clientes = await res.json(); 
+                    box.innerHTML = '';
+                    
+                    if(clientes.length > 0) {
+                        clientes.forEach(c => {
+                            box.innerHTML += `
+                            <div class="p-3 border-b border-slate-700 hover:bg-slate-700 cursor-pointer transition-colors" onclick="selecionarClienteCad('${c.id}', '${escapeHTML(c.nome)}', '${c.cpf}', '${c.telefone}', '${c.status}')">
+                                <p class="font-bold text-white text-xs">${escapeHTML(c.nome)}</p>
+                                <p class="text-[10px] text-slate-400 font-mono mt-1">CPF: ${c.cpf} | Zap: ${c.telefone}</p>
+                            </div>`;
+                        });
+                    } else { 
+                        box.innerHTML = '<div class="p-3 text-xs text-slate-500 font-bold">Nenhum registo na base.</div>'; 
                     }
-                } catch(e) {}
-            }, 400);
+                    box.classList.remove('hidden');
+                }
+            } catch(e) {}
         }
-
+        
         function selecionarClienteCad(id, nome, cpf, tel, status) {
             document.getElementById('cad_id_existente').value = id; 
             document.getElementById('cad_nome').value = nome;
@@ -2301,95 +2036,33 @@
             document.getElementById('busca_cliente_cad').value = nome;
             
             if (status === 'ABERTO' || status === 'ATRASADO') {
-                alert(`⚠️ ATENÇÃO: O cliente ${nome.split(' ')[0]} JÁ POSSUI uma dívida em andamento!\n\nAo lançar valores abaixo, o sistema criará um NOVO contrato paralelo em vez de atualizar o antigo.`);
+                alert(`⚠️ ATENÇÃO: O cliente já possui contrato Ativo!`);
             }
-            
-            document.getElementById('check_precadastro').checked = false; 
-            togglePreCadastro();
         }
-
-        let imagensBase64Cad = {};
+        
         function marcarUploadCad(input) {
             const file = input.files[0]; 
-            const label = input.parentElement; 
-            const icon = document.getElementById(`icon_${input.id}`); 
             const text = document.getElementById(`text_${input.id}`);
-            
-            if (!file) { 
-                delete imagensBase64Cad[input.id]; 
-                label.style.borderColor = '#334155'; 
-                label.style.backgroundColor = 'rgba(15, 23, 42, 0.5)';
-                icon.className = 'fa-solid fa-upload text-xl text-slate-400 mb-1'; 
-                text.innerText = text.dataset.orig; 
-                text.style.color = '#94a3b8'; 
-                return; 
+            if(file) {
+                text.innerText = "Lido";
             }
-            
-            if (file.size > 15 * 1024 * 1024) return showToast("Imagem muito grande.", "error");
-            
-            icon.className = 'fa-solid fa-spinner fa-spin text-xl text-blue-500 mb-1'; 
-            text.innerText = 'Lendo...';
-            
-            const reader = new FileReader(); 
-            reader.readAsDataURL(file);
-            reader.onload = (event) => {
-                const img = new Image(); 
-                img.src = event.target.result;
-                img.onload = () => {
-                    const canvas = document.createElement('canvas'); 
-                    const ctx = canvas.getContext('2d');
-                    const scaleSize = img.width > 800 ? 800 / img.width : 1; 
-                    canvas.width = img.width * scaleSize; 
-                    canvas.height = img.height * scaleSize;
-                    ctx.fillStyle = "#FFFFFF"; 
-                    ctx.fillRect(0, 0, canvas.width, canvas.height); 
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    
-                    imagensBase64Cad[input.id] = canvas.toDataURL('image/jpeg', 0.5);
-                    
-                    label.style.borderColor = '#10b981'; 
-                    label.style.backgroundColor = 'rgba(16, 185, 129, 0.05)';
-                    icon.className = 'fa-solid fa-check-circle text-xl text-emerald-500 mb-1'; 
-                    text.innerText = 'OK'; 
-                    text.style.color = '#10b981';
-                };
-            };
         }
-
+        
         async function salvarCadastroRapido() {
-            const form = document.getElementById('formCadastroRapido'); 
-            if (!form.checkValidity()) { 
-                form.reportValidity(); 
-                return; 
-            }
-            
-            const btn = document.getElementById('btnSalvarCad'); 
-            const oldText = btn.innerHTML; 
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Gravando...`; 
-            btn.disabled = true;
-            
             try {
-                const isPre = document.getElementById('check_precadastro').checked;
                 const dados = {
                     id_existente: document.getElementById('cad_id_existente').value, 
-                    is_precadastro: isPre,
+                    is_precadastro: document.getElementById('check_precadastro').checked, 
                     nome: document.getElementById('cad_nome').value, 
                     cpf: document.getElementById('cad_cpf').value.replace(/\D/g,''),
                     whatsapp: document.getElementById('cad_zap').value.replace(/\D/g,''), 
-                    valor_emprestado: isPre ? 0 : parseFloat(document.getElementById('cad_capital').value), 
-                    valor_total: isPre ? 0 : parseFloat(document.getElementById('cad_saldo').value), 
-                    data_vencimento: isPre ? null : document.getElementById('cad_venc').value, 
-                    frequencia: isPre ? 'MENSAL' : document.getElementById('cad_freq').value,
-                    qtd_parcelas: isPre ? 1 : (parseInt(document.getElementById('cad_parcelas').value) || 1), 
-                    cobrar_so_em_dinheiro: document.getElementById('cad_apenas_dinheiro').checked,
-                    img_selfie: imagensBase64Cad.cad_img_selfie || null, 
-                    img_frente: imagensBase64Cad.cad_img_frente || null, 
-                    img_verso: imagensBase64Cad.cad_img_verso || null, 
-                    img_residencia: imagensBase64Cad.cad_img_residencia || null, 
-                    img_casa: imagensBase64Cad.cad_img_casa || null
+                    valor_emprestado: parseFloat(document.getElementById('cad_capital').value) || 0, 
+                    valor_total: parseFloat(document.getElementById('cad_saldo').value) || 0, 
+                    data_vencimento: document.getElementById('cad_venc').value || null, 
+                    frequencia: document.getElementById('cad_freq').value || 'MENSAL', 
+                    qtd_parcelas: parseInt(document.getElementById('cad_parcelas').value) || 1, 
+                    cobrar_so_em_dinheiro: document.getElementById('cad_apenas_dinheiro').checked
                 };
-                
-                if(!dados.nome || !dados.cpf) throw new Error("Exige Nome e CPF.");
                 
                 const res = await fetchSeguro(`${API_BASE}/api/cadastrar-cliente-manual`, { 
                     method: 'POST', 
@@ -2398,91 +2071,55 @@
                 });
                 
                 if(res.ok) { 
-                    showToast("Registo Salvo com Sucesso!"); 
-                    form.reset(); 
-                    document.getElementById('busca_cliente_cad').value = '';
-                    
-                    document.querySelectorAll('label > span[id^="text_cad_img_"]').forEach(el => { 
-                        el.innerText = el.dataset.orig; 
-                        el.style.color = '#94a3b8'; 
-                        el.parentElement.style.borderColor = '#334155'; 
-                        el.parentElement.style.backgroundColor = 'rgba(15, 23, 42, 0.5)';
-                        el.parentElement.querySelector('i').className = 'fa-solid fa-upload text-xl text-slate-400 mb-1'; 
-                    });
-                    document.querySelectorAll('input[type="file"]').forEach(i => i.value = ''); 
-                    imagensBase64Cad = {}; 
-                    document.getElementById('cad_taxa_aplicada_txt').innerText = '';
-                    
-                    if(!isPre) mudarAba('aberto'); 
-                    carregarDash();
-                } else { 
-                    let eBody; 
-                    try { eBody = await res.json(); } catch(e) { eBody = {erro:"Erro"}; }
-                    let m = eBody.erro; 
-                    if (m && (m.includes("duplicate key") || m.includes("null (reading 'id')"))) {
-                        m = "Bloqueado: Cliente já possui contrato Ativo!"; 
-                    }
-                    throw new Error(m);
+                    showToast("Registo Salvo!"); 
+                    mudarAba('aberto'); 
+                    carregarDash(); 
                 }
             } catch(e) { 
-                showToast(e.message, "error"); 
-            } finally { 
-                btn.innerHTML = oldText; 
-                btn.disabled = false; 
-            }
+                showToast("Erro ao gravar.", "error"); 
+            } 
         }
-
-        // ================= RELATÓRIOS E CAIXA =================
+        
+        // =====================================
+        // RELATÓRIOS E CAIXA (RECUPERADOS)
+        // =====================================
         async function carregarRelatorios() {
             try {
-                const val = document.getElementById('filtro-relatorio').value; 
-                const hoje = new Date(); 
-                let i, f = hoje.toISOString().split('T')[0];
-                
-                if(val === 'mes') { 
-                    i = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0]; 
-                } else if (val === 'custom') { 
-                    i = document.getElementById('data_inicio_rel').value; 
-                    f = document.getElementById('data_fim_rel').value; 
-                    if(!i || !f) return showToast("Datas obrigatórias", "error"); 
-                }
+                const i = document.getElementById('data_inicio_rel').value || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]; 
+                const f = document.getElementById('data_fim_rel').value || new Date().toISOString().split('T')[0];
                 
                 const res = await fetchSeguro(`${API_BASE}/api/relatorio-periodo`, { 
-                    method: 'POST', headers: headersAuth, body: JSON.stringify({ dataInicio: i, dataFim: f }) 
+                    method: 'POST', 
+                    headers: headersAuth, 
+                    body: JSON.stringify({ dataInicio: i, dataFim: f }) 
                 });
-                if(!res.ok) throw new Error(); 
                 
-                const dados = await res.json();
+                const dados = await res.json(); 
                 const tbody = document.getElementById('lista-relatorio-detalhado'); 
                 tbody.innerHTML = '';
                 
-                if(dados.movimentacoes && dados.movimentacoes.length > 0) {
-                    dados.movimentacoes.forEach(m => {
-                        const v = parseFloat(m.valor_fluxo); 
-                        const isS = m.evento === "SAÍDA DE CAIXA"; 
-                        const isE = v > 0 && !isS; 
-                        
-                        tbody.innerHTML += `
-                            <tr class="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
-                                <td class="px-6 py-4 font-mono text-[10px] text-slate-400">${new Date(m.created_at).toLocaleString('pt-BR')}</td>
-                                <td class="px-6 py-4 font-black text-white text-xs uppercase">${escapeHTML(m.devedores?.nome || 'CAIXA')}</td>
-                                <td class="px-6 py-4 font-bold text-blue-400 text-[10px] uppercase">${escapeHTML(m.evento)}</td>
-                                <td class="px-6 py-4 text-[10px] text-slate-300">${escapeHTML(m.detalhes)}</td>
-                                <td class="px-6 py-4 text-right font-black ${isE?'text-emerald-400':'text-red-400'} text-sm">${isE?'+':'-'} ${formatMoney(Math.abs(v))}</td>
-                            </tr>
-                        `;
-                    });
-                } else {
-                    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-500">Sem fluxo.</td></tr>`; 
-                }
+                (dados.movimentacoes || []).forEach(m => {
+                    const v = parseFloat(m.valor_fluxo); 
+                    const isE = v > 0 && m.evento !== "SAÍDA DE CAIXA"; 
+                    
+                    tbody.innerHTML += `
+                        <tr class="border-b border-slate-800/50">
+                            <td class="px-6 py-4 text-[10px] text-slate-400">${new Date(m.created_at).toLocaleDateString()}</td>
+                            <td class="px-6 py-4 text-xs">${escapeHTML(m.devedores?.nome || 'CAIXA')}</td>
+                            <td class="px-6 py-4 text-[10px]">${escapeHTML(m.evento)}</td>
+                            <td class="px-6 py-4 text-[10px]">${escapeHTML(m.detalhes)}</td>
+                            <td class="px-6 py-4 text-right font-black ${isE ? 'text-emerald-400' : 'text-red-400'}">${formatMoney(Math.abs(v))}</td>
+                        </tr>
+                    `;
+                });
             } catch(e) {}
         }
         
         async function carregarSaidas() {
             try {
                 const res = await fetchSeguro(`${API_BASE}/api/extrato-caixa`, { headers: headersAuth }); 
-                if(!res.ok) return;
                 const l = await res.json(); 
+                
                 const tbody = document.getElementById('lista-saidas'); 
                 tbody.innerHTML = '';
                 
@@ -2490,8 +2127,8 @@
                     tbody.innerHTML += `
                         <tr class="border-b border-slate-800/50">
                             <td class="px-4 py-3 text-xs text-slate-400">${new Date(s.created_at).toLocaleDateString()}</td>
-                            <td class="px-4 py-3 text-xs font-bold text-white">${escapeHTML(s.detalhes)}</td>
-                            <td class="px-4 py-3 text-xs font-black text-red-400 text-right">- ${formatMoney(Math.abs(s.valor_fluxo))}</td>
+                            <td class="px-4 py-3 text-xs">${escapeHTML(s.detalhes)}</td>
+                            <td class="px-4 py-3 text-xs text-red-400 text-right">- ${formatMoney(Math.abs(s.valor_fluxo))}</td>
                         </tr>
                     `;
                 });
@@ -2501,45 +2138,135 @@
         async function registrarSaidaCaixa() {
             const m = document.getElementById('saida_motivo').value; 
             const v = parseFloat(document.getElementById('saida_valor').value);
-            if(!m || !v) return showToast("Preencha tudo.", "error");
-            try { 
+            
+            try {
                 const res = await fetchSeguro(`${API_BASE}/api/saida-caixa`, { 
-                    method: 'POST', headers: headersAuth, body: JSON.stringify({ motivo: m, valor: v }) 
+                    method: 'POST', 
+                    headers: headersAuth, 
+                    body: JSON.stringify({ motivo: m, valor: v }) 
                 }); 
+                
                 if(res.ok) { 
                     showToast("Saída Consolidada!"); 
-                    document.getElementById('saida_motivo').value = ''; 
-                    document.getElementById('saida_valor').value = ''; 
                     carregarSaidas(); 
-                    carregarDash(); 
                 } 
-            } catch(e) {}
+            } catch(e) {} 
         }
 
         async function carregarTodosLogs() {
             try {
                 const res = await fetchSeguro(`${API_BASE}/api/logs-auditoria`, { headers: headersAuth }); 
-                if(!res.ok) return;
                 const l = await res.json(); 
+                
                 const tb = document.getElementById('lista-todos-logs'); 
                 tb.innerHTML = '';
                 
                 l.forEach(s => {
                     tb.innerHTML += `
-                        <tr class="hover:bg-slate-800/30 border-b border-slate-800/50">
-                            <td class="px-6 py-3 font-mono text-[10px] text-slate-400">${new Date(s.created_at).toLocaleString()}</td>
-                            <td class="px-6 py-3 font-bold text-[10px] text-orange-400 uppercase">${escapeHTML(s.evento)}</td>
-                            <td class="px-6 py-3 text-[10px] text-slate-300">${escapeHTML(s.detalhes)}</td>
+                        <tr class="border-b border-slate-800/50">
+                            <td class="px-6 py-3 text-[10px] text-slate-400">${new Date(s.created_at).toLocaleString()}</td>
+                            <td class="px-6 py-3 text-[10px] text-orange-400">${escapeHTML(s.evento)}</td>
+                            <td class="px-6 py-3 text-[10px]">${escapeHTML(s.detalhes)}</td>
                             <td class="px-6 py-3 text-right font-black text-slate-300">${s.valor_fluxo ? formatMoney(s.valor_fluxo) : '-'}</td>
                         </tr>
                     `;
                 });
             } catch(e) {}
         }
+        
+        // =====================================
+        // LISTA NEGRA (RECUPERADO)
+        // =====================================
+        async function carregarListaNegra() {
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/lista-negra`, { headers: headersAuth }); 
+                const l = await res.json(); 
+                
+                const tb = document.getElementById('lista-negra-body'); 
+                tb.innerHTML = '';
+                
+                l.forEach(s => {
+                    tb.innerHTML += `
+                        <tr class="border-b border-slate-800/50">
+                            <td class="px-6 py-3 text-red-400 font-bold">${escapeHTML(s.cpf)}</td>
+                            <td class="px-6 py-3 text-xs">${escapeHTML(s.motivo)}</td>
+                            <td class="px-6 py-3 text-xs">${new Date(s.created_at).toLocaleDateString()}</td>
+                            <td class="px-6 py-3 text-center">
+                                <button onclick="removerListaNegra('${s.cpf}')" class="text-slate-400 hover:text-white">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch(e) {}
+        }
 
-        // ================= CONFIGURAÇÕES PIX AVANÇADO =================
+        async function adicionarListaNegra() {
+            try { 
+                await fetchSeguro(`${API_BASE}/api/lista-negra`, { 
+                    method: 'POST', 
+                    headers: headersAuth, 
+                    body: JSON.stringify({ 
+                        cpf: document.getElementById('ln_cpf').value.replace(/\D/g,''), 
+                        motivo: document.getElementById('ln_motivo').value 
+                    }) 
+                }); 
+                
+                showToast("Embargado!"); 
+                carregarListaNegra(); 
+            } catch(e) {}
+        }
+
+        async function removerListaNegra(cpf) { 
+            try { 
+                await fetchSeguro(`${API_BASE}/api/lista-negra/${cpf}`, { method: 'DELETE', headers: headersAuth }); 
+                carregarListaNegra(); 
+            } catch(e) {} 
+        }
+
+        // =====================================
+        // PROMOTORES E CONFIGURAÇÕES PIX AVANÇADO
+        // =====================================
+        async function carregarPromotores() {
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/promotores`, { headers: headersAuth }); 
+                const l = await res.json(); 
+                
+                const tb = document.getElementById('lista-promotores'); 
+                tb.innerHTML = '';
+                
+                l.forEach(p => {
+                    tb.innerHTML += `
+                        <tr class="border-b border-slate-800/50">
+                            <td class="px-6 py-4 font-bold text-white uppercase">${escapeHTML(p.nome)}</td>
+                            <td class="px-6 py-4 font-mono text-purple-400">${escapeHTML(p.cpf)}</td>
+                            <td class="px-6 py-4 text-xs text-slate-400">${new Date(p.created_at).toLocaleDateString()}</td>
+                            <td class="px-6 py-4 text-right font-black text-emerald-400">${p.volume_gerado ? formatMoney(p.volume_gerado) : 'R$ 0,00'}</td>
+                        </tr>
+                    `;
+                });
+            } catch(e) {}
+        }
+        
+        async function adicionarPromotor() {
+            try { 
+                await fetchSeguro(`${API_BASE}/api/adicionar-promotor`, { 
+                    method: 'POST', 
+                    headers: headersAuth, 
+                    body: JSON.stringify({ 
+                        nome: document.getElementById('promo_nome').value, 
+                        cpf: document.getElementById('promo_cpf').value.replace(/\D/g, '') 
+                    }) 
+                }); 
+                
+                showToast("Adicionado!"); 
+                carregarPromotores(); 
+            } catch(e) {} 
+        }
+
         let pixAvancado = { chaves: [], modo: 'UNICO', padrao: '', regras: { limite: 1000, menor: '', maior: '' } };
-
+        
         function renderizarPixAvancado() {
             const lista = document.getElementById('lista-chaves-pix');
             const selects = document.querySelectorAll('.select-chaves-dinamicas');
@@ -2551,40 +2278,36 @@
                 lista.innerHTML = '<p class="text-xs text-slate-500 text-center py-4">Nenhuma chave PIX cadastrada.</p>';
             } else {
                 pixAvancado.chaves.forEach(c => {
-                    optionsHtml += `<option value="${c.id}">${c.nome} (${c.banco}) - ${c.chave}</option>`;
+                    optionsHtml += `<option value="${c.id}">${c.nome} (${c.banco})</option>`;
                     lista.innerHTML += `
                         <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-700 flex justify-between items-center mb-2">
                             <div>
-                                <p class="text-[10px] font-bold text-white uppercase">${c.nome} <span class="text-slate-500 font-normal">| ${c.banco}</span></p>
-                                <p class="text-xs font-mono text-emerald-400 mt-1">${c.chave}</p>
+                                <p class="text-[10px] font-bold text-white uppercase">${c.nome} | ${c.banco}</p>
+                                <p class="text-xs font-mono text-emerald-400">${c.chave}</p>
                             </div>
-                            <button onclick="removerChavePix('${c.id}')" class="text-red-500 hover:text-red-400 p-2"><i class="fa-solid fa-trash"></i></button>
-                        </div>
-                    `;
+                            <button onclick="removerChavePix('${c.id}')" class="text-red-500 hover:text-red-400 p-2">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>`;
                 });
             }
-
-            selects.forEach(sel => {
-                const currentVal = sel.value;
-                sel.innerHTML = optionsHtml;
-                if(currentVal) sel.value = currentVal;
+            
+            selects.forEach(sel => { 
+                const currentVal = sel.value; 
+                sel.innerHTML = optionsHtml; 
+                if(currentVal) sel.value = currentVal; 
             });
-
+            
             document.getElementById('pix_modo_roteamento').value = pixAvancado.modo || 'UNICO';
-            document.getElementById('pix_chave_padrao').value = pixAvancado.padrao || '';
-            document.getElementById('pix_valor_corte').value = pixAvancado.regras?.limite || 1000;
-            document.getElementById('pix_chave_menor').value = pixAvancado.regras?.menor || '';
-            document.getElementById('pix_chave_maior').value = pixAvancado.regras?.maior || '';
-
-            alternarModoRoteamentoPix();
         }
 
         function alternarModoRoteamentoPix() {
             const modo = document.getElementById('pix_modo_roteamento').value;
+            
             document.getElementById('pix_modo_unico_box').classList.add('hidden');
             document.getElementById('pix_modo_aleatorio_box').classList.add('hidden');
             document.getElementById('pix_modo_valor_box').classList.add('hidden');
-
+            
             if(modo === 'UNICO') document.getElementById('pix_modo_unico_box').classList.remove('hidden');
             if(modo === 'ALEATORIO') document.getElementById('pix_modo_aleatorio_box').classList.remove('hidden');
             if(modo === 'VALOR') document.getElementById('pix_modo_valor_box').classList.remove('hidden');
@@ -2594,20 +2317,11 @@
             const nome = document.getElementById('nova_chave_nome').value.trim();
             const banco = document.getElementById('nova_chave_banco').value.trim();
             const chave = document.getElementById('nova_chave_pix').value.trim();
-
-            if(!nome || !banco || !chave) return showToast("Preencha todos os dados da chave PIX", "error");
-
-            pixAvancado.chaves.push({
-                id: 'pix_' + Date.now() + Math.random().toString(36).substr(2, 5),
-                nome, banco, chave
-            });
-
-            document.getElementById('nova_chave_nome').value = '';
-            document.getElementById('nova_chave_banco').value = '';
-            document.getElementById('nova_chave_pix').value = '';
-
+            
+            if(!nome || !banco || !chave) return showToast("Preencha todos os dados", "error");
+            
+            pixAvancado.chaves.push({ id: 'pix_' + Date.now(), nome, banco, chave });
             renderizarPixAvancado();
-            showToast("Chave adicionada. Não esqueça de salvar a estratégia.");
         }
 
         function removerChavePix(id) {
@@ -2621,22 +2335,23 @@
             pixAvancado.regras.limite = parseFloat(document.getElementById('pix_valor_corte').value) || 0;
             pixAvancado.regras.menor = document.getElementById('pix_chave_menor').value;
             pixAvancado.regras.maior = document.getElementById('pix_chave_maior').value;
-
+            
             try {
                 const res = await fetchSeguro(`${API_BASE}/api/config`, { 
-                    method: 'POST', headers: headersAuth, 
+                    method: 'POST', 
+                    headers: headersAuth, 
                     body: JSON.stringify({ configs: [{chave: 'pix_avancado', valor: JSON.stringify(pixAvancado)}] }) 
                 });
+                
                 if(res.ok) showToast("Estratégia PIX salva com sucesso!"); 
-                else throw new Error(); 
-            } catch(e) { showToast("Erro ao gravar estratégia PIX.", "error"); }
+            } catch(e) {}
         }
-
+        
         async function carregarConfig() {
             try {
                 const res = await fetchSeguro(`${API_BASE}/api/config`, { headers: headersAuth }); 
-                if(!res.ok) return;
                 const confs = await res.json(); 
+                
                 window.sistemaConfig = { valor_minimo: 500, juros_unico: 30, juros_parcelado: 25 }; 
                 
                 confs.forEach(c => {
@@ -2650,6 +2365,7 @@
                         try { pixAvancado = JSON.parse(c.valor); } catch(err) {}
                     }
                 });
+                
                 renderizarPixAvancado();
             } catch(e) {}
         }
@@ -2657,14 +2373,15 @@
         async function salvarConfig() {
             try {
                 const res = await fetchSeguro(`${API_BASE}/api/config`, { 
-                    method: 'POST', headers: headersAuth, 
+                    method: 'POST', 
+                    headers: headersAuth, 
                     body: JSON.stringify({ 
                         configs: [ 
                             {chave: 'juros_unico', valor: document.getElementById('conf_juros_unico').value}, 
                             {chave: 'juros_parcelado', valor: document.getElementById('conf_juros_parcelado').value}, 
                             {chave: 'multa_diaria', valor: document.getElementById('conf_multa').value}, 
                             {chave: 'valor_minimo', valor: document.getElementById('conf_minimo').value || 500}, 
-                            {chave: 'caixa_total', valor: document.getElementById('conf_caixa_total').value || 50000}
+                            {chave: 'caixa_total', valor: document.getElementById('conf_caixa_total').value || 50000} 
                         ] 
                     }) 
                 });
@@ -2672,135 +2389,114 @@
                 if(res.ok) { 
                     showToast("Configurações Salvas."); 
                     carregarConfig(); 
-                    carregarDash(); 
-                } else {
-                    throw new Error(); 
-                }
-            } catch(e) { showToast("Erro ao gravar.", "error"); }
+                } 
+            } catch(e) {}
         }
 
         // =====================================
-        // 🚀 NOVO: CRM KANBAN E SAFRAS
+        // SAFRAS E CRM KANBAN
         // =====================================
-
-        // --- SAFRAS (COHORT) ---
         async function carregarSafras() {
-            const container = document.getElementById('lista-safras');
-            container.innerHTML = '<p class="text-xs text-slate-500">A processar dados históricos...</p>';
+            const container = document.getElementById('lista-safras'); 
+            container.innerHTML = '<p class="text-xs text-slate-500">A processar...</p>';
             
             try {
-                const res = await fetchSeguro(`${API_BASE}/api/safras`, { headers: headersAuth });
-                if (!res.ok) throw new Error();
-                const safras = await res.json();
+                const res = await fetchSeguro(`${API_BASE}/api/safras`, { headers: headersAuth }); 
+                const safras = await res.json(); 
                 
                 container.innerHTML = '';
+                
                 safras.forEach(s => {
-                    // O '-02' previne bugs de fuso horário onde o mês volta 1 dia para trás
                     const dataFormatada = new Date(s.mes + '-02').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-                    
                     const inadimplencia = s.total_clientes > 0 ? Math.round((s.atrasados / s.total_clientes) * 100) : 0;
                     const sucesso = s.total_clientes > 0 ? Math.round((s.quitados / s.total_clientes) * 100) : 0;
                     
-                    let corStatus = 'border-emerald-500/30';
-                    if (inadimplencia > 15) corStatus = 'border-yellow-500/50';
-                    if (inadimplencia > 30) corStatus = 'border-red-500/50';
-
                     container.innerHTML += `
-                        <div class="glass-card p-5 rounded-2xl border ${corStatus} relative overflow-hidden">
+                        <div class="glass-card p-5 rounded-2xl border border-slate-700">
                             <h4 class="text-[10px] font-black uppercase text-white mb-1 tracking-widest">${dataFormatada}</h4>
-                            <p class="text-xs text-slate-400 mb-4">Volume Libertado: <b class="text-blue-400">${formatMoney(s.volume_emprestado)}</b></p>
-                            
+                            <p class="text-xs text-slate-400 mb-4">Volume: <b class="text-blue-400">${formatMoney(s.volume_emprestado)}</b></p>
                             <div class="space-y-2 text-xs">
                                 <div class="flex justify-between items-center bg-slate-900/50 p-2 rounded">
-                                    <span class="text-slate-500">Total Aprovados</span>
-                                    <span class="font-bold text-white">${s.total_clientes} clientes</span>
+                                    <span class="text-slate-500">Aprovados</span>
+                                    <span class="font-bold text-white">${s.total_clientes}</span>
                                 </div>
-                                <div class="flex justify-between items-center bg-emerald-900/10 border border-emerald-500/20 p-2 rounded">
-                                    <span class="text-emerald-500/70">Quitados (Sucesso)</span>
+                                <div class="flex justify-between items-center bg-emerald-900/10 p-2 rounded">
+                                    <span class="text-emerald-500/70">Quitados</span>
                                     <span class="font-black text-emerald-400">${s.quitados} (${sucesso}%)</span>
                                 </div>
-                                <div class="flex justify-between items-center bg-red-900/10 border border-red-500/20 p-2 rounded">
-                                    <span class="text-red-500/70">Inadimplentes (Risco)</span>
+                                <div class="flex justify-between items-center bg-red-900/10 p-2 rounded">
+                                    <span class="text-red-500/70">Inadimplentes</span>
                                     <span class="font-black text-red-400">${s.atrasados} (${inadimplencia}%)</span>
                                 </div>
                             </div>
-                        </div>
-                    `;
-                });
-            } catch(e) { container.innerHTML = '<p class="text-xs text-red-500">Erro ao processar safras.</p>'; }
-        }
-
-        // --- CRM KANBAN (ARRASTAR E LARGAR) ---
-        async function carregarCRM() {
-            document.getElementById('crm-col-acobrar').innerHTML = '';
-            document.getElementById('crm-col-contactado').innerHTML = '';
-            document.getElementById('crm-col-promessa').innerHTML = '';
-            document.getElementById('crm-col-ignorado').innerHTML = '';
-
-            try {
-                const res = await fetchSeguro(`${API_BASE}/api/crm`, { headers: headersAuth });
-                const clientes = await res.json();
-
-                clientes.forEach(c => {
-                    const statusVal = c.crm_status || 'A_COBRAR';
-                    let destino = 'crm-col-acobrar';
-                    if (statusVal === 'CONTACTADO') destino = 'crm-col-contactado';
-                    if (statusVal === 'PROMESSA') destino = 'crm-col-promessa';
-                    if (statusVal === 'IGNORADO') destino = 'crm-col-ignorado';
-
-                    const dtVenc = new Date(c.data_vencimento + 'T12:00:00Z');
-                    const hj = new Date(); hj.setHours(0,0,0,0);
-                    const diasAtraso = Math.floor((hj - dtVenc) / (1000 * 60 * 60 * 24));
-                    
-                    // 🚨 CORREÇÃO APLICADA AQUI: usar c.cpf em vez de c.uuid no botão de abrir extrato!
-                    const cardHtml = `
-                        <div id="crm-card-${c.id}" class="bg-slate-800 p-3 rounded-xl border border-slate-600 shadow-lg cursor-grab active:cursor-grabbing hover:border-orange-500 transition-colors" draggable="true" ondragstart="dragKanban(event)">
-                            <div class="flex justify-between items-start mb-2">
-                                <p class="text-[11px] font-bold text-white uppercase truncate pr-2">${escapeHTML(c.nome)}</p>
-                                <span class="bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded text-[8px] font-black whitespace-nowrap">${diasAtraso}d Atraso</span>
-                            </div>
-                            <p class="text-[10px] text-slate-400 mb-2">Dívida: <b class="text-red-400">${formatMoney(c.valor_total)}</b></p>
-                            
-                            <div class="flex gap-2">
-                                <button onclick="abrirExtratoListagem('${c.cpf}')" class="flex-1 bg-slate-900 hover:bg-slate-700 text-slate-300 py-1.5 rounded text-[9px] font-bold transition-colors border border-slate-700"><i class="fa-solid fa-address-card mr-1"></i> Ficha</button>
-                                <button onclick="window.open('https://wa.me/55${(c.telefone||'').replace(/\D/g,'')}', '_blank')" class="flex-1 bg-emerald-900/30 hover:bg-emerald-600 text-emerald-400 hover:text-white py-1.5 rounded text-[9px] font-bold transition-colors border border-emerald-500/30"><i class="fa-brands fa-whatsapp mr-1"></i> Zap</button>
-                            </div>
-                        </div>
-                    `;
-                    document.getElementById(destino).innerHTML += cardHtml;
+                        </div>`;
                 });
             } catch(e) {}
         }
 
-        // Lógica de Drag and Drop (Arrastar)
-        function allowDropKanban(ev) {
-            ev.preventDefault();
+        async function carregarCRM() {
+            document.getElementById('crm-col-acobrar').innerHTML = ''; 
+            document.getElementById('crm-col-contactado').innerHTML = ''; 
+            document.getElementById('crm-col-promessa').innerHTML = ''; 
+            document.getElementById('crm-col-ignorado').innerHTML = '';
+            
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/crm`, { headers: headersAuth }); 
+                const clientes = await res.json();
+                
+                clientes.forEach(c => {
+                    const statusVal = c.crm_status || 'A_COBRAR'; 
+                    let destino = 'crm-col-acobrar';
+                    
+                    if (statusVal === 'CONTACTADO') destino = 'crm-col-contactado'; 
+                    else if (statusVal === 'PROMESSA') destino = 'crm-col-promessa'; 
+                    else if (statusVal === 'IGNORADO') destino = 'crm-col-ignorado';
+                    
+                    const diasAtraso = Math.floor((new Date() - new Date(c.data_vencimento + 'T12:00:00Z')) / (1000 * 60 * 60 * 24));
+                    
+                    document.getElementById(destino).innerHTML += `
+                        <div id="crm-card-${c.id}" class="bg-slate-800 p-3 rounded-xl border border-slate-600 shadow-lg cursor-grab active:cursor-grabbing hover:border-orange-500 transition-colors" draggable="true" ondragstart="dragKanban(event)">
+                            <div class="flex justify-between items-start mb-2">
+                                <p class="text-[11px] font-bold text-white uppercase truncate pr-2">${escapeHTML(c.nome)}</p>
+                                <span class="bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded text-[8px] font-black">${diasAtraso}d Atraso</span>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mb-2">Dívida: <b class="text-red-400">${formatMoney(c.valor_total)}</b></p>
+                            <div class="flex gap-2">
+                                <button onclick="abrirExtratoListagem('${c.cpf}')" class="flex-1 bg-slate-900 text-slate-300 py-1.5 rounded text-[9px] font-bold border border-slate-700">Ficha</button>
+                                <button onclick="window.open('https://wa.me/55${(c.telefone||'').replace(/\D/g,'')}', '_blank')" class="flex-1 bg-emerald-900/30 text-emerald-400 py-1.5 rounded text-[9px] font-bold border border-emerald-500/30">Zap</button>
+                            </div>
+                        </div>`;
+                });
+            } catch(e) {}
         }
-
-        function dragKanban(ev) {
-            ev.dataTransfer.setData("text", ev.target.id);
+        
+        function allowDropKanban(ev) { 
+            ev.preventDefault(); 
         }
-
+        
+        function dragKanban(ev) { 
+            ev.dataTransfer.setData("text", ev.target.id); 
+        }
+        
         async function dropKanban(ev) {
-            ev.preventDefault();
-            const data = ev.dataTransfer.getData("text");
-            const card = document.getElementById(data);
+            ev.preventDefault(); 
+            const data = ev.dataTransfer.getData("text"); 
+            const card = document.getElementById(data); 
             const dropzone = ev.target.closest('.kanban-col');
             
             if (dropzone && card) {
-                dropzone.querySelector('.kanban-cards').appendChild(card);
-                
-                const devedorId = data.replace('crm-card-', '');
+                dropzone.querySelector('.kanban-cards').appendChild(card); 
+                const devedorId = data.replace('crm-card-', ''); 
                 const novoStatus = dropzone.dataset.crm;
                 
-                try {
-                    await fetchSeguro(`${API_BASE}/api/crm/${devedorId}`, {
-                        method: 'PUT', headers: headersAuth, body: JSON.stringify({ status: novoStatus })
-                    });
-                    showToast("Funil de cobrança atualizado.");
-                } catch(e) {
-                    showToast("Erro ao salvar posição.", "error");
-                }
+                try { 
+                    await fetchSeguro(`${API_BASE}/api/crm/${devedorId}`, { 
+                        method: 'PUT', 
+                        headers: headersAuth, 
+                        body: JSON.stringify({ status: novoStatus }) 
+                    }); 
+                    showToast("Funil atualizado."); 
+                } catch(e) {}
             }
         }
     </script>
