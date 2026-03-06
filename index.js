@@ -1150,135 +1150,103 @@ app.post('/api/relatorio-periodo', async (req, res) => {
 // 🚨 O GRANDE CRON JOB DE AUTOMAÇÃO E COBRANÇA
 // ==========================================
 cron.schedule('0 * * * *', async () => {
+    console.log('[CRON] Iniciando verificação de atrasos e juros...');
+
     try {
-        await sleep(Math.floor(Math.random() * 5000));
-        
-        const d_obj = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
-        const dMath = new Date(d_obj.getTime()); 
-        dMath.setHours(0, 0, 0, 0);
+        // 1. Puxa a taxa de juros diária das Configurações do Sistema
+        const { data: configMulta } = await supabase
+            .from('config')
+            .select('valor')
+            .eq('chave', 'multa_diaria') // Certifique-se de criar essa chave na tabela 'config'
+            .maybeSingle();
 
-        const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' });
-        const d0 = formatter.format(d_obj);
-        
-        const lockHour = `${d0}_${d_obj.getHours()}`;
-        const { data: lockCron } = await supabase.from('config').select('valor').eq('chave', 'cron_diario_lock').maybeSingle();
-        
-        if (lockCron && lockCron.valor === lockHour) return; 
-        
-        await supabase.from('config').upsert({ chave: 'cron_diario_lock', valor: lockHour });
-
-        const dates = [d0];
-        for(let i=1; i<=4; i++) {
-            const temp = new Date(d_obj); 
-            temp.setDate(temp.getDate() + i);
-            dates.push(formatter.format(temp));
+        // Se não tiver configurado no painel, o padrão é 2% (2.0)
+        let taxaDiariaPercentual = 2.0; 
+        if (configMulta && configMulta.valor) {
+            taxaDiariaPercentual = parseFloat(configMulta.valor) || 2.0;
         }
+        const taxaMultaDec = taxaDiariaPercentual / 100;
 
-        const { data: confGlobais } = await supabase.from('config').select('*').in('chave', ['pix_avancado', 'multa_diaria']);
-        let configPixString = null; 
-        let taxaMultaDec = 0.03;
-        
-        confGlobais?.forEach(c => {
-            if(c.chave === 'pix_avancado') configPixString = c.valor;
-            if(c.chave === 'multa_diaria') taxaMultaDec = (parseFloat(c.valor) || 3) / 100;
-        });
+        // Pega a data atual no fuso horário do Brasil
+        const momentoBRT = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+        momentoBRT.setHours(0,0,0,0);
+        const dataHojeStr = momentoBRT.toISOString().split('T')[0];
 
-        // 1. CICLO DE LEMBRETES ANTECIPADOS
-        let ptrLemb = 0; 
-        let runLemb = true;
-        
-        while (runLemb) {
-            const { data: lembretes } = await supabase.from('devedores')
-                .select('*')
-                .eq('pago', false)
-                .in('status', ['ABERTO'])
-                .in('data_vencimento', dates)
-                .range(ptrLemb, ptrLemb + 999);
-                
-            if (!lembretes || lembretes.length === 0) break;
-            
-            for (const dev of lembretes) {
-                try {
-                    let valorParcelaReal = dev.qtd_parcelas > 1 ? (dev.valor_total / dev.qtd_parcelas) : dev.valor_total;
-                    const pixDaVez = escolherPixInteligente(configPixString, valorParcelaReal);
-                    
-                    await enviarLembreteVencimento(dev.telefone, dev.nome, parseFloat(valorParcelaReal), dev.data_vencimento, pixDaVez);
-                    await sleep(2500); 
-                } catch (e) { }
-            }
-            
-            if (lembretes.length < 1000) runLemb = false;
-            ptrLemb += 1000;
-        }
+        // 2. Busca configurações de PIX para enviar na mensagem (se usar)
+        const { data: configPixData } = await supabase.from('config').select('valor').eq('chave', 'pix_avancado').maybeSingle();
+        const configPixString = configPixData ? configPixData.valor : null;
 
-        // 2. CICLO DE PUNIÇÃO (MULTA SOBRE CAPITAL) E AVISO DE ATRASO
-        let runAtraso = true; 
-        const clientesOff = new Set(); 
-        
+        let runAtraso = true;
+        let pA = 0;
+        const clientesOff = new Set();
+
         while (runAtraso) {
-            let qAtraso = supabase.from('devedores')
+            const { data: emAtraso, error } = await supabase
+                .from('devedores')
                 .select('*')
-                .eq('pago', false)
-                .eq('isento_multa', false) // 🚨 ADICIONADA TRAVA PARA ISENTOS
                 .in('status', ['ABERTO', 'ATRASADO'])
-                .lt('data_vencimento', d0)
-                .or(`ultima_cobranca_atraso.neq.${d0},ultima_cobranca_atraso.is.null`)
-                .range(0, 999);
-                
-            if (clientesOff.size > 0) {
-                qAtraso = qAtraso.not('id', 'in', `(${Array.from(clientesOff).join(',')})`);
-            }
+                .lt('data_vencimento', dataHojeStr) // Venceu antes de hoje
+                .range(pA, pA + 999);
 
-            const { data: emAtraso } = await qAtraso;
-            
-            if (!emAtraso || emAtraso.length === 0) break;
+            if (error || !emAtraso || emAtraso.length === 0) break;
 
             for (const dev of emAtraso) {
+                if (clientesOff.has(dev.id) || dev.isento_multa) continue;
+
                 try {
-                    const dataBaseCalculo = dev.ultima_cobranca_atraso ? new Date(dev.ultima_cobranca_atraso + 'T00:00:00-03:00') : new Date(dev.data_vencimento + 'T00:00:00-03:00');
-                    const diasParaCobrar = Math.round((dMath - dataBaseCalculo) / (1000 * 60 * 60 * 24));
+                    // TRAVA DE SEGURANÇA: Se já cobrou juros HOJE, ignora e vai pro próximo cliente.
+                    if (dev.ultima_cobranca_atraso === dataHojeStr) {
+                        continue; 
+                    }
+
+                    const dtVenc = new Date(dev.data_vencimento + 'T12:00:00Z');
+                    dtVenc.setHours(0,0,0,0);
                     
-                    if (diasParaCobrar > 0 && diasParaCobrar <= 365) {
-                        const capitalOriginal = parseFloat(dev.valor_emprestado || 0);
-                        let novoValor = parseFloat(dev.valor_total || 0); 
-                        let multasAcumuladas = 0;
+                    const totalDiasAtraso = Math.floor((momentoBRT - dtVenc) / (1000 * 60 * 60 * 24));
+                    
+                    if (totalDiasAtraso > 0 && totalDiasAtraso <= 365) {
+                        // Calcula a multa apenas sobre o Capital Emprestado (Raiz) para 1 DIA
+                        const capitalRaiz = parseFloat(dev.valor_emprestado) || parseFloat(dev.valor_total);
+                        const valorMultaDeHoje = capitalRaiz * taxaMultaDec;
                         
-                        for (let i = 0; i < diasParaCobrar; i++) {
-                            let multaDoDia = Math.round((capitalOriginal * taxaMultaDec) * 100) / 100;
-                            novoValor = Math.round((novoValor + multaDoDia) * 100) / 100;
-                            multasAcumuladas += multaDoDia;
-                        }
-                        
-                        const totalDiasAtraso = Math.round((dMath - new Date(dev.data_vencimento + 'T00:00:00-03:00')) / (1000 * 60 * 60 * 24));
-                        
+                        const saldoAtual = parseFloat(dev.valor_total) || 0;
+                        const novoValor = saldoAtual + valorMultaDeHoje;
+
+                        // 3. Atualiza o banco, cravando que HOJE já foi cobrado
                         await supabase.from('devedores').update({ 
                             valor_total: novoValor, 
-                            ultima_cobranca_atraso: d0, 
-                            status: 'ATRASADO' 
+                            status: 'ATRASADO',
+                            ultima_cobranca_atraso: dataHojeStr // <-- ISSO EVITA O BUG DA DUPLICIDADE!
                         }).eq('id', dev.id);
                         
+                        // Registra no Log
                         await supabase.from('logs').insert([{ 
-                            evento: `Juros de Atraso (${(taxaMultaDec*100).toFixed(1)}%/dia)`, 
-                            detalhes: `Cobrança de ${diasParaCobrar} dia(s) em atraso. Multa aplicada (sobre capital raiz): R$ ${multasAcumuladas.toFixed(2)}. Saldo Final: R$ ${novoValor.toFixed(2)}`, 
+                            evento: `Juros de Atraso (${taxaDiariaPercentual.toFixed(1)}%/dia)`, 
+                            detalhes: `Cobrança de 1 dia aplicado. Multa: R$ ${valorMultaDeHoje.toFixed(2)}. Saldo Final: R$ ${novoValor.toFixed(2)}`, 
                             devedor_id: dev.id 
                         }]);
 
                         let valorParcelaComAtraso = dev.qtd_parcelas > 1 ? (novoValor / dev.qtd_parcelas) : novoValor;
                         const pixDaVezAtraso = escolherPixInteligente(configPixString, valorParcelaComAtraso);
                         
+                        // Envia aviso no Zap (opcional, comente se não quiser mandar msg todo dia)
                         await enviarAvisoAtraso(dev.telefone, dev.nome, valorParcelaComAtraso, totalDiasAtraso, pixDaVezAtraso);
-                        await sleep(2500); 
+                        await sleep(2500); // Pausa para não banir o WhatsApp
                         
-                    } else if (diasParaCobrar > 365 || isNaN(diasParaCobrar)) {
-                        clientesOff.add(dev.id);
+                    } else if (totalDiasAtraso > 365) {
+                        clientesOff.add(dev.id); // Cliente muito atrasado, para de rodar para economizar processamento
                     }
                 } catch (e) { 
                     clientesOff.add(dev.id); 
                 }
             }
             if (emAtraso.length < 1000) runAtraso = false;
+            pA += 1000;
         }
-    } catch(e) { }
+        
+    } catch (err) {
+        console.log('[CRON] Erro ao processar atrasados: ', err.message);
+    }
 });
 
 const PORT = process.env.PORT || 3001;
