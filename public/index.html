@@ -13,7 +13,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
         
         :root { color-scheme: light only; } 
-        html, body { background-color: #020617 !important; color: #f1f5f9 !important; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        html, body { background-color: #020617 !important; color: #f1f5f9 !important; font-family: 'Inter', sans-serif; overflow-x: hidden; scroll-behavior: smooth; }
         
         .glass-card { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.05); }
         .tab-active { color: #3b82f6 !important; border-right: 4px solid #3b82f6; background: linear-gradient(to right, transparent, rgba(59, 130, 246, 0.1)); }
@@ -27,6 +27,24 @@
         .dropdown-menu { display: none; } 
         .dropdown-menu.show { display: block; animation: fadeIn 0.2s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Calculadora Flutuante */
+        .floating-calc {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 100;
+        }
+        .calc-panel {
+            display: none;
+            position: absolute;
+            bottom: 60px;
+            right: 0;
+            width: 320px;
+            transform-origin: bottom right;
+            animation: fadeIn 0.2s ease-out;
+        }
+        .calc-panel.show { display: block; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden" onload="initApp()">
@@ -38,7 +56,7 @@
         </div>
     </div>
 
-    <!-- Modal: Sessão Expirada Seguro (Impede perda de dados) -->
+    <!-- Modal: Sessão Expirada Seguro -->
     <div id="modalSessaoExpirada" class="fixed inset-0 bg-black/95 z-[999] hidden flex flex-col items-center justify-center p-6 text-center backdrop-blur-md">
         <div class="glass-card max-w-md w-full p-8 rounded-3xl border border-red-500/30 shadow-[0_0_50px_rgba(239,68,68,0.2)]">
             <div class="w-20 h-20 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl border border-red-500/50">
@@ -67,6 +85,7 @@
             <button onclick="mudarAba('dashboard')" id="nav-dashboard" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all tab-active"><i class="fa-solid fa-chart-pie w-6"></i> Dashboard</button>
             <button onclick="mudarAba('solicitacoes')" id="nav-solicitacoes" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-inbox w-6"></i> Solicitações</button>
             <button onclick="mudarAba('aberto')" id="nav-aberto" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-wallet w-6"></i> Cobrança Ativa</button>
+            <button onclick="mudarAba('crm')" id="nav-crm" class="w-full text-left px-6 py-3 text-xs font-bold text-orange-400 hover:text-white transition-all"><i class="fa-solid fa-columns w-6"></i> CRM Cobrança</button>
             <button onclick="mudarAba('clientes')" id="nav-clientes" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-users w-6"></i> Clientes / Extrato</button>
             <button onclick="mudarAba('cadastro')" id="nav-cadastro" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-user-plus w-6"></i> Cadastro Manual</button>
             
@@ -76,6 +95,7 @@
             <button onclick="mudarAba('relatorios')" id="nav-relatorios" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-file-invoice-dollar w-6"></i> Relatórios Analíticos</button>
             <button onclick="mudarAba('logs')" id="nav-logs" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-clock-rotate-left w-6"></i> Auditoria (Logs)</button>
             <button onclick="mudarAba('lista-negra')" id="nav-lista-negra" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-user-slash w-6"></i> Lista Negra</button>
+            <button onclick="mudarAba('pix')" id="nav-pix" class="w-full text-left px-6 py-3 text-xs font-bold text-emerald-500 hover:text-white transition-all"><i class="fa-brands fa-pix w-6"></i> Roteamento PIX</button>
             <button onclick="mudarAba('config')" id="nav-config" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-gear w-6"></i> Configurações</button>
         </nav>
         <div class="p-4 border-t border-slate-800">
@@ -87,7 +107,7 @@
     <main class="flex-1 h-full overflow-y-auto p-8 relative">
         <div class="fixed top-[-20%] left-[20%] w-[500px] h-[500px] bg-blue-600 rounded-full mix-blend-multiply filter blur-[150px] opacity-10 pointer-events-none"></div>
 
-        <!-- ABA: DASHBOARD -->
+        <!-- ABA: DASHBOARD E PREVISÃO DE CAIXA -->
         <div id="aba-dashboard" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-chart-pie text-blue-500 mr-2"></i> Visão Geral Financeira</h2>
             
@@ -121,9 +141,21 @@
                 </div>
             </div>
             
-            <div class="glass-card p-6 rounded-3xl border border-slate-700 mt-6">
-                <h3 class="text-xs font-black uppercase text-slate-400 mb-4">Fluxo de Entradas (Últimos 7 Dias)</h3>
-                <canvas id="graficoDashboard" height="80"></canvas>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="glass-card p-6 rounded-3xl border border-slate-700">
+                    <h3 class="text-xs font-black uppercase text-slate-400 mb-4">Fluxo de Entradas (Últimos 7 Dias)</h3>
+                    <canvas id="graficoDashboard" height="150"></canvas>
+                </div>
+                
+                <div class="glass-card p-6 rounded-3xl border border-blue-500/20 flex flex-col h-full max-h-[350px]">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xs font-black uppercase text-blue-400"><i class="fa-regular fa-calendar-days mr-2"></i> Previsão de Entradas</h3>
+                        <button onclick="carregarPrevisaoCaixa()" class="text-[10px] bg-slate-800 text-slate-400 px-3 py-1 rounded hover:text-white transition-all"><i class="fa-solid fa-rotate-right"></i> Atualizar</button>
+                    </div>
+                    <div id="lista-previsao" class="space-y-3 overflow-y-auto custom-scrollbar flex-1 pr-2">
+                        <div class="text-center py-10 text-slate-500 text-xs font-bold">A carregar projeção financeira...</div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -183,7 +215,49 @@
             </div>
         </div>
 
-        <!-- ABA: CLIENTES / EXTRATO (COM ENGENHARIA REVERSA DE LUCRO) -->
+        <!-- ABA: CRM DE COBRANÇA (KANBAN) -->
+        <div id="aba-crm" class="aba-content hidden flex flex-col h-full">
+            <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-columns text-orange-500 mr-2"></i> CRM de Cobrança Ativa</h2>
+            <p class="text-xs text-slate-400 mb-4">Arraste os clientes em atraso entre as colunas para organizar o fluxo de trabalho da sua equipa.</p>
+            
+            <div class="flex-1 overflow-x-auto custom-scrollbar pb-4 flex gap-4">
+                
+                <!-- Coluna 1: A Cobrar -->
+                <div class="min-w-[300px] bg-slate-900/50 rounded-2xl border border-red-500/20 flex flex-col kanban-col" data-crm="A_COBRAR" ondrop="dropKanban(event)" ondragover="allowDropKanban(event)">
+                    <div class="p-3 border-b border-red-500/20 bg-red-900/10 rounded-t-2xl">
+                        <h3 class="text-xs font-black uppercase text-red-400 tracking-widest text-center"><i class="fa-solid fa-triangle-exclamation mr-1"></i> A Cobrar</h3>
+                    </div>
+                    <div class="p-3 flex-1 overflow-y-auto space-y-3 kanban-cards custom-scrollbar min-h-[200px]" id="crm-col-acobrar"></div>
+                </div>
+
+                <!-- Coluna 2: Contactado -->
+                <div class="min-w-[300px] bg-slate-900/50 rounded-2xl border border-blue-500/20 flex flex-col kanban-col" data-crm="CONTACTADO" ondrop="dropKanban(event)" ondragover="allowDropKanban(event)">
+                    <div class="p-3 border-b border-blue-500/20 bg-blue-900/10 rounded-t-2xl">
+                        <h3 class="text-xs font-black uppercase text-blue-400 tracking-widest text-center"><i class="fa-solid fa-phone mr-1"></i> Contactado</h3>
+                    </div>
+                    <div class="p-3 flex-1 overflow-y-auto space-y-3 kanban-cards custom-scrollbar min-h-[200px]" id="crm-col-contactado"></div>
+                </div>
+
+                <!-- Coluna 3: Promessa de Pagamento -->
+                <div class="min-w-[300px] bg-slate-900/50 rounded-2xl border border-emerald-500/20 flex flex-col kanban-col" data-crm="PROMESSA" ondrop="dropKanban(event)" ondragover="allowDropKanban(event)">
+                    <div class="p-3 border-b border-emerald-500/20 bg-emerald-900/10 rounded-t-2xl">
+                        <h3 class="text-xs font-black uppercase text-emerald-400 tracking-widest text-center"><i class="fa-solid fa-handshake mr-1"></i> Promessa de Pgto</h3>
+                    </div>
+                    <div class="p-3 flex-1 overflow-y-auto space-y-3 kanban-cards custom-scrollbar min-h-[200px]" id="crm-col-promessa"></div>
+                </div>
+
+                <!-- Coluna 4: Ignorado / Não Atende -->
+                <div class="min-w-[300px] bg-slate-900/50 rounded-2xl border border-slate-600 flex flex-col kanban-col" data-crm="IGNORADO" ondrop="dropKanban(event)" ondragover="allowDropKanban(event)">
+                    <div class="p-3 border-b border-slate-600 bg-slate-800/50 rounded-t-2xl">
+                        <h3 class="text-xs font-black uppercase text-slate-400 tracking-widest text-center"><i class="fa-solid fa-phone-slash mr-1"></i> Não Atende / Ignorou</h3>
+                    </div>
+                    <div class="p-3 flex-1 overflow-y-auto space-y-3 kanban-cards custom-scrollbar min-h-[200px]" id="crm-col-ignorado"></div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ABA: CLIENTES / EXTRATO (COM SCORE E PENHORES) -->
         <div id="aba-clientes" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-users text-blue-500 mr-2"></i> Gestão de Clientes & Extrato</h2>
             
@@ -200,17 +274,19 @@
                         <div class="w-16 h-16 bg-blue-500/10 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl border border-blue-500/30"><i class="fa-solid fa-user"></i></div>
                         <h2 id="ext_nome" class="text-xl font-black text-white leading-tight">...</h2>
                         <p id="ext_cpf" class="text-xs font-mono text-slate-400 mt-1">...</p>
+                        <!-- SCORE DE CRÉDITO -->
+                        <div id="ext_score_badge" class="mt-3 mx-auto max-w-[150px] py-1 px-3 rounded-full text-[10px] font-black uppercase tracking-widest border border-slate-600 bg-slate-800 text-white">Score: ---</div>
                     </div>
 
-                    <!-- RESUMO DE DÍVIDAS ATIVAS RESTAURADO -->
-                    <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700 mb-2 shadow-inner">
+                    <!-- RESUMO DE DÍVIDAS ATIVAS -->
+                    <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700 mb-2 shadow-inner mt-2">
                         <h3 class="text-[9px] font-black uppercase text-slate-500 mb-2 border-b border-slate-700 pb-1">Resumo de Dívidas Ativas</h3>
                         <p class="text-xs flex justify-between mb-1"><span class="text-slate-400">Capital na Rua:</span> <span id="ext_ativo_capital" class="font-bold text-white">R$ 0,00</span></p>
                         <p class="text-xs flex justify-between mb-1"><span class="text-slate-400">Dívida Total Ativa:</span> <span id="ext_ativo_divida" class="font-bold text-red-400">R$ 0,00</span></p>
                         <p class="text-xs flex justify-between"><span class="text-slate-400">Já Recebido (Ativos):</span> <span id="ext_ativo_pago" class="font-bold text-emerald-400">R$ 0,00</span></p>
                     </div>
                     
-                    <!-- 🚨 LUCRO GLOBAL DESAMBIGUADO E TOTAL EMPRESTADO CLARO -->
+                    <!-- LUCRO GLOBAL DESAMBIGUADO -->
                     <div class="grid grid-cols-2 gap-2 text-center border-t border-b border-slate-700 py-4 my-2">
                         <div class="col-span-2 mb-2 bg-blue-900/20 border border-blue-500/20 p-3 rounded-xl shadow-inner">
                             <p class="text-[9px] font-black uppercase text-blue-400 mb-1">Montante Histórico Total Emprestado</p>
@@ -237,32 +313,48 @@
                     </div>
                 </div>
 
-                <!-- COLUNA DIREITA: LOGS E MOVIMENTAÇÕES -->
-                <div class="col-span-2 glass-card p-6 rounded-3xl border border-slate-700 flex flex-col h-full max-h-[800px]">
-                    <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-4">
-                        <h3 id="titulo_logs_extrato" class="text-xs font-black uppercase text-white"><i class="fa-solid fa-list mr-2 text-blue-500"></i> Últimas Movimentações (Todos os Contratos)</h3>
-                        <button onclick="renderizarLogsExtrato(null)" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg font-bold transition-all"><i class="fa-solid fa-rotate-left mr-1"></i> Limpar Filtro</button>
+                <!-- COLUNA DIREITA: LOGS E GARANTIAS -->
+                <div class="col-span-2 flex flex-col gap-6">
+                    
+                    <!-- MÓDULO: GARANTIAS E PENHORES -->
+                    <div class="glass-card p-6 rounded-3xl border border-orange-500/30">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-sm font-black uppercase text-orange-400"><i class="fa-solid fa-gem mr-2"></i> Gestão de Garantias (Penhores)</h3>
+                            <button onclick="abrirModalGarantia()" class="text-[10px] bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded-lg font-bold transition-all uppercase tracking-widest shadow-lg shadow-orange-500/20"><i class="fa-solid fa-plus mr-1"></i> Novo Penhor</button>
+                        </div>
+                        <div id="lista-garantias-extrato" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Injetado via JS -->
+                            <p class="text-xs text-slate-500 italic col-span-2">Nenhum item registado como garantia.</p>
+                        </div>
                     </div>
-                    <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                        <table class="w-full text-left text-xs">
-                            <thead class="text-[9px] uppercase text-slate-500 sticky top-0 bg-slate-900/90 backdrop-blur z-10 border-b border-slate-700">
-                                <tr>
-                                    <th class="py-2 px-2">Data</th>
-                                    <th class="py-2 px-2">Evento</th>
-                                    <th class="py-2 px-2">Detalhes</th>
-                                    <th class="py-2 px-2 text-right">Valor</th>
-                                </tr>
-                            </thead>
-                            <tbody id="lista-extrato-movimentacoes" class="divide-y divide-slate-800">
-                                <!-- JS -->
-                            </tbody>
-                        </table>
+
+                    <!-- MÓDULO DE LOGS FINANCEIROS -->
+                    <div class="glass-card p-6 rounded-3xl border border-slate-700 flex-1 flex flex-col max-h-[500px]">
+                        <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-4">
+                            <h3 id="titulo_logs_extrato" class="text-xs font-black uppercase text-white"><i class="fa-solid fa-list mr-2 text-blue-500"></i> Últimas Movimentações (Todos os Contratos)</h3>
+                            <button onclick="renderizarLogsExtrato(null)" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg font-bold transition-all"><i class="fa-solid fa-rotate-left mr-1"></i> Limpar Filtro</button>
+                        </div>
+                        <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                            <table class="w-full text-left text-xs">
+                                <thead class="text-[9px] uppercase text-slate-500 sticky top-0 bg-slate-900/90 backdrop-blur z-10 border-b border-slate-700">
+                                    <tr>
+                                        <th class="py-2 px-2">Data</th>
+                                        <th class="py-2 px-2">Evento</th>
+                                        <th class="py-2 px-2">Detalhes</th>
+                                        <th class="py-2 px-2 text-right">Valor</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="lista-extrato-movimentacoes" class="divide-y divide-slate-800">
+                                    <!-- JS -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- ABA: CADASTRO MANUAL / PRÉ-CADASTRO (LIVE SEARCH) -->
+        <!-- ABA: CADASTRO MANUAL / PRÉ-CADASTRO -->
         <div id="aba-cadastro" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-user-plus text-blue-500 mr-2"></i> Cadastro Manual / Pré-Cadastro</h2>
             
@@ -381,7 +473,7 @@
             </form>
         </div>
 
-        <!-- ABA: SAÍDA DE CAIXA / PRÓ-LABORE -->
+        <!-- ABA: SAÍDA DE CAIXA -->
         <div id="aba-caixa" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-money-bill-transfer text-red-500 mr-2"></i> Saída de Caixa / Pró-labore</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -419,7 +511,7 @@
             </div>
         </div>
 
-        <!-- ABA: RELATÓRIOS -->
+        <!-- ABA: RELATÓRIOS E SAFRAS -->
         <div id="aba-relatorios" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-file-invoice-dollar text-emerald-500 mr-2"></i> Dashboard & Relatórios Analíticos</h2>
             
@@ -457,37 +549,31 @@
                         <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Empréstimos Realizados</p>
                         <h3 class="text-3xl font-black text-white mt-1" id="dash-feitos">0</h3>
                     </div>
-                    
                     <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700 relative overflow-hidden">
                         <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-check-double text-6xl text-emerald-400"></i></div>
                         <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Finalizados / Liquidados</p>
                         <h3 class="text-3xl font-black text-emerald-400 mt-1" id="dash-finalizados">0</h3>
                     </div>
-
                     <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700 relative overflow-hidden">
                         <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-hand-holding-dollar text-6xl text-blue-400"></i></div>
                         <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Capital Emprestado</p>
                         <h3 class="text-2xl font-black text-blue-400 mt-1 truncate" id="dash-emprestado">R$ 0,00</h3>
                     </div>
-
                     <div class="bg-slate-800/80 p-5 rounded-xl border border-emerald-900 relative overflow-hidden">
                         <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-vault text-6xl text-emerald-500"></i></div>
                         <p class="text-[10px] text-emerald-500 font-bold uppercase tracking-wider">Retorno para a Conta</p>
                         <h3 class="text-2xl font-black text-emerald-400 mt-1 truncate" id="dash-retorno">R$ 0,00</h3>
                     </div>
-
                     <div class="bg-slate-800/80 p-5 rounded-xl border border-purple-900 relative overflow-hidden col-span-2 lg:col-span-1">
                         <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-arrow-trend-up text-6xl text-purple-400"></i></div>
-                        <p class="text-[10px] text-purple-400 font-bold uppercase tracking-wider">Lucro Líquido</p>
+                        <p class="text-[10px] text-purple-400 font-bold uppercase tracking-wider">Lucro Líquido Real</p>
                         <h3 class="text-2xl font-black text-purple-400 mt-1 truncate" id="dash-lucro">R$ 0,00</h3>
                     </div>
-
                     <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700 relative overflow-hidden">
                         <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-percent text-6xl text-yellow-400"></i></div>
                         <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Juros Pagos (Mensalidades)</p>
                         <h3 class="text-2xl font-black text-yellow-400 mt-1 truncate" id="dash-juros">R$ 0,00</h3>
                     </div>
-
                     <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700 relative overflow-hidden col-span-2 lg:col-span-2">
                         <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-clock text-6xl text-red-400"></i></div>
                         <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Multas Pagas (Atrasos)</p>
@@ -536,6 +622,13 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+
+            <!-- RAIO-X DE SAFRAS -->
+            <h3 class="text-lg font-bold text-white mb-4 mt-10"><i class="fa-solid fa-layer-group text-purple-500 mr-2"></i> Raio-X de Safras (Cohort Analysis)</h3>
+            <p class="text-xs text-slate-400 mb-6">Acompanhe o desempenho de pagamentos e a taxa de inadimplência mês a mês.</p>
+            <div id="lista-safras" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <!-- JS -->
             </div>
         </div>
 
@@ -595,6 +688,81 @@
             </div>
         </div>
 
+        <!-- ABA: ROTEAMENTO PIX -->
+        <div id="aba-pix" class="aba-content hidden">
+            <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-brands fa-pix text-emerald-500 mr-2"></i> Gestão e Roteamento PIX</h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Coluna Esquerda: Cadastro de Chaves -->
+                <div class="glass-card p-6 rounded-3xl border border-slate-700 flex flex-col">
+                    <h3 class="text-xs font-black uppercase text-emerald-400 mb-4 tracking-widest">1. Chaves PIX Disponíveis</h3>
+                    
+                    <div id="lista-chaves-pix" class="space-y-3 mb-6 max-h-60 overflow-y-auto custom-scrollbar flex-1">
+                        <!-- JS Injects Here -->
+                    </div>
+                    
+                    <div class="bg-slate-900/80 p-5 rounded-xl border border-slate-700 mt-auto shadow-inner">
+                        <h4 class="text-[10px] font-black text-slate-400 uppercase mb-3"><i class="fa-solid fa-plus-circle text-emerald-500 mr-1"></i> Cadastrar Nova Chave</h4>
+                        <input type="text" id="nova_chave_nome" placeholder="Nome do Titular (Ex: João Silva)" class="input-dark mb-3 text-sm">
+                        <div class="grid grid-cols-2 gap-3 mb-4">
+                            <input type="text" id="nova_chave_banco" placeholder="Banco (Ex: Nubank)" class="input-dark text-sm">
+                            <input type="text" id="nova_chave_pix" placeholder="Chave PIX (CPF, Celular...)" class="input-dark text-sm font-mono text-emerald-400">
+                        </div>
+                        <button onclick="adicionarChavePixAvancada()" class="w-full bg-slate-800 hover:bg-emerald-600 text-emerald-500 hover:text-white font-bold py-3 rounded-lg transition-all text-xs uppercase tracking-widest border border-emerald-500/20 shadow-lg">Adicionar à Lista</button>
+                    </div>
+                </div>
+
+                <!-- Coluna Direita: Inteligência de Roteamento -->
+                <div class="glass-card p-6 rounded-3xl border border-slate-700 flex flex-col">
+                    <h3 class="text-xs font-black uppercase text-blue-400 mb-4 tracking-widest">2. Inteligência de Roteamento</h3>
+                    
+                    <div class="bg-slate-900/50 p-5 rounded-xl border border-slate-700 flex-1">
+                        <label class="text-[10px] font-black uppercase text-slate-500 mb-2 block">Modo de Operação</label>
+                        <select id="pix_modo_roteamento" class="input-dark mb-6 text-sm font-bold text-white shadow-inner" onchange="alternarModoRoteamentoPix()">
+                            <option value="UNICO">Fixo (Usar sempre a mesma chave PIX)</option>
+                            <option value="ALEATORIO">Rotativo (Alternar aleatoriamente entre as chaves)</option>
+                            <option value="VALOR">Inteligente (Regra Baseada no Valor da Fatura)</option>
+                        </select>
+
+                        <!-- Box: Único -->
+                        <div id="pix_modo_unico_box" class="hidden bg-slate-800/50 p-4 rounded-lg border border-slate-600">
+                            <label class="text-[10px] font-black uppercase text-slate-400 mb-2 block"><i class="fa-solid fa-lock text-slate-500 mr-1"></i> Selecione a Chave Padrão</label>
+                            <select id="pix_chave_padrao" class="input-dark text-sm select-chaves-dinamicas"></select>
+                            <p class="text-[9px] text-slate-500 mt-2">Todas as cobranças e portais exibirão exclusivamente esta chave.</p>
+                        </div>
+
+                        <!-- Box: Aleatório -->
+                        <div id="pix_modo_aleatorio_box" class="hidden bg-purple-900/20 p-4 rounded-lg border border-purple-500/30 text-center">
+                            <i class="fa-solid fa-shuffle text-3xl text-purple-400 mb-3 drop-shadow-md"></i>
+                            <p class="text-xs text-purple-300 font-bold mb-1">Distribuição de Risco Ativada</p>
+                            <p class="text-[10px] text-slate-400">O sistema irá alternar automaticamente a chave PIX a cada nova cobrança enviada ou fatura gerada, utilizando todas as chaves da lista.</p>
+                        </div>
+
+                        <!-- Box: Por Valor -->
+                        <div id="pix_modo_valor_box" class="hidden bg-orange-900/10 p-4 rounded-lg border border-orange-500/20">
+                            <label class="text-[10px] font-black uppercase text-orange-400 mb-2 block"><i class="fa-solid fa-scale-unbalanced text-orange-500 mr-1"></i> Valor Limite de Corte (R$)</label>
+                            <input type="number" id="pix_valor_corte" placeholder="Ex: 1000" class="input-dark mb-4 text-lg font-black text-orange-400 text-center" min="0">
+                            
+                            <div class="grid grid-cols-1 gap-4 border-t border-slate-700 pt-4">
+                                <div>
+                                    <label class="text-[9px] font-black uppercase text-slate-400 mb-1 block">Se a fatura for MENOR que o limite:</label>
+                                    <select id="pix_chave_menor" class="input-dark text-xs select-chaves-dinamicas"></select>
+                                </div>
+                                <div>
+                                    <label class="text-[9px] font-black uppercase text-slate-400 mb-1 block">Se a fatura for MAIOR ou IGUAL ao limite:</label>
+                                    <select id="pix_chave_maior" class="input-dark text-xs select-chaves-dinamicas"></select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="salvarConfiguracaoPixAvancada()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase py-4 rounded-xl transition-all shadow-lg shadow-blue-500/20 mt-6">
+                        <i class="fa-solid fa-save mr-2"></i> Salvar Estratégia PIX
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- ABA: PROMOTORES / RANKING -->
         <div id="aba-ranking" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-handshake text-purple-500 mr-2"></i> Gestão de Indicadores</h2>
@@ -649,7 +817,7 @@
                     </div>
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Multa Diária Atraso (%)</label>
-                        <input type="number" id="conf_multa" class="input-dark mt-1" min="0">
+                        <input type="number" id="conf_multa" class="input-dark mt-1" min="0" step="0.1">
                     </div>
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Valor Mínimo para Crédito (R$)</label>
@@ -662,7 +830,34 @@
 
     </main>
 
-    <!-- MODAIS DE OPERAÇÃO DA EQUIPA -->
+    <!-- MODAIS E POPUPS -->
+
+    <!-- Modal de Garantia -->
+    <div id="modalGarantia" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden z-[150] flex items-center justify-center p-4">
+        <div class="glass-card w-full max-w-md rounded-3xl border border-orange-500/30 p-8 relative">
+            <button onclick="fecharModal('modalGarantia')" class="absolute top-6 right-6 text-slate-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+            <h2 class="text-xl font-black uppercase text-orange-500 mb-6"><i class="fa-solid fa-gem mr-2"></i> Registar Penhor</h2>
+            
+            <input type="hidden" id="garantiaCpf">
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Objeto (Descrição)</label>
+                    <input type="text" id="garantiaDesc" placeholder="Ex: iPhone 13 Pro Max - Preto" class="input-dark mt-1 text-sm font-bold text-white">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Valor Estimado de Mercado (R$)</label>
+                    <input type="number" id="garantiaValor" placeholder="3000" class="input-dark mt-1 font-bold text-orange-400" min="0">
+                </div>
+            </div>
+            <button onclick="salvarGarantia()" class="w-full bg-orange-600 hover:bg-orange-500 text-white py-4 rounded-xl font-black uppercase text-sm shadow-lg shadow-orange-500/20 mt-6">Guardar Garantia</button>
+        </div>
+    </div>
+
+    <!-- Modal: Imagem Fullscreen -->
+    <div id="modalZoom" class="fixed inset-0 bg-black/95 z-[200] hidden flex items-center justify-center p-4 cursor-pointer">
+        <img id="zoomSource" src="" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl">
+    </div>
 
     <!-- Modal: Documentos e Aprovação -->
     <div id="modalDocumentos" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
@@ -714,6 +909,7 @@
                 <div class="bg-slate-900/50 p-5 rounded-2xl border border-slate-700 flex flex-col justify-between" id="box-simulador-cp">
                     <h3 class="text-[10px] font-black uppercase text-emerald-400 mb-3 border-b border-slate-700 pb-2">Simulador & Contra-Proposta</h3>
                     
+                    <!-- FLAG DINHEIRO -->
                     <label class="flex items-center gap-2 cursor-pointer bg-slate-800 px-3 py-2 rounded-lg mb-3 border border-slate-600">
                         <input type="checkbox" id="docApenasDinheiro" class="w-4 h-4 accent-emerald-500">
                         <span class="text-[9px] font-black uppercase text-emerald-400">Apenas Dinheiro Físico (S/ Link PIX)</span>
@@ -763,11 +959,6 @@
         </div>
     </div>
 
-    <!-- Modal: Imagem Fullscreen -->
-    <div id="modalZoom" class="fixed inset-0 bg-black/95 z-[200] hidden flex items-center justify-center p-4 cursor-pointer">
-        <img id="zoomSource" src="" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl">
-    </div>
-
     <!-- Modal: Registrar Pagamento / Terminal -->
     <div id="modalPagamento" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-[150] flex items-center justify-center p-4">
         <div class="glass-card w-full max-w-4xl max-h-[95vh] overflow-y-auto rounded-3xl border border-slate-700 p-8 relative">
@@ -813,7 +1004,6 @@
                         <label class="text-[10px] font-black uppercase text-emerald-500 block mb-2">Valor Recebido (R$)</label>
                         <input type="number" id="pgtoValor" class="input-dark font-black text-emerald-400 text-4xl h-20 w-full text-center shadow-inner" placeholder="0.00" min="0" oninput="if(this.value<0)this.value=0;">
                         
-                        <!-- 🚨 Mostra o Juros como Valor Mínimo para o Gestor -->
                         <div class="mt-4 p-3 bg-slate-900 rounded-lg border border-slate-800 text-center">
                             <p class="text-[10px] text-slate-400 uppercase font-bold">Juros/Multas Atuais (Mínimo para Rolagem)</p>
                             <p id="pgtoMinimoJuros" class="text-lg text-orange-400 font-black mt-1">R$ 0,00</p>
@@ -863,7 +1053,7 @@
             <input type="hidden" id="editDevedorId">
             <input type="hidden" id="editJaPago">
             
-            <!-- 🚨 FLAG PARA DINHEIRO NA EDIÇÃO -->
+            <!-- FLAG DINHEIRO EDIÇÃO -->
             <label class="flex items-center gap-2 cursor-pointer bg-slate-900/50 px-4 py-3 rounded-xl border border-slate-700 hover:border-emerald-500 transition-colors mb-4">
                 <input type="checkbox" id="editApenasDinheiro" class="w-4 h-4 accent-emerald-500 rounded cursor-pointer">
                 <span class="text-[10px] font-black uppercase text-emerald-400">Cliente Paga Só em Dinheiro (Bloqueia Link PIX)</span>
@@ -916,7 +1106,7 @@
         const token = localStorage.getItem('token');
         const headersAuth = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 
-        // 🚨 PREVENÇÃO DE SESSÃO EXPIRADA (Garante que os dados não se perdem)
+        // 🚨 PREVENÇÃO DE SESSÃO EXPIRADA
         const fetchSeguro = async (url, options = {}) => {
             const response = await fetch(url, options);
             if (response.status === 401 || response.status === 403) {
@@ -971,6 +1161,7 @@
             if (aba === 'dashboard') carregarDash();
             if (aba === 'solicitacoes') carregarSoli();
             if (aba === 'aberto') carregarAberto();
+            if (aba === 'crm') carregarCRM();
             if (aba === 'caixa') carregarSaidas();
             if (aba === 'ranking') carregarPromotores();
             if (aba === 'logs') carregarTodosLogs();
@@ -978,13 +1169,12 @@
             if (aba === 'relatorios') {
                 carregarRelatorios();
                 carregarDashboard();
+                carregarSafras();
             }
             if (aba === 'config') carregarConfig();
+            if (aba === 'pix') carregarConfig();
         }
 
-        // =====================================
-        // FECHAMENTO INTELIGENTE DOS MODAIS (UX)
-        // =====================================
         function fecharModal(id) { 
             document.getElementById(id).classList.add('hidden'); 
         }
@@ -1012,8 +1202,73 @@
         });
 
         // =====================================
-        // DASHBOARD FINANCEIRO E RELATÓRIOS
+        // CALCULADORA FLUTUANTE
         // =====================================
+        function simularFlutuante() {
+            const valor = parseFloat(document.getElementById('sim_valor').value) || 0;
+            const taxa = parseFloat(document.getElementById('sim_taxa').value) || 0;
+            const parcelas = parseInt(document.getElementById('sim_parc').value) || 1;
+
+            const taxaCalculada = parcelas > 1 ? (taxa / 100) * parcelas : (taxa / 100);
+            const total = valor * (1 + taxaCalculada);
+            const valParcela = total / parcelas;
+
+            if (parcelas > 1) {
+                document.getElementById('sim_resultado').innerText = `${parcelas}x de ${formatMoney(valParcela)} (Total: ${formatMoney(total)})`;
+            } else {
+                document.getElementById('sim_resultado').innerText = `1x de ${formatMoney(total)} (30 dias)`;
+            }
+        }
+
+        function copiarSimulacao() {
+            const result = document.getElementById('sim_resultado').innerText;
+            if (result === "R$ 0,00") return;
+            navigator.clipboard.writeText(`Simulação CMS Ventures:\n${result}`);
+            showToast("Simulação copiada para colar no WhatsApp!");
+        }
+
+        // =====================================
+        // DASHBOARD E PREVISÃO DE CAIXA
+        // =====================================
+        async function carregarPrevisaoCaixa() {
+            const divLista = document.getElementById('lista-previsao');
+            divLista.innerHTML = '<div class="text-center py-6 text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> A calcular projecções...</div>';
+            
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/previsao-caixa`, { headers: headersAuth });
+                if (!res.ok) throw new Error();
+                const dados = await res.json();
+                
+                divLista.innerHTML = '';
+                
+                const datas = Object.keys(dados).sort();
+                if (datas.length === 0) {
+                    divLista.innerHTML = '<div class="text-center py-6 text-slate-500 text-xs">Nenhum recebimento previsto para o futuro.</div>';
+                    return;
+                }
+
+                datas.slice(0, 10).forEach(d => {
+                    const diaData = new Date(d + 'T12:00:00Z');
+                    const obj = dados[d];
+                    
+                    let detalhesStr = obj.clientes.map(c => `${c.nome}: ${formatMoney(c.valor)}`).join(' | ');
+                    
+                    divLista.innerHTML += `
+                        <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-700 flex justify-between items-center group relative cursor-help">
+                            <p class="text-[10px] font-bold text-slate-300"><i class="fa-regular fa-calendar text-blue-500 mr-1"></i> ${diaData.toLocaleDateString('pt-BR')} <span class="text-slate-500 ml-1 font-normal">(${obj.clientes.length} cli.)</span></p>
+                            <p class="text-sm font-black text-emerald-400">${formatMoney(obj.total)}</p>
+                            
+                            <div class="absolute left-0 bottom-full mb-2 hidden group-hover:block w-full bg-slate-800 border border-blue-500/50 p-2 rounded shadow-2xl z-50 text-[9px] text-white">
+                                ${detalhesStr}
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch(e) {
+                divLista.innerHTML = '<div class="text-center py-6 text-red-500 text-xs">Erro ao calcular projecção.</div>';
+            }
+        }
+
         function mudarPeriodoDash() {
             const val = document.getElementById('dash-periodo').value;
             const custom = document.getElementById('dash-custom-dates');
@@ -1074,12 +1329,10 @@
 
         async function carregarDash() {
             try {
+                carregarPrevisaoCaixa();
+                
                 const res = await fetchSeguro(`${API_BASE}/api/dashboard-master`, { headers: headersAuth });
-                if (!res.ok) {
-                    let errObj;
-                    try { errObj = await res.json(); } catch(e) { errObj = { erro: "Falha na base de dados" }; }
-                    throw new Error(errObj.erro);
-                }
+                if (!res.ok) throw new Error("Falha na base de dados");
                 const data = await res.json();
                 
                 document.getElementById('dash-receber').innerText = formatMoney(parseFloat(data.totalAReceber) || parseFloat(data.total_a_receber) || 0);
@@ -1166,9 +1419,7 @@
                         </tr>
                     `;
                 });
-            } catch(e) { 
-                showToast("Falha ao puxar novas solicitações.", "error"); 
-            }
+            } catch(e) {}
         }
 
         function atualizarContraPropostaFreq() {
@@ -1181,15 +1432,12 @@
             recalcularSimulacaoDoc();
         }
 
-        // 🚨 2. CORREÇÃO DA MATEMÁTICA: O jurosBase multiplica pelo número de parcelas no caso de plano parcelado
         function recalcularSimulacaoDoc() {
             const valor = parseFloat(document.getElementById('docNovoValor').value) || 0;
             const jurosBase = parseFloat(document.getElementById('docJuros').value) || 0;
             const parcelas = parseInt(document.getElementById('docNovasParcelas').value) || 1;
             
-            // Regra do cliente confirmada: 25% por parcela. Se forem 2 parcelas, juros de 50%
             const taxaCalculada = parcelas > 1 ? (jurosBase / 100) * parcelas : (jurosBase / 100);
-            
             const total = valor * (1 + taxaCalculada);
             const valorParcela = total / parcelas;
 
@@ -1217,8 +1465,6 @@
             
             const valor = parseFloat(s.valor) || 0;
             const qtdParcelas = parseInt(s.qtd_parcelas) || 1;
-            
-            // 🚨 GARANTE QUE PUXA 25% SE PARCELADO OU 30% SE ÚNICO
             const jurosPadrao = qtdParcelas > 1 ? (window.sistemaConfig?.juros_parcelado || 25) : (window.sistemaConfig?.juros_unico || 30);
 
             document.getElementById('docValor').innerText = formatMoney(valor);
@@ -1299,7 +1545,7 @@
                 const data = await res.json();
                 
                 if (res.ok) { 
-                    showToast(isContraProposta ? "Contra-Proposta enviada ao cliente com transparência!" : "Proposta aprovada com sucesso!"); 
+                    showToast(isContraProposta ? "Contra-Proposta enviada ao cliente!" : "Proposta aprovada com sucesso!"); 
                     const tr = document.getElementById(`tr-soli-${solicitacaoAtualId}`);
                     if(tr) tr.remove();
                     fecharModal('modalDocumentos'); 
@@ -1527,7 +1773,7 @@
                     const jurosAcumulados = Math.max(0, saldoAtual - capitalOri);
                     document.getElementById('pgtoMinimoJuros').innerText = formatMoney(jurosAcumulados);
                 }
-            } catch(e) { console.error("Erro ao carregar estatísticas do cliente", e); }
+            } catch(e) {}
         }
 
         async function confirmarPagamento() {
@@ -1578,23 +1824,8 @@
         }
 
         // =====================================
-        // EDIÇÃO MANUAL E MENSAGENS ZAP
+        // EDIÇÃO MANUAL
         // =====================================
-        async function enviarCobrancaManual(idDevedor) {
-            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
-            showToast("A engatilhar envio de WhatsApp...", "success");
-            try {
-                const res = await fetchSeguro(`${API_BASE}/api/enviar-cobranca-manual`, { 
-                    method: 'POST', headers: headersAuth, body: JSON.stringify({ id: idDevedor }) 
-                });
-                if(res.ok) {
-                    showToast("Notificação de cobrança entregue com sucesso!"); 
-                } else {
-                    throw new Error("Falha no disparo");
-                }
-            } catch(e) { showToast("O cliente não recebeu o aviso. Verifique a Z-API.", "error"); }
-        }
-
         function abrirEdicaoContrato(idDevedor) {
             const dev = listaDevedoresAtuais.find(x => String(x.id) === String(idDevedor));
             if (!dev) return;
@@ -1670,12 +1901,12 @@
         }
 
         // =====================================
-        // 🚨 EXTRATO E VIDA DO CLIENTE (Card Rico com OBS e Histórico Completo)
+        // 🚨 EXTRATO E VIDA DO CLIENTE (SCORE E PENHORES)
         // =====================================
-        function abrirExtratoListagem(cpf) {
+        function abrirExtratoListagem(cpfOuBusca) {
             document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
             mudarAba('clientes');
-            document.getElementById('extrato-busca').value = cpf;
+            document.getElementById('extrato-busca').value = cpfOuBusca;
             buscarExtrato();
         }
 
@@ -1696,6 +1927,13 @@
                 document.getElementById('box-extrato').classList.remove('hidden');
                 document.getElementById('ext_nome').innerText = data.cliente.nome;
                 document.getElementById('ext_cpf').innerText = data.cliente.cpf;
+
+                // Renderiza o Badge de Score de Crédito
+                const scoreBox = document.getElementById('ext_score_badge');
+                let sc = data.score || 500;
+                if(sc >= 750) { scoreBox.className = "mt-3 mx-auto max-w-[150px] py-1 px-3 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-500 bg-emerald-900/30 text-emerald-400"; scoreBox.innerHTML = `🟢 Score: ${sc} (Ouro)`; }
+                else if(sc >= 400) { scoreBox.className = "mt-3 mx-auto max-w-[150px] py-1 px-3 rounded-full text-[10px] font-black uppercase tracking-widest border border-yellow-500 bg-yellow-900/30 text-yellow-400"; scoreBox.innerHTML = `🟡 Score: ${sc} (Médio)`; }
+                else { scoreBox.className = "mt-3 mx-auto max-w-[150px] py-1 px-3 rounded-full text-[10px] font-black uppercase tracking-widest border border-red-500 bg-red-900/30 text-red-400"; scoreBox.innerHTML = `🔴 Score: ${sc} (Risco)`; }
                 
                 let somaCapitalOriginal = 0; 
                 let somaPago = 0;
@@ -1708,7 +1946,6 @@
                     const pago = parseFloat(c.total_ja_pego) || 0;
                     const tot = parseFloat(c.valor_total) || 0;
                     
-                    // 🚨 Lógica de Engenharia Reversa (Cura do Bug Antigo de Capital Apagado)
                     let capReal = 0;
                     const logsDeste = (data.logs || []).filter(l => String(l.devedor_id) === String(c.id));
                     const logLiberacao = logsDeste.find(l => l.evento === 'Empréstimo Liberado' || (l.evento || '').includes('Ajuste Manual'));
@@ -1716,7 +1953,6 @@
                     if (logLiberacao && logLiberacao.valor_fluxo) {
                         capReal = Math.abs(parseFloat(logLiberacao.valor_fluxo));
                     } else {
-                        // Faz a matemática de trás para a frente para adivinhar quanto foi emprestado
                         const tDec = (parseFloat(c.taxa_juros) || 30) / 100;
                         const tAp = c.qtd_parcelas > 1 ? tDec * c.qtd_parcelas : tDec;
                         const dividaBase = (c.status === 'QUITADO' || pago >= parseFloat(c.valor_total)) ? pago : (parseFloat(c.valor_total) + pago);
@@ -1740,7 +1976,6 @@
                     const corLucro = lucroRealizado >= 0 ? 'text-blue-400' : 'text-red-400';
                     const badge = c.status === 'QUITADO' ? 'bg-emerald-500/20 text-emerald-400' : (isActive ? 'bg-red-500/20 text-red-400' : 'bg-slate-700 text-slate-300');
                     
-                    // Cálculo de Dias de Atraso e Multas para a vista de Extrato
                     let diasAtrasoContrato = 0;
                     let multasContrato = 0;
                     
@@ -1762,7 +1997,6 @@
                         }
                     });
                     
-                    // Extração de Data de Contrato, Progresso e Último Pagamento
                     const dtContrato = c.created_at ? new Date(c.created_at).toLocaleDateString('pt-BR') : '--/--/----';
                     const qtdPagas = c.parcelas_pagas || 0;
                     const isQuitado = c.pago || (pago >= tot && tot > 0) || c.status === 'QUITADO';
@@ -1784,7 +2018,6 @@
                         `;
                     }
 
-                    // 🚨 NOVO LAYOUT DO CARTÃO: Agora visível Plano, Taxa Base e Observações!
                     vContratos.innerHTML += `
                     <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700 mb-4 relative shadow-lg">
                         <div class="flex justify-between items-center mb-3 border-b border-slate-700 pb-2">
@@ -1827,7 +2060,6 @@
                 if(document.getElementById('ext_ativo_divida')) document.getElementById('ext_ativo_divida').innerText = formatMoney(sumAtivoDivida);
                 if(document.getElementById('ext_ativo_pago')) document.getElementById('ext_ativo_pago').innerText = formatMoney(sumAtivoPago);
 
-                // 🚨 O Extrato agora mostra o Total Histórico Corretamente Somado
                 if(document.getElementById('ext_global_emprestado')) document.getElementById('ext_global_emprestado').innerText = formatMoney(somaCapitalOriginal);
                 if(document.getElementById('ext_global_pago')) document.getElementById('ext_global_pago').innerText = formatMoney(somaPago);
                 
@@ -1840,10 +2072,10 @@
 
                 logsExtratoGlobal = data.logs || [];
                 renderizarLogsExtrato(null);
+                
+                carregarGarantiasDoCliente(data.cliente.cpf);
 
-            } catch(e) { 
-                showToast("Erro ao carregar o extrato. Verifique a consola.", "error"); 
-            }
+            } catch(e) { showToast("Erro ao carregar o extrato.", "error"); }
         }
 
         function renderizarLogsExtrato(idContrato) {
@@ -1871,6 +2103,92 @@
                     </tr>
                 `;
             });
+        }
+
+        // =====================================
+        // MÓDULO DE PENHORES E GARANTIAS
+        // =====================================
+        function abrirModalGarantia() {
+            if(!window.clienteAtualExtrato) return showToast("Selecione um cliente primeiro.", "error");
+            document.getElementById('garantiaCpf').value = window.clienteAtualExtrato.cpf;
+            document.getElementById('garantiaDesc').value = '';
+            document.getElementById('garantiaValor').value = '';
+            document.getElementById('modalGarantia').classList.remove('hidden');
+        }
+
+        async function salvarGarantia() {
+            const cpf = document.getElementById('garantiaCpf').value;
+            const desc = document.getElementById('garantiaDesc').value;
+            const val = document.getElementById('garantiaValor').value;
+
+            if(!desc || !val) return showToast("Preencha a descrição e o valor do penhor.", "error");
+
+            try {
+                await fetchSeguro(`${API_BASE}/api/garantias`, { 
+                    method: 'POST', headers: headersAuth, body: JSON.stringify({ cpf, descricao: desc, valor_estimado: val }) 
+                });
+                showToast("Garantia Registada!");
+                fecharModal('modalGarantia');
+                carregarGarantiasDoCliente(cpf);
+            } catch(e) { showToast("Erro ao gravar garantia.", "error"); }
+        }
+
+        async function carregarGarantiasDoCliente(cpf) {
+            const divGarantias = document.getElementById('lista-garantias-extrato');
+            divGarantias.innerHTML = '<p class="text-xs text-slate-500 italic col-span-2">A carregar...</p>';
+            
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/garantias/${encodeURIComponent(cpf)}`, { headers: headersAuth });
+                const garantias = await res.json();
+                
+                if(!garantias || garantias.length === 0) {
+                    divGarantias.innerHTML = '<p class="text-xs text-slate-500 italic col-span-2">Nenhum item registado como garantia.</p>';
+                    return;
+                }
+                
+                divGarantias.innerHTML = '';
+                garantias.forEach(g => {
+                    let badge = '';
+                    let acoes = '';
+                    if(g.status === 'ATIVO') {
+                        badge = '<span class="bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded text-[8px] font-black uppercase">Ativo</span>';
+                        acoes = `
+                            <button onclick="alterarStatusGarantia(${g.id}, 'DEVOLVIDO')" class="text-[9px] text-blue-400 hover:text-white uppercase mr-2" title="Devolver ao Cliente"><i class="fa-solid fa-hand-holding-hand"></i> Devolver</button>
+                            <button onclick="alterarStatusGarantia(${g.id}, 'LIQUIDADO')" class="text-[9px] text-red-400 hover:text-white uppercase" title="Liquidar / Vender"><i class="fa-solid fa-gavel"></i> Liquidar</button>
+                        `;
+                    } else if(g.status === 'DEVOLVIDO') {
+                        badge = '<span class="bg-slate-500/20 text-slate-400 px-2 py-0.5 rounded text-[8px] font-black uppercase">Devolvido</span>';
+                    } else {
+                        badge = '<span class="bg-red-500/20 text-red-400 px-2 py-0.5 rounded text-[8px] font-black uppercase">Liquidado (Vendido)</span>';
+                    }
+
+                    divGarantias.innerHTML += `
+                        <div class="bg-slate-900/80 border border-slate-700 p-3 rounded-xl flex flex-col justify-between">
+                            <div>
+                                <div class="flex justify-between items-start mb-1">
+                                    <p class="text-[10px] font-bold text-white leading-tight">${escapeHTML(g.descricao)}</p>
+                                    ${badge}
+                                </div>
+                                <p class="text-xs font-black text-orange-400">${formatMoney(g.valor_estimado)}</p>
+                            </div>
+                            <div class="mt-2 pt-2 border-t border-slate-800 text-right">
+                                ${acoes}
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch(e) { divGarantias.innerHTML = '<p class="text-xs text-red-500 italic col-span-2">Erro ao carregar garantias.</p>'; }
+        }
+
+        async function alterarStatusGarantia(idGarantia, novoStatus) {
+            if(!confirm(`Tem a certeza que deseja marcar este penhor como ${novoStatus}?`)) return;
+            try {
+                await fetchSeguro(`${API_BASE}/api/garantias/${idGarantia}/status`, { 
+                    method: 'PUT', headers: headersAuth, body: JSON.stringify({ status: novoStatus }) 
+                });
+                showToast(`Garantia marcada como ${novoStatus}!`);
+                if(window.clienteAtualExtrato) carregarGarantiasDoCliente(window.clienteAtualExtrato.cpf);
+            } catch(e) { showToast("Erro.", "error"); }
         }
 
         function abrirDossieCliente() {
@@ -2114,7 +2432,7 @@
             }
         }
 
-        // ================= RELATÓRIOS E OUTROS =================
+        // ================= RELATÓRIOS E CAIXA =================
         async function carregarRelatorios() {
             try {
                 const val = document.getElementById('filtro-relatorio').value; 
@@ -2219,93 +2537,101 @@
             } catch(e) {}
         }
 
-        async function carregarListaNegra() {
-            try {
-                const res = await fetchSeguro(`${API_BASE}/api/lista-negra`, { headers: headersAuth }); 
-                if(!res.ok) return;
-                const l = await res.json(); 
-                const tb = document.getElementById('lista-negra-body'); 
-                tb.innerHTML = '';
-                
-                l.forEach(s => {
-                    tb.innerHTML += `
-                        <tr class="border-b border-slate-800/50">
-                            <td class="px-6 py-3 font-mono font-bold text-red-400">${escapeHTML(s.cpf)}</td>
-                            <td class="px-6 py-3 text-xs text-slate-300">${escapeHTML(s.motivo)}</td>
-                            <td class="px-6 py-3 text-xs text-slate-500">${new Date(s.created_at).toLocaleDateString()}</td>
-                            <td class="px-6 py-3 text-center">
-                                <button onclick="removerListaNegra('${escapeHTML(s.cpf)}')" class="text-[10px] text-slate-400 hover:text-white uppercase"><i class="fa-solid fa-trash"></i></button>
-                            </td>
-                        </tr>
+        // ================= CONFIGURAÇÕES PIX AVANÇADO =================
+        let pixAvancado = { chaves: [], modo: 'UNICO', padrao: '', regras: { limite: 1000, menor: '', maior: '' } };
+
+        function renderizarPixAvancado() {
+            const lista = document.getElementById('lista-chaves-pix');
+            const selects = document.querySelectorAll('.select-chaves-dinamicas');
+            
+            lista.innerHTML = '';
+            let optionsHtml = '<option value="">-- Selecione uma Chave --</option>';
+            
+            if(pixAvancado.chaves.length === 0) {
+                lista.innerHTML = '<p class="text-xs text-slate-500 text-center py-4">Nenhuma chave PIX cadastrada.</p>';
+            } else {
+                pixAvancado.chaves.forEach(c => {
+                    optionsHtml += `<option value="${c.id}">${c.nome} (${c.banco}) - ${c.chave}</option>`;
+                    lista.innerHTML += `
+                        <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-700 flex justify-between items-center mb-2">
+                            <div>
+                                <p class="text-[10px] font-bold text-white uppercase">${c.nome} <span class="text-slate-500 font-normal">| ${c.banco}</span></p>
+                                <p class="text-xs font-mono text-emerald-400 mt-1">${c.chave}</p>
+                            </div>
+                            <button onclick="removerChavePix('${c.id}')" class="text-red-500 hover:text-red-400 p-2"><i class="fa-solid fa-trash"></i></button>
+                        </div>
                     `;
                 });
-            } catch(e) {}
+            }
+
+            selects.forEach(sel => {
+                const currentVal = sel.value;
+                sel.innerHTML = optionsHtml;
+                if(currentVal) sel.value = currentVal;
+            });
+
+            document.getElementById('pix_modo_roteamento').value = pixAvancado.modo || 'UNICO';
+            document.getElementById('pix_chave_padrao').value = pixAvancado.padrao || '';
+            document.getElementById('pix_valor_corte').value = pixAvancado.regras?.limite || 1000;
+            document.getElementById('pix_chave_menor').value = pixAvancado.regras?.menor || '';
+            document.getElementById('pix_chave_maior').value = pixAvancado.regras?.maior || '';
+
+            alternarModoRoteamentoPix();
         }
 
-        async function adicionarListaNegra() {
-            const cpf = document.getElementById('ln_cpf').value.replace(/\D/g, ''); 
-            const m = document.getElementById('ln_motivo').value;
-            if(cpf.length !== 11 || !m) return showToast("Dados incorretos.", "error");
-            
-            try { 
-                const res = await fetchSeguro(`${API_BASE}/api/lista-negra`, { 
-                    method: 'POST', headers: headersAuth, body: JSON.stringify({ cpf, motivo: m }) 
-                }); 
-                if(res.ok) { 
-                    showToast("Embargado!"); 
-                    document.getElementById('ln_cpf').value = ''; 
-                    document.getElementById('ln_motivo').value = ''; 
-                    carregarListaNegra(); 
-                } 
-            } catch(e) {}
+        function alternarModoRoteamentoPix() {
+            const modo = document.getElementById('pix_modo_roteamento').value;
+            document.getElementById('pix_modo_unico_box').classList.add('hidden');
+            document.getElementById('pix_modo_aleatorio_box').classList.add('hidden');
+            document.getElementById('pix_modo_valor_box').classList.add('hidden');
+
+            if(modo === 'UNICO') document.getElementById('pix_modo_unico_box').classList.remove('hidden');
+            if(modo === 'ALEATORIO') document.getElementById('pix_modo_aleatorio_box').classList.remove('hidden');
+            if(modo === 'VALOR') document.getElementById('pix_modo_valor_box').classList.remove('hidden');
         }
 
-        async function removerListaNegra(cpf) { 
-            try { 
-                await fetchSeguro(`${API_BASE}/api/lista-negra/${cpf}`, { method: 'DELETE', headers: headersAuth }); 
-                carregarListaNegra(); 
-            } catch(e) {} 
+        function adicionarChavePixAvancada() {
+            const nome = document.getElementById('nova_chave_nome').value.trim();
+            const banco = document.getElementById('nova_chave_banco').value.trim();
+            const chave = document.getElementById('nova_chave_pix').value.trim();
+
+            if(!nome || !banco || !chave) return showToast("Preencha todos os dados da chave PIX", "error");
+
+            pixAvancado.chaves.push({
+                id: 'pix_' + Date.now() + Math.random().toString(36).substr(2, 5),
+                nome, banco, chave
+            });
+
+            document.getElementById('nova_chave_nome').value = '';
+            document.getElementById('nova_chave_banco').value = '';
+            document.getElementById('nova_chave_pix').value = '';
+
+            renderizarPixAvancado();
+            showToast("Chave adicionada. Não esqueça de salvar a estratégia.");
         }
-        
-        async function carregarPromotores() {
+
+        function removerChavePix(id) {
+            pixAvancado.chaves = pixAvancado.chaves.filter(c => c.id !== id);
+            renderizarPixAvancado();
+        }
+
+        async function salvarConfiguracaoPixAvancada() {
+            pixAvancado.modo = document.getElementById('pix_modo_roteamento').value;
+            pixAvancado.padrao = document.getElementById('pix_chave_padrao').value;
+            pixAvancado.regras.limite = parseFloat(document.getElementById('pix_valor_corte').value) || 0;
+            pixAvancado.regras.menor = document.getElementById('pix_chave_menor').value;
+            pixAvancado.regras.maior = document.getElementById('pix_chave_maior').value;
+
             try {
-                const res = await fetchSeguro(`${API_BASE}/api/promotores`, { headers: headersAuth }); 
-                if(!res.ok) return;
-                const l = await res.json(); 
-                const tb = document.getElementById('lista-promotores'); 
-                tb.innerHTML = '';
-                
-                l.forEach(p => {
-                    const volume = p.volume_gerado ? formatMoney(p.volume_gerado) : 'R$ 0,00';
-                    tb.innerHTML += `
-                        <tr class="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
-                            <td class="px-6 py-4 font-bold text-white uppercase">${escapeHTML(p.nome)}</td>
-                            <td class="px-6 py-4 font-mono text-purple-400">${escapeHTML(p.cpf)}</td>
-                            <td class="px-6 py-4 text-xs text-slate-400">${new Date(p.created_at).toLocaleDateString()}</td>
-                            <td class="px-6 py-4 text-right font-black text-emerald-400">${volume}</td>
-                        </tr>
-                    `;
+                const res = await fetchSeguro(`${API_BASE}/api/config`, { 
+                    method: 'POST', headers: headersAuth, 
+                    body: JSON.stringify({ configs: [{chave: 'pix_avancado', valor: JSON.stringify(pixAvancado)}] }) 
                 });
-            } catch(e) {}
+                if(res.ok) showToast("Estratégia PIX salva com sucesso!"); 
+                else throw new Error(); 
+            } catch(e) { showToast("Erro ao gravar estratégia PIX.", "error"); }
         }
 
-        async function adicionarPromotor() {
-            const n = document.getElementById('promo_nome').value; 
-            const c = document.getElementById('promo_cpf').value.replace(/\D/g, '');
-            if(!n || c.length !== 11) return showToast("Dados incorretos.", "error");
-            
-            try { 
-                await fetchSeguro(`${API_BASE}/api/adicionar-promotor`, { 
-                    method: 'POST', headers: headersAuth, body: JSON.stringify({ nome: n, cpf: c }) 
-                }); 
-                showToast("Adicionado!"); 
-                document.getElementById('promo_nome').value = ''; 
-                document.getElementById('promo_cpf').value = ''; 
-                carregarPromotores(); 
-            } catch(e) {}
-        }
-
-        // ================= CONFIGURAÇÕES GERAIS =================
         async function carregarConfig() {
             try {
                 const res = await fetchSeguro(`${API_BASE}/api/config`, { headers: headersAuth }); 
@@ -2320,7 +2646,11 @@
                     if(window.sistemaConfig[c.chave] !== undefined) {
                         window.sistemaConfig[c.chave] = parseFloat(c.valor);
                     }
+                    if(c.chave === 'pix_avancado') {
+                        try { pixAvancado = JSON.parse(c.valor); } catch(err) {}
+                    }
                 });
+                renderizarPixAvancado();
             } catch(e) {}
         }
 
@@ -2334,7 +2664,7 @@
                             {chave: 'juros_parcelado', valor: document.getElementById('conf_juros_parcelado').value}, 
                             {chave: 'multa_diaria', valor: document.getElementById('conf_multa').value}, 
                             {chave: 'valor_minimo', valor: document.getElementById('conf_minimo').value || 500}, 
-                            {chave: 'caixa_total', valor: document.getElementById('conf_caixa_total').value || 50000} 
+                            {chave: 'caixa_total', valor: document.getElementById('conf_caixa_total').value || 50000}
                         ] 
                     }) 
                 });
@@ -2347,6 +2677,131 @@
                     throw new Error(); 
                 }
             } catch(e) { showToast("Erro ao gravar.", "error"); }
+        }
+
+        // =====================================
+        // 🚀 NOVO: CRM KANBAN E SAFRAS
+        // =====================================
+
+        // --- SAFRAS (COHORT) ---
+        async function carregarSafras() {
+            const container = document.getElementById('lista-safras');
+            container.innerHTML = '<p class="text-xs text-slate-500">A processar dados históricos...</p>';
+            
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/safras`, { headers: headersAuth });
+                if (!res.ok) throw new Error();
+                const safras = await res.json();
+                
+                container.innerHTML = '';
+                safras.forEach(s => {
+                    // O '-02' previne bugs de fuso horário onde o mês volta 1 dia para trás
+                    const dataFormatada = new Date(s.mes + '-02').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                    
+                    const inadimplencia = s.total_clientes > 0 ? Math.round((s.atrasados / s.total_clientes) * 100) : 0;
+                    const sucesso = s.total_clientes > 0 ? Math.round((s.quitados / s.total_clientes) * 100) : 0;
+                    
+                    let corStatus = 'border-emerald-500/30';
+                    if (inadimplencia > 15) corStatus = 'border-yellow-500/50';
+                    if (inadimplencia > 30) corStatus = 'border-red-500/50';
+
+                    container.innerHTML += `
+                        <div class="glass-card p-5 rounded-2xl border ${corStatus} relative overflow-hidden">
+                            <h4 class="text-[10px] font-black uppercase text-white mb-1 tracking-widest">${dataFormatada}</h4>
+                            <p class="text-xs text-slate-400 mb-4">Volume Libertado: <b class="text-blue-400">${formatMoney(s.volume_emprestado)}</b></p>
+                            
+                            <div class="space-y-2 text-xs">
+                                <div class="flex justify-between items-center bg-slate-900/50 p-2 rounded">
+                                    <span class="text-slate-500">Total Aprovados</span>
+                                    <span class="font-bold text-white">${s.total_clientes} clientes</span>
+                                </div>
+                                <div class="flex justify-between items-center bg-emerald-900/10 border border-emerald-500/20 p-2 rounded">
+                                    <span class="text-emerald-500/70">Quitados (Sucesso)</span>
+                                    <span class="font-black text-emerald-400">${s.quitados} (${sucesso}%)</span>
+                                </div>
+                                <div class="flex justify-between items-center bg-red-900/10 border border-red-500/20 p-2 rounded">
+                                    <span class="text-red-500/70">Inadimplentes (Risco)</span>
+                                    <span class="font-black text-red-400">${s.atrasados} (${inadimplencia}%)</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch(e) { container.innerHTML = '<p class="text-xs text-red-500">Erro ao processar safras.</p>'; }
+        }
+
+        // --- CRM KANBAN (ARRASTAR E LARGAR) ---
+        async function carregarCRM() {
+            document.getElementById('crm-col-acobrar').innerHTML = '';
+            document.getElementById('crm-col-contactado').innerHTML = '';
+            document.getElementById('crm-col-promessa').innerHTML = '';
+            document.getElementById('crm-col-ignorado').innerHTML = '';
+
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/crm`, { headers: headersAuth });
+                const clientes = await res.json();
+
+                clientes.forEach(c => {
+                    const statusVal = c.crm_status || 'A_COBRAR';
+                    let destino = 'crm-col-acobrar';
+                    if (statusVal === 'CONTACTADO') destino = 'crm-col-contactado';
+                    if (statusVal === 'PROMESSA') destino = 'crm-col-promessa';
+                    if (statusVal === 'IGNORADO') destino = 'crm-col-ignorado';
+
+                    const dtVenc = new Date(c.data_vencimento + 'T12:00:00Z');
+                    const hj = new Date(); hj.setHours(0,0,0,0);
+                    const diasAtraso = Math.floor((hj - dtVenc) / (1000 * 60 * 60 * 24));
+                    
+                    // 🚨 CORREÇÃO APLICADA AQUI: usar c.cpf em vez de c.uuid no botão de abrir extrato!
+                    const cardHtml = `
+                        <div id="crm-card-${c.id}" class="bg-slate-800 p-3 rounded-xl border border-slate-600 shadow-lg cursor-grab active:cursor-grabbing hover:border-orange-500 transition-colors" draggable="true" ondragstart="dragKanban(event)">
+                            <div class="flex justify-between items-start mb-2">
+                                <p class="text-[11px] font-bold text-white uppercase truncate pr-2">${escapeHTML(c.nome)}</p>
+                                <span class="bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded text-[8px] font-black whitespace-nowrap">${diasAtraso}d Atraso</span>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mb-2">Dívida: <b class="text-red-400">${formatMoney(c.valor_total)}</b></p>
+                            
+                            <div class="flex gap-2">
+                                <button onclick="abrirExtratoListagem('${c.cpf}')" class="flex-1 bg-slate-900 hover:bg-slate-700 text-slate-300 py-1.5 rounded text-[9px] font-bold transition-colors border border-slate-700"><i class="fa-solid fa-address-card mr-1"></i> Ficha</button>
+                                <button onclick="window.open('https://wa.me/55${(c.telefone||'').replace(/\D/g,'')}', '_blank')" class="flex-1 bg-emerald-900/30 hover:bg-emerald-600 text-emerald-400 hover:text-white py-1.5 rounded text-[9px] font-bold transition-colors border border-emerald-500/30"><i class="fa-brands fa-whatsapp mr-1"></i> Zap</button>
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById(destino).innerHTML += cardHtml;
+                });
+            } catch(e) {}
+        }
+
+        // Lógica de Drag and Drop (Arrastar)
+        function allowDropKanban(ev) {
+            ev.preventDefault();
+        }
+
+        function dragKanban(ev) {
+            ev.dataTransfer.setData("text", ev.target.id);
+        }
+
+        async function dropKanban(ev) {
+            ev.preventDefault();
+            const data = ev.dataTransfer.getData("text");
+            const card = document.getElementById(data);
+            const dropzone = ev.target.closest('.kanban-col');
+            
+            if (dropzone && card) {
+                dropzone.querySelector('.kanban-cards').appendChild(card);
+                
+                const devedorId = data.replace('crm-card-', '');
+                const novoStatus = dropzone.dataset.crm;
+                
+                try {
+                    await fetchSeguro(`${API_BASE}/api/crm/${devedorId}`, {
+                        method: 'PUT', headers: headersAuth, body: JSON.stringify({ status: novoStatus })
+                    });
+                    showToast("Funil de cobrança atualizado.");
+                } catch(e) {
+                    showToast("Erro ao salvar posição.", "error");
+                }
+            }
         }
     </script>
 </body>

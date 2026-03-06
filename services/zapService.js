@@ -36,16 +36,15 @@ const enviarZap = async (numeroRecebido, mensagem) => {
 };
 
 /**
- * [NOVO] APROVAÇÃO E CONTRAPROPOSTA TRANSPARENTE
- * O cliente vê os novos termos antes de clicar no link.
+ * APROVAÇÃO E CONTRAPROPOSTA TRANSPARENTE
  */
 const enviarAprovacaoComTermos = async (numero, nome, valor, parcelas, frequencia, valorParcela, linkAssinatura, isContraProposta = false) => {
     let msg = '';
     
     if (isContraProposta) {
-        msg = `Olá, ${nome.split(' ')[0]}! 🤝\n\nA sua análise de crédito foi concluída. Não conseguimos liberar as condições originais, mas temos uma *CONTRAPROPOSTA* aprovada para si:\n\n`;
+        msg = `Olá, ${nome.split(' ')[0]}! 🤝\n\nA sua análise de crédito foi concluída. Não conseguimos liberar as condições originais, mas temos uma *CONTRAPROPOSTA* aprovada para você:\n\n`;
     } else {
-        msg = `🎉 *Boas notícias, ${nome.split(' ')[0]}!*\n\nA sua análise de crédito foi concluída e temos uma proposta aprovada para si:\n\n`;
+        msg = `🎉 *Boas notícias, ${nome.split(' ')[0]}!*\n\nA sua análise de crédito foi concluída e temos uma proposta aprovada para você:\n\n`;
     }
 
     msg += `💰 *Valor Liberado:* R$ ${Number(valor).toFixed(2)}\n`;
@@ -56,33 +55,54 @@ const enviarAprovacaoComTermos = async (numero, nome, valor, parcelas, frequenci
         msg += `📅 *Plano:* Parcela Única em 30 Dias\n\n`;
     }
 
-    msg += `Para ler os termos completos, aceitar a proposta e receber o seu PIX, clique no link oficial abaixo:\n🔗 ${linkAssinatura}`;
+    msg += `Para ler os termos completos, assinar digitalmente e receber o seu PIX, acesse o portal abaixo:\n🔗 ${linkAssinatura}`;
     
     return await enviarZap(numero, msg);
 };
 
 /**
- * Envia lembrete de cobrança (Vencimento Padrão)
- * Focado 100% em enviar o cliente para o Portal de Pagamento.
+ * Lembrete de Cobrança com PIX direto na mensagem
  */
-const enviarLembreteVencimento = async (numero, nome, valor, dataVenc, linkPortal) => {
+const enviarLembreteVencimento = async (numero, nome, valor, dataVenc, linkPortal, pixDados) => {
     const dataFormatada = new Date(dataVenc + 'T12:00:00Z').toLocaleDateString('pt-BR');
-    let msg = `⏰ *LEMBRETE DE VENCIMENTO*\n\nOlá ${nome.split(' ')[0]}, a sua parcela de *R$ ${Number(valor).toFixed(2)}* vence a *${dataFormatada}*.\n`;
     
-    // Sempre envia o link do portal para geração do IPIX
-    msg += `\nPara gerar a sua chave PIX de pagamento, aceda ao seu portal exclusivo:\n🔗 ${linkPortal}`;
+    let msg = `⏰ *LEMBRETE DE VENCIMENTO*\n\nOlá ${nome.split(' ')[0]}, a sua fatura de *R$ ${Number(valor).toFixed(2)}* tem vencimento em *${dataFormatada}*.\n\n`;
+    
+    if (pixDados && pixDados.chave) {
+        msg += `🏦 *DADOS PARA PAGAMENTO (PIX)*\n`;
+        msg += `Para sua comodidade, realize a transferência para a conta oficial:\n\n`;
+        msg += `Favorecido: *${pixDados.nome}*\n`;
+        msg += `Instituição: *${pixDados.banco}*\n\n`;
+        msg += `Copie a chave PIX abaixo:\n`;
+        msg += `${pixDados.chave}\n\n`;
+        msg += `⚠️ _Após o pagamento, envie o comprovativo por aqui para darmos baixa._\n\n`;
+    }
+
+    if (linkPortal) {
+        msg += `Se desejar consultar o seu extrato completo, acesse o portal:\n🔗 ${linkPortal}`;
+    }
 
     return await enviarZap(numero, msg);
 };
 
 /**
- * [NOVO] AVISO DE ATRASO COM MULTA DIÁRIA (3%)
- * Envia sempre o link do Portal para regularização.
+ * Aviso de Atraso Diário com PIX direto na mensagem
  */
-const enviarAvisoAtraso = async (numero, nome, valorAtualizado, diasAtraso, linkPortal) => {
-    let msg = `⚠️ *AVISO DE ATRASO - ${diasAtraso} DIAS* ⚠️\n\nOlá ${nome.split(' ')[0]},\n\nIdentificámos que o seu contrato está em atraso.\nConforme as regras, foi aplicado o acréscimo de *3% ao dia* sobre o saldo.\n\n*Novo Valor Atualizado:* R$ ${Number(valorAtualizado).toFixed(2)}\n`;
+const enviarAvisoAtraso = async (numero, nome, valorAtualizado, diasAtraso, linkPortal, pixDados) => {
+    let msg = `⚠️ *AVISO DE ATRASO - ${diasAtraso} DIAS* ⚠️\n\nOlá ${nome.split(' ')[0]},\n\nIdentificamos que a sua fatura encontra-se em atraso.\n\nO valor atualizado (com as multas diárias aplicadas) é de *R$ ${Number(valorAtualizado).toFixed(2)}*.\n\n`;
     
-    msg += `\nEvite que o seu saldo continue a crescer. Regularize hoje acedendo ao seu portal:\n🔗 ${linkPortal}`;
+    if (pixDados && pixDados.chave) {
+        msg += `🏦 *REGULARIZE AGORA VIA PIX:*\n`;
+        msg += `Favorecido: *${pixDados.nome}*\n`;
+        msg += `Instituição: *${pixDados.banco}*\n\n`;
+        msg += `Chave PIX:\n`;
+        msg += `${pixDados.chave}\n\n`;
+        msg += `⚠️ _Evite que o seu saldo continue a crescer. Assim que pagar, envie-nos o comprovativo!_\n\n`;
+    }
+    
+    if (linkPortal) {
+        msg += `Se preferir, acesse a fatura detalhada no portal:\n🔗 ${linkPortal}`;
+    }
     
     return await enviarZap(numero, msg);
 };
@@ -110,5 +130,5 @@ module.exports = {
     verificarStatusZapi,
     enviarLembreteVencimento,
     enviarAvisoAtraso,
-    enviarAprovacaoComTermos // 🚨 AGORA EXPORTADO CORRETAMENTE!
+    enviarAprovacaoComTermos
 };
