@@ -194,9 +194,10 @@ app.post('/cliente-aceitou', async (req, res) => {
         momentBRT.setDate(momentBRT.getDate() + (dev.frequencia === 'SEMANAL' ? 7 : 30));
         const dataVencimentoReal = momentBRT.toISOString().split('T')[0];
 
-        await supabase.from('devedores').update({ status: 'ABERTO', data_vencimento: dataVencimentoReal }).eq('id', dev.id);
+        // MANTEMOS A DATA ORIGINAL GRAVADA NO MOMENTO DA APROVAÇÃO, EM VEZ DE RECALCULAR
+        await supabase.from('devedores').update({ status: 'ABERTO' }).eq('id', dev.id);
         await supabase.from('solicitacoes').update({ status: 'ASSINADO' }).eq('cpf', dev.cpf).eq('status', 'APROVADO_CP');
-        await supabase.from('logs').insert([{ evento: "Assinatura Digital", detalhes: `Contrato ativado. Vencimento configurado para: ${dataVencimentoReal}.`, devedor_id: dev.id }]); 
+        await supabase.from('logs').insert([{ evento: "Assinatura Digital", detalhes: `Contrato ativado. Vencimento mantido em: ${dev.data_vencimento}.`, devedor_id: dev.id }]); 
         res.json({ status: 'Assinado' }); 
     } catch(e) { res.status(500).json({ erro: e.message }); } 
 });
@@ -298,7 +299,7 @@ app.get('/api/solicitacoes-pendentes', async (req, res) => {
 });
 
 app.post('/api/aprovar-solicitacao', async (req, res) => {
-    const { id, juros, observacao, novoValor, novaFreq, novasParcelas, cobrarSoEmDinheiro, isContraProposta } = req.body;
+    const { id, juros, observacao, novoValor, novaFreq, novasParcelas, cobrarSoEmDinheiro, isContraProposta, isentoMulta } = req.body;
     
     const lockKey = `aprovar_${id}`;
     if (travasAtivasPainel.has(lockKey)) return res.status(429).json({ erro: "Operação em andamento." });
@@ -309,7 +310,9 @@ app.post('/api/aprovar-solicitacao', async (req, res) => {
         if (errSol || !sol) throw new Error("Solicitação não encontrada.");
         if (sol.status !== 'PENDENTE') return res.status(400).json({ erro: "Esta solicitação já foi tratada." });
 
-        const jurosDecimal = Math.max(0, (limparMoeda(juros) || 30) / 100);
+        let valorJurosLimpo = limparMoeda(juros);
+        const jurosDecimal = Math.max(0, (valorJurosLimpo !== null && valorJurosLimpo !== undefined ? valorJurosLimpo : 30) / 100);
+        
         const valorFinal = novoValor ? Math.max(0, limparMoeda(novoValor)) : Math.max(0, limparMoeda(sol.valor));
         const freqFinal = novaFreq || sol.frequencia || 'MENSAL';
         
@@ -333,7 +336,9 @@ app.post('/api/aprovar-solicitacao', async (req, res) => {
             frequencia: freqFinal, qtd_parcelas: parcelasFinais, status: 'APROVADO_AGUARDANDO_ACEITE', data_vencimento: dtVencimentoProjetado, 
             taxa_juros: jurosDecimal * 100, observacoes: observacao || '', url_selfie: sol.url_selfie, url_frente: sol.url_frente, 
             url_verso: sol.url_verso, url_residencia: sol.url_residencia, url_casa: sol.url_casa, referencia1_nome: sol.referencia1_nome, 
-            referencia1_tel: sol.referencia1_tel, indicado_por: sol.indicado_por, pago: false, cobrar_so_em_dinheiro: cobrarSoEmDinheiro || false
+            referencia1_tel: sol.referencia1_tel, indicado_por: sol.indicado_por, pago: false, 
+            cobrar_so_em_dinheiro: cobrarSoEmDinheiro || false,
+            isento_multa: isentoMulta || false
         };
 
         if (exDev && exDev.status === 'PRE_CADASTRO') {
@@ -623,7 +628,7 @@ app.get('/api/safras', async (req, res) => {
 // ==========================================
 app.post('/api/editar-contrato', async (req, res) => {
     try {
-        const { id, novoVencimento, novoCapital, novoTotal, novaFrequencia, cobrarSoEmDinheiro, novasParcelas, novaTaxa } = req.body;
+        const { id, novoVencimento, novoCapital, novoTotal, novaFrequencia, cobrarSoEmDinheiro, novasParcelas, novaTaxa, isentoMulta } = req.body;
         
         const { data: devAntigo } = await supabase.from('devedores').select('valor_emprestado, status').eq('id', id).maybeSingle();
         if (devAntigo?.status === 'APROVADO_AGUARDANDO_ACEITE') {
@@ -638,7 +643,8 @@ app.post('/api/editar-contrato', async (req, res) => {
             status: 'ABERTO', 
             ultima_cobranca_atraso: null, 
             pago: false, 
-            cobrar_so_em_dinheiro: cobrarSoEmDinheiro
+            cobrar_so_em_dinheiro: cobrarSoEmDinheiro,
+            isento_multa: isentoMulta || false
         };
 
         if (novasParcelas) payload.qtd_parcelas = parseInt(novasParcelas);
@@ -793,8 +799,9 @@ app.post('/api/cadastrar-cliente-manual', async (req, res) => {
             nome: d.nome, 
             cpf: cpfLimpo, 
             telefone: d.whatsapp, 
-            observacoes: "[Via Cadastro Manual de Balcão]", 
+            observacoes: d.observacoes ? `[Manual] ${d.observacoes}` : "[Via Cadastro Manual de Balcão]", 
             cobrar_so_em_dinheiro: d.cobrar_so_em_dinheiro || false,
+            isento_multa: d.isento_multa || false,
             url_selfie: uS, 
             url_frente: uF, 
             url_verso: uV, 
@@ -1045,11 +1052,19 @@ app.post('/api/relatorio-periodo', async (req, res) => {
                 totalRecebido += v;
                 if (ev === 'Quitação Total') qtdQuitados++;
                 
-                if (log.devedor_id && taxasDevedores[log.devedor_id]) {
-                    const info = taxasDevedores[log.devedor_id];
-                    let tDec = info.taxa / 100;
-                    let taxaAp = info.parcelas > 1 ? tDec * info.parcelas : tDec;
-                    jurosMensalidadeFix += v - (v / (1 + taxaAp));
+                // 🚨 NOVA LÓGICA DE EXTRAÇÃO DE LUCRO REAL
+                if (ev.includes('Juros Retidos') || ev.includes('Juros Extra')) {
+                    const matchExtra = (log.detalhes || "").match(/R\$ ([\d.,]+) convertidos/);
+                    if (matchExtra) {
+                        jurosMensalidadeFix += parseFloat(matchExtra[1].replace(/\./g, '').replace(',', '.'));
+                    }
+                } else if (log.devedor_id && taxasDevedores[log.devedor_id]) {
+                    if (ev === 'Pagamento de Parcela' || ev === 'Recebimento') {
+                        const info = taxasDevedores[log.devedor_id];
+                        let tDec = info.taxa / 100;
+                        let taxaAp = info.parcelas > 1 ? tDec * info.parcelas : tDec;
+                        jurosMensalidadeFix += v - (v / (1 + taxaAp));
+                    }
                 }
             }
             
@@ -1177,6 +1192,7 @@ cron.schedule('0 * * * *', async () => {
             let qAtraso = supabase.from('devedores')
                 .select('*')
                 .eq('pago', false)
+                .eq('isento_multa', false) // 🚨 ADICIONADA TRAVA PARA ISENTOS
                 .in('status', ['ABERTO', 'ATRASADO'])
                 .lt('data_vencimento', d0)
                 .or(`ultima_cobranca_atraso.neq.${d0},ultima_cobranca_atraso.is.null`)

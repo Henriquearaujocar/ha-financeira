@@ -462,14 +462,18 @@
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-700 pb-4 gap-4">
                     <h3 class="text-sm font-black uppercase text-white"><i class="fa-solid fa-id-card mr-2"></i> Dados Pessoais</h3>
                     
-                    <div class="flex flex-wrap gap-4">
-                        <label class="flex items-center gap-2 cursor-pointer bg-slate-900/50 px-4 py-3 rounded-xl border border-slate-700 hover:border-emerald-500 transition-colors">
+                    <div class="flex flex-wrap gap-2 md:gap-4">
+                        <label class="flex items-center gap-2 cursor-pointer bg-slate-900/50 px-3 py-2 rounded-xl border border-slate-700 hover:border-emerald-500 transition-colors">
                             <input type="checkbox" id="cad_apenas_dinheiro" class="w-4 h-4 accent-emerald-500 rounded cursor-pointer">
-                            <span class="text-[10px] font-black uppercase text-emerald-400">Só em Dinheiro</span>
+                            <span class="text-[9px] font-black uppercase text-emerald-400">Só Dinheiro</span>
                         </label>
-                        <label class="flex items-center gap-2 cursor-pointer bg-slate-900/50 px-4 py-3 rounded-xl border border-slate-700 hover:border-blue-500 transition-colors">
+                        <label class="flex items-center gap-2 cursor-pointer bg-slate-900/50 px-3 py-2 rounded-xl border border-slate-700 hover:border-orange-500 transition-colors">
+                            <input type="checkbox" id="cad_isento_multa" class="w-4 h-4 accent-orange-500 rounded cursor-pointer">
+                            <span class="text-[9px] font-black uppercase text-orange-400">Sem Multa Atraso</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer bg-slate-900/50 px-3 py-2 rounded-xl border border-slate-700 hover:border-blue-500 transition-colors">
                             <input type="checkbox" id="check_precadastro" class="w-4 h-4 accent-blue-500 rounded cursor-pointer" onchange="togglePreCadastro()">
-                            <span class="text-[10px] font-black uppercase text-blue-400">Apenas Pré-Cadastro</span>
+                            <span class="text-[9px] font-black uppercase text-blue-400">Pré-Cadastro</span>
                         </label>
                     </div>
                 </div>
@@ -550,6 +554,11 @@
                     <div class="col-span-1 md:col-span-4 mt-2 mb-[-10px]">
                         <p id="cad_taxa_aplicada_txt" class="text-[10px] text-blue-400 font-bold ml-2 text-center md:text-left"></p>
                     </div>
+                </div>
+
+                <div class="mt-4 mb-6">
+                    <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Observações / Garantias (Visível no Extrato)</label>
+                    <textarea id="cad_obs" class="input-dark mt-1 text-sm h-16 resize-none" placeholder="Ex: Deixou moto placa XXX como garantia..."></textarea>
                 </div>
 
                 <button id="btnSalvarCad" type="button" onclick="salvarCadastroRapido()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase py-4 rounded-xl transition-all shadow-lg shadow-blue-500/20">
@@ -990,10 +999,16 @@
                 <div class="bg-slate-900/50 p-5 rounded-2xl border border-slate-700 flex flex-col justify-between" id="box-simulador-cp">
                     <h3 class="text-[10px] font-black uppercase text-emerald-400 mb-3 border-b border-slate-700 pb-2">Simulador & Contra-Proposta</h3>
                     
-                    <label class="flex items-center gap-2 cursor-pointer bg-slate-800 px-3 py-2 rounded-lg mb-3 border border-slate-600">
-                        <input type="checkbox" id="docApenasDinheiro" class="w-4 h-4 accent-emerald-500">
-                        <span class="text-[9px] font-black uppercase text-emerald-400">Apenas Dinheiro Físico (S/ Link PIX)</span>
-                    </label>
+                    <div class="flex flex-col gap-2 mb-3">
+                        <label class="flex items-center gap-2 cursor-pointer bg-slate-800 px-3 py-2 rounded-lg border border-slate-600 hover:border-emerald-500 transition-colors">
+                            <input type="checkbox" id="docApenasDinheiro" class="w-4 h-4 accent-emerald-500">
+                            <span class="text-[9px] font-black uppercase text-emerald-400">Apenas Dinheiro Físico (S/ Link PIX)</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer bg-slate-800 px-3 py-2 rounded-lg border border-slate-600 hover:border-orange-500 transition-colors">
+                            <input type="checkbox" id="docIsentoMulta" class="w-4 h-4 accent-orange-500">
+                            <span class="text-[9px] font-black uppercase text-orange-400">Isentar Cliente da Multa Diária (Atrasos)</span>
+                        </label>
+                    </div>
 
                     <div class="grid grid-cols-2 gap-3 mb-3">
                         <div>
@@ -1146,10 +1161,16 @@
             <input type="hidden" id="editDevedorId">
             <input type="hidden" id="editJaPago">
             
-            <label class="flex items-center gap-2 cursor-pointer bg-slate-900/50 px-4 py-3 rounded-xl border border-slate-700 hover:border-emerald-500 transition-colors mb-4">
-                <input type="checkbox" id="editApenasDinheiro" class="w-4 h-4 accent-emerald-500 rounded cursor-pointer">
-                <span class="text-[10px] font-black uppercase text-emerald-400">Cliente Paga Só em Dinheiro (Bloqueia Link PIX)</span>
-            </label>
+            <div class="flex flex-col gap-2 mb-4">
+                <label class="flex items-center gap-2 cursor-pointer bg-slate-900/50 px-4 py-3 rounded-xl border border-slate-700 hover:border-emerald-500 transition-colors">
+                    <input type="checkbox" id="editApenasDinheiro" class="w-4 h-4 accent-emerald-500 rounded cursor-pointer">
+                    <span class="text-[10px] font-black uppercase text-emerald-400">Cliente Paga Só em Dinheiro (Bloqueia Link PIX)</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer bg-slate-900/50 px-4 py-3 rounded-xl border border-slate-700 hover:border-orange-500 transition-colors">
+                    <input type="checkbox" id="editIsentoMulta" class="w-4 h-4 accent-orange-500 rounded cursor-pointer">
+                    <span class="text-[10px] font-black uppercase text-orange-400">Isentar Cliente da Multa Diária de Atraso</span>
+                </label>
+            </div>
 
             <div class="grid grid-cols-2 gap-4 mb-6">
                 <div>
@@ -1582,7 +1603,9 @@
             document.getElementById('docRef1').textContent = `${s.referencia1_nome || 'N/A'} - ${s.referencia1_tel || ''}`; 
             document.getElementById('docRef2').textContent = `${s.referencia2_nome || 'N/A'} - ${s.referencia2_tel || ''}`; 
             document.getElementById('docObs').value = s.observacoes || ""; 
+            
             document.getElementById('docApenasDinheiro').checked = false;
+            document.getElementById('docIsentoMulta').checked = false;
 
             document.getElementById('docNovoValor').dataset.original = valor; 
             document.getElementById('docJuros').dataset.original = jurosPadrao; 
@@ -1644,6 +1667,7 @@
                         novaFreq: novaFreq, 
                         novasParcelas: parseInt(novasParcelas), 
                         cobrarSoEmDinheiro: document.getElementById('docApenasDinheiro').checked, 
+                        isentoMulta: document.getElementById('docIsentoMulta').checked,
                         isContraProposta: isContraProposta 
                     }) 
                 });
@@ -1968,6 +1992,7 @@
             document.getElementById('editCapital').value = dev.valor_emprestado; 
             document.getElementById('editTotal').value = dev.valor_total; 
             document.getElementById('editApenasDinheiro').checked = dev.cobrar_so_em_dinheiro || false; 
+            document.getElementById('editIsentoMulta').checked = dev.isento_multa || false;
             document.getElementById('editParcelas').value = dev.qtd_parcelas || 1; 
             document.getElementById('editTaxa').value = dev.taxa_juros || 30; 
             document.getElementById('editJaPago').value = dev.total_ja_pego || 0;
@@ -1999,6 +2024,7 @@
                         novoTotal: parseFloat(document.getElementById('editTotal').value), 
                         novaFrequencia: document.getElementById('editFrequencia').value, 
                         cobrarSoEmDinheiro: document.getElementById('editApenasDinheiro').checked, 
+                        isentoMulta: document.getElementById('editIsentoMulta').checked,
                         novasParcelas: parseInt(document.getElementById('editParcelas').value), 
                         novaTaxa: parseFloat(document.getElementById('editTaxa').value) 
                     }) 
@@ -2105,13 +2131,20 @@
                         sumAtivoDivida += tot; 
                         sumAtivoPago += pago; 
                     }
-                    
+
+                    const isentoBadge = c.isento_multa ? '<span class="bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded text-[8px] font-black uppercase ml-2" title="Isento de Multa"><i class="fa-solid fa-ban"></i> S/ Multa Diária</span>' : '';
+                    const obsHtml = c.observacoes && c.observacoes.trim() !== '' ? `
+                        <div class="bg-blue-900/20 border border-blue-500/20 p-2 rounded mt-2 mb-2 text-[10px] text-blue-300">
+                            <i class="fa-solid fa-comment-dots mr-1"></i> <span class="font-bold">OBS:</span> ${escapeHTML(c.observacoes)}
+                        </div>` : '';
+
                     vContratos.innerHTML += `
                     <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700 mb-4">
-                        <div class="flex justify-between items-center mb-2">
-                            <p class="text-xs font-bold text-white"><i class="fa-solid fa-file-signature text-blue-400 mr-1"></i> CT #${c.id} | Início: ${c.created_at ? new Date(c.created_at).toLocaleDateString() : ''}</p>
+                        <div class="flex justify-between items-start mb-2">
+                            <p class="text-xs font-bold text-white leading-tight"><i class="fa-solid fa-file-signature text-blue-400 mr-1"></i> CT #${c.id} <br><span class="text-[9px] text-slate-400 font-normal">Início: ${c.created_at ? new Date(c.created_at).toLocaleDateString() : ''}</span> ${isentoBadge}</p>
                             <span class="text-[9px] font-black ${isActive ? 'text-red-400' : 'text-emerald-400'}">${c.status}</span>
                         </div>
+                        ${obsHtml}
                         <div class="grid grid-cols-3 gap-2 text-[9px] text-center mb-2">
                             <div class="bg-slate-900/50 rounded py-1 border border-slate-700">
                                 <span class="text-slate-500 block">Capital</span>
@@ -2126,7 +2159,7 @@
                                 <span class="font-bold text-emerald-400">${formatMoney(pago)}</span>
                             </div>
                         </div>
-                        <button onclick="renderizarLogsExtrato(${c.id})" class="w-full bg-slate-900 text-slate-400 py-1 rounded text-[9px] border border-slate-700">Ver Histórico</button>
+                        <button onclick="renderizarLogsExtrato(${c.id})" class="w-full bg-slate-900 text-slate-400 py-1 rounded text-[9px] border border-slate-700 hover:bg-slate-700 transition-colors">Ver Histórico de Movimentos</button>
                     </div>`;
                 });
 
@@ -2342,6 +2375,7 @@
             document.getElementById('cad_nome').value = nome;
             document.getElementById('cad_cpf').value = cpf; 
             document.getElementById('cad_zap').value = tel;
+            document.getElementById('cad_obs').value = '';
             
             document.getElementById('autocomplete_resultados').classList.add('hidden'); 
             document.getElementById('busca_cliente_cad').value = nome;
@@ -2351,6 +2385,7 @@
             }
             
             document.getElementById('check_precadastro').checked = false; 
+            document.getElementById('cad_isento_multa').checked = false;
             togglePreCadastro();
         }
         
@@ -2386,7 +2421,9 @@
                     data_vencimento: document.getElementById('cad_venc').value || null, 
                     frequencia: document.getElementById('cad_freq').value || 'MENSAL', 
                     qtd_parcelas: parseInt(document.getElementById('cad_parcelas').value) || 1, 
-                    cobrar_so_em_dinheiro: document.getElementById('cad_apenas_dinheiro').checked
+                    cobrar_so_em_dinheiro: document.getElementById('cad_apenas_dinheiro').checked,
+                    isento_multa: document.getElementById('cad_isento_multa').checked,
+                    observacoes: document.getElementById('cad_obs').value
                 };
                 
                 const res = await fetchSeguro(`${API_BASE}/api/cadastrar-cliente-manual`, { 
@@ -2558,7 +2595,7 @@
         }
 
         // =====================================
-        // PROMOTORES E CONFIGURAÇÕES PIX AVANÇADO
+        // PROMOTORES
         // =====================================
         async function carregarPromotores() {
             try {
@@ -2593,241 +2630,73 @@
                 }); 
                 
                 showToast("Adicionado!"); 
-                carregarPromotores(); 
-            } catch(e) {} 
-        }
-
-        let pixAvancado = { chaves: [], modo: 'UNICO', padrao: '', regras: { limite: 1000, menor: '', maior: '' } };
-        
-        function renderizarPixAvancado() {
-            const lista = document.getElementById('lista-chaves-pix');
-            const selects = document.querySelectorAll('.select-chaves-dinamicas');
-            
-            lista.innerHTML = '';
-            let optionsHtml = '<option value="">-- Selecione uma Chave --</option>';
-            
-            if(pixAvancado.chaves.length === 0) {
-                lista.innerHTML = '<p class="text-xs text-slate-500 text-center py-4">Nenhuma chave PIX cadastrada.</p>';
-            } else {
-                pixAvancado.chaves.forEach(c => {
-                    optionsHtml += `<option value="${c.id}">${c.nome} (${c.banco})</option>`;
-                    lista.innerHTML += `
-                        <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-700 flex justify-between items-center mb-2">
-                            <div>
-                                <p class="text-[10px] font-bold text-white uppercase">${c.nome} | ${c.banco}</p>
-                                <p class="text-xs font-mono text-emerald-400">${c.chave}</p>
-                            </div>
-                            <button onclick="removerChavePix('${c.id}')" class="text-red-500 hover:text-red-400 p-2">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
-                        </div>`;
-                });
+                carregarPromotores();
+                document.getElementById('promo_nome').value = '';
+                document.getElementById('promo_cpf').value = '';
+            } catch(e) {
+                showToast("Erro ao adicionar.", "error");
             }
-            
-            selects.forEach(sel => { 
-                const currentVal = sel.value; 
-                sel.innerHTML = optionsHtml; 
-                if(currentVal) sel.value = currentVal; 
-            });
-            
-            document.getElementById('pix_modo_roteamento').value = pixAvancado.modo || 'UNICO';
-        }
-
-        function alternarModoRoteamentoPix() {
-            const modo = document.getElementById('pix_modo_roteamento').value;
-            
-            document.getElementById('pix_modo_unico_box').classList.add('hidden');
-            document.getElementById('pix_modo_aleatorio_box').classList.add('hidden');
-            document.getElementById('pix_modo_valor_box').classList.add('hidden');
-            
-            if(modo === 'UNICO') document.getElementById('pix_modo_unico_box').classList.remove('hidden');
-            if(modo === 'ALEATORIO') document.getElementById('pix_modo_aleatorio_box').classList.remove('hidden');
-            if(modo === 'VALOR') document.getElementById('pix_modo_valor_box').classList.remove('hidden');
-        }
-
-        function adicionarChavePixAvancada() {
-            const nome = document.getElementById('nova_chave_nome').value.trim();
-            const banco = document.getElementById('nova_chave_banco').value.trim();
-            const chave = document.getElementById('nova_chave_pix').value.trim();
-            
-            if(!nome || !banco || !chave) return showToast("Preencha todos os dados", "error");
-            
-            pixAvancado.chaves.push({ id: 'pix_' + Date.now(), nome, banco, chave });
-            renderizarPixAvancado();
-        }
-
-        function removerChavePix(id) {
-            pixAvancado.chaves = pixAvancado.chaves.filter(c => c.id !== id);
-            renderizarPixAvancado();
-        }
-
-        async function salvarConfiguracaoPixAvancada() {
-            pixAvancado.modo = document.getElementById('pix_modo_roteamento').value;
-            pixAvancado.padrao = document.getElementById('pix_chave_padrao').value;
-            pixAvancado.regras.limite = parseFloat(document.getElementById('pix_valor_corte').value) || 0;
-            pixAvancado.regras.menor = document.getElementById('pix_chave_menor').value;
-            pixAvancado.regras.maior = document.getElementById('pix_chave_maior').value;
-            
-            try {
-                const res = await fetchSeguro(`${API_BASE}/api/config`, { 
-                    method: 'POST', 
-                    headers: headersAuth, 
-                    body: JSON.stringify({ configs: [{chave: 'pix_avancado', valor: JSON.stringify(pixAvancado)}] }) 
-                });
-                
-                if(res.ok) showToast("Estratégia PIX salva com sucesso!"); 
-            } catch(e) {}
-        }
-        
-        async function carregarConfig() {
-            try {
-                const res = await fetchSeguro(`${API_BASE}/api/config`, { headers: headersAuth }); 
-                const confs = await res.json(); 
-                
-                window.sistemaConfig = { valor_minimo: 500, juros_unico: 30, juros_parcelado: 25 }; 
-                
-                confs.forEach(c => {
-                    if(document.getElementById(`conf_${c.chave}`)) {
-                        document.getElementById(`conf_${c.chave}`).value = c.valor;
-                    }
-                    if(window.sistemaConfig[c.chave] !== undefined) {
-                        window.sistemaConfig[c.chave] = parseFloat(c.valor);
-                    }
-                    if(c.chave === 'pix_avancado') {
-                        try { pixAvancado = JSON.parse(c.valor); } catch(err) {}
-                    }
-                });
-                
-                renderizarPixAvancado();
-            } catch(e) {}
-        }
-
-        async function salvarConfig() {
-            try {
-                const res = await fetchSeguro(`${API_BASE}/api/config`, { 
-                    method: 'POST', 
-                    headers: headersAuth, 
-                    body: JSON.stringify({ 
-                        configs: [ 
-                            {chave: 'juros_unico', valor: document.getElementById('conf_juros_unico').value}, 
-                            {chave: 'juros_parcelado', valor: document.getElementById('conf_juros_parcelado').value}, 
-                            {chave: 'multa_diaria', valor: document.getElementById('conf_multa').value}, 
-                            {chave: 'valor_minimo', valor: document.getElementById('conf_minimo').value || 500}, 
-                            {chave: 'caixa_total', valor: document.getElementById('conf_caixa_total').value || 50000} 
-                        ] 
-                    }) 
-                });
-                
-                if(res.ok) { 
-                    showToast("Configurações Salvas."); 
-                    carregarConfig(); 
-                } 
-            } catch(e) {}
         }
 
         // =====================================
-        // SAFRAS E CRM KANBAN
+        // CRM E KANBAN
         // =====================================
-        async function carregarSafras() {
-            const container = document.getElementById('lista-safras'); 
-            container.innerHTML = '<p class="text-xs text-slate-500">A processar...</p>';
-            
-            try {
-                const res = await fetchSeguro(`${API_BASE}/api/safras`, { headers: headersAuth }); 
-                const safras = await res.json(); 
-                
-                container.innerHTML = '';
-                
-                safras.forEach(s => {
-                    const dataFormatada = new Date(s.mes + '-02').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-                    const inadimplencia = s.total_clientes > 0 ? Math.round((s.atrasados / s.total_clientes) * 100) : 0;
-                    const sucesso = s.total_clientes > 0 ? Math.round((s.quitados / s.total_clientes) * 100) : 0;
-                    
-                    container.innerHTML += `
-                        <div class="glass-card p-5 rounded-2xl border border-slate-700">
-                            <h4 class="text-[10px] font-black uppercase text-white mb-1 tracking-widest">${dataFormatada}</h4>
-                            <p class="text-xs text-slate-400 mb-4">Volume: <b class="text-blue-400">${formatMoney(s.volume_emprestado)}</b></p>
-                            <div class="space-y-2 text-xs">
-                                <div class="flex justify-between items-center bg-slate-900/50 p-2 rounded">
-                                    <span class="text-slate-500">Aprovados</span>
-                                    <span class="font-bold text-white">${s.total_clientes}</span>
-                                </div>
-                                <div class="flex justify-between items-center bg-emerald-900/10 p-2 rounded">
-                                    <span class="text-emerald-500/70">Quitados</span>
-                                    <span class="font-black text-emerald-400">${s.quitados} (${sucesso}%)</span>
-                                </div>
-                                <div class="flex justify-between items-center bg-red-900/10 p-2 rounded">
-                                    <span class="text-red-500/70">Inadimplentes</span>
-                                    <span class="font-black text-red-400">${s.atrasados} (${inadimplencia}%)</span>
-                                </div>
-                            </div>
-                        </div>`;
-                });
-            } catch(e) {}
-        }
-
         async function carregarCRM() {
-            document.getElementById('crm-col-acobrar').innerHTML = ''; 
-            document.getElementById('crm-col-contactado').innerHTML = ''; 
-            document.getElementById('crm-col-promessa').innerHTML = ''; 
-            document.getElementById('crm-col-ignorado').innerHTML = '';
-            
             try {
-                const res = await fetchSeguro(`${API_BASE}/api/crm`, { headers: headersAuth }); 
-                const clientes = await res.json();
+                const res = await fetchSeguro(`${API_BASE}/api/crm`, { headers: headersAuth });
+                const dados = await res.json();
                 
-                clientes.forEach(c => {
-                    const statusVal = c.crm_status || 'A_COBRAR'; 
-                    let destino = 'crm-col-acobrar';
+                document.querySelectorAll('.kanban-cards').forEach(c => c.innerHTML = '');
+                
+                dados.forEach(d => {
+                    const status = d.crm_status || 'A_COBRAR';
+                    const colId = `crm-col-${status.toLowerCase().replace('_', '')}`;
+                    const col = document.getElementById(colId);
                     
-                    if (statusVal === 'CONTACTADO') destino = 'crm-col-contactado'; 
-                    else if (statusVal === 'PROMESSA') destino = 'crm-col-promessa'; 
-                    else if (statusVal === 'IGNORADO') destino = 'crm-col-ignorado';
-                    
-                    const diasAtraso = Math.floor((new Date() - new Date(c.data_vencimento + 'T12:00:00Z')) / (1000 * 60 * 60 * 24));
-                    
-                    let infoPromessa = '';
-                    if (statusVal === 'PROMESSA' && c.data_promessa) {
-                        const dataP = new Date(c.data_promessa + 'T12:00:00Z').toLocaleDateString('pt-BR');
-                        infoPromessa = `<p class="text-[10px] text-emerald-400 mb-2 font-bold bg-emerald-900/20 p-1 rounded border border-emerald-500/30 text-center"><i class="fa-solid fa-calendar-check mr-1"></i> Prometeu pagar em: ${dataP}</p>`;
-                    }
+                    if (col) {
+                        let div = document.createElement('div');
+                        div.className = "bg-slate-800 p-3 rounded-xl border border-slate-700 shadow-md cursor-grab active:cursor-grabbing hover:border-blue-500 transition-colors";
+                        div.draggable = true;
+                        div.id = `card-${d.id}`;
+                        div.ondragstart = (e) => { e.dataTransfer.setData("text/plain", d.id); };
+                        
+                        let tagData = '';
+                        if (d.data_promessa) {
+                            const [ano, mes, dia] = d.data_promessa.split('-');
+                            tagData = `<span class="mt-2 inline-block bg-emerald-900/50 border border-emerald-500/30 text-emerald-400 text-[8px] font-black uppercase px-2 py-1 rounded"><i class="fa-regular fa-calendar-check mr-1"></i> Promessa: ${dia}/${mes}/${ano}</span>`;
+                        }
 
-                    document.getElementById(destino).innerHTML += `
-                        <div id="crm-card-${c.id}" class="bg-slate-800 p-3 rounded-xl border border-slate-600 shadow-lg cursor-grab active:cursor-grabbing hover:border-orange-500 transition-colors" draggable="true" ondragstart="dragKanban(event)">
-                            <div class="flex justify-between items-start mb-2">
-                                <p class="text-[11px] font-bold text-white uppercase truncate pr-2">${escapeHTML(c.nome)}</p>
-                                <span class="bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded text-[8px] font-black">${diasAtraso}d Atraso</span>
+                        div.innerHTML = `
+                            <p class="text-[10px] font-black text-white flex justify-between items-start leading-tight">
+                                <span>${escapeHTML(d.nome.split(' ')[0])} <br><span class="font-normal text-slate-400 text-[8px]">${escapeHTML(d.cpf)}</span></span>
+                                <span class="text-red-400">R$ ${formatMoney(parseFloat(d.valor_total))}</span>
+                            </p>
+                            ${tagData}
+                            <div class="mt-2 pt-2 border-t border-slate-700 flex justify-between gap-1">
+                                <a href="https://wa.me/${d.telefone}?text=Ol%C3%A1%20${encodeURIComponent(d.nome.split(' ')[0])},%20falamos%20da%20CMS%20Ventures." target="_blank" class="flex-1 bg-green-600/20 text-green-500 hover:bg-green-600 hover:text-white text-center py-1 rounded text-[10px] transition-colors"><i class="fa-brands fa-whatsapp"></i></a>
+                                <button onclick="abrirExtratoListagem('${d.cpf}')" class="flex-1 bg-blue-600/20 text-blue-500 hover:bg-blue-600 hover:text-white text-center py-1 rounded text-[10px] transition-colors"><i class="fa-solid fa-file-invoice"></i></button>
                             </div>
-                            <p class="text-[9px] text-slate-500 mb-1">CT #${c.id} | Venc: ${new Date(c.data_vencimento + 'T12:00:00Z').toLocaleDateString('pt-BR')}</p>
-                            <p class="text-[10px] text-slate-400 mb-2">Dívida: <b class="text-red-400">${formatMoney(c.valor_total)}</b></p>
-                            ${infoPromessa}
-                            <div class="flex gap-2">
-                                <button onclick="abrirExtratoListagem('${c.cpf}')" class="flex-1 bg-slate-900 text-slate-300 py-1.5 rounded text-[9px] font-bold border border-slate-700 hover:bg-slate-700 transition-colors">Ficha</button>
-                                <button onclick="window.open('https://wa.me/55${(c.telefone||'').replace(/\D/g,'')}', '_blank')" class="flex-1 bg-emerald-900/30 text-emerald-400 py-1.5 rounded text-[9px] font-bold border border-emerald-500/30 hover:bg-emerald-600 hover:text-white transition-colors">Zap</button>
-                            </div>
-                        </div>`;
+                        `;
+                        col.appendChild(div);
+                    }
                 });
             } catch(e) {}
         }
+
+        function allowDropKanban(e) { e.preventDefault(); }
         
-        function allowDropKanban(ev) { 
-            ev.preventDefault(); 
-        }
-        
-        function dragKanban(ev) { 
-            ev.dataTransfer.setData("text", ev.target.id); 
-        }
-        
-        async function dropKanban(ev) {
-            ev.preventDefault(); 
-            const data = ev.dataTransfer.getData("text"); 
-            const card = document.getElementById(data); 
-            const dropzone = ev.target.closest('.kanban-col');
+        async function dropKanban(e) {
+            e.preventDefault();
+            const devedorId = e.dataTransfer.getData("text/plain");
+            const col = e.target.closest('.kanban-col');
             
-            if (dropzone && card) {
-                dropzone.querySelector('.kanban-cards').appendChild(card); 
-                const devedorId = data.replace('crm-card-', ''); 
-                const novoStatus = dropzone.dataset.crm;
+            if (col && devedorId) {
+                const novoStatus = col.getAttribute('data-crm');
+                const card = document.getElementById(`card-${devedorId}`);
+                
+                if (card) {
+                    col.querySelector('.kanban-cards').appendChild(card);
+                }
 
                 if (novoStatus === 'PROMESSA') {
                     devedorKanbanAtual = devedorId;
@@ -2861,9 +2730,201 @@
                     body: JSON.stringify(payload) 
                 }); 
                 showToast("Funil atualizado."); 
-                carregarCRM(); // Recarrega para exibir a tag da data imediatamente
+                carregarCRM(); 
             } catch(e) {}
         }
+
+        // =====================================
+        // CONFIGURAÇÕES E PIX
+        // =====================================
+        async function carregarConfig() {
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/config`, { headers: headersAuth });
+                const configList = await res.json();
+                
+                let obj = {};
+                configList.forEach(c => obj[c.chave] = c.valor);
+                window.sistemaConfig = obj;
+
+                if (document.getElementById('conf_caixa_total')) {
+                    document.getElementById('conf_caixa_total').value = obj.caixa_total || 50000;
+                    document.getElementById('conf_juros_unico').value = obj.juros_unico || 30;
+                    document.getElementById('conf_juros_parcelado').value = obj.juros_parcelado || 25;
+                    document.getElementById('conf_multa').value = obj.multa_diaria || 3;
+                    document.getElementById('conf_minimo').value = obj.valor_minimo || 500;
+                }
+
+                if (obj.pix_avancado) {
+                    try {
+                        const pixConf = JSON.parse(obj.pix_avancado);
+                        window.pixChaves = pixConf.chaves || [];
+                        renderizarChavesPix();
+                        
+                        document.getElementById('pix_modo_roteamento').value = pixConf.modo || 'UNICO';
+                        alternarModoRoteamentoPix();
+                        
+                        setTimeout(() => {
+                            if (pixConf.padrao) document.getElementById('pix_chave_padrao').value = pixConf.padrao;
+                            if (pixConf.regras) {
+                                document.getElementById('pix_valor_corte').value = pixConf.regras.limite || '';
+                                document.getElementById('pix_chave_menor').value = pixConf.regras.menor || '';
+                                document.getElementById('pix_chave_maior').value = pixConf.regras.maior || '';
+                            }
+                        }, 200);
+                    } catch(e) {}
+                } else {
+                    window.pixChaves = [];
+                }
+            } catch(e) {}
+        }
+
+        async function salvarConfig() {
+            const val = [
+                { chave: 'caixa_total', valor: document.getElementById('conf_caixa_total').value },
+                { chave: 'juros_unico', valor: document.getElementById('conf_juros_unico').value },
+                { chave: 'juros_parcelado', valor: document.getElementById('conf_juros_parcelado').value },
+                { chave: 'multa_diaria', valor: document.getElementById('conf_multa').value },
+                { chave: 'valor_minimo', valor: document.getElementById('conf_minimo').value }
+            ];
+            
+            try {
+                await fetchSeguro(`${API_BASE}/api/config`, { 
+                    method: 'POST', 
+                    headers: headersAuth, 
+                    body: JSON.stringify({ configs: val }) 
+                });
+                showToast("Configurações salvas.");
+                carregarConfig();
+            } catch(e) {
+                showToast("Erro ao salvar.", "error");
+            }
+        }
+
+        function renderizarChavesPix() {
+            const container = document.getElementById('lista-chaves-pix');
+            const selects = document.querySelectorAll('.select-chaves-dinamicas');
+            
+            if (!container) return;
+            container.innerHTML = '';
+            selects.forEach(s => s.innerHTML = '');
+
+            if (window.pixChaves.length === 0) {
+                container.innerHTML = '<p class="text-xs text-slate-500 italic">Nenhuma chave cadastrada.</p>';
+                return;
+            }
+
+            window.pixChaves.forEach(c => {
+                container.innerHTML += `
+                    <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700 flex justify-between items-center">
+                        <div>
+                            <p class="text-[10px] font-bold text-white uppercase">${c.nome} <span class="text-slate-500 font-normal">(${c.banco})</span></p>
+                            <p class="text-xs font-mono text-emerald-400 mt-1">${c.chave}</p>
+                        </div>
+                        <button onclick="removerChavePix('${c.id}')" class="text-red-500 hover:text-red-400 p-2"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                `;
+                
+                const opt = `<option value="${c.id}">${c.nome} - ${c.banco} (${c.chave})</option>`;
+                selects.forEach(s => s.innerHTML += opt);
+            });
+        }
+
+        function adicionarChavePixAvancada() {
+            const nome = document.getElementById('nova_chave_nome').value.trim();
+            const banco = document.getElementById('nova_chave_banco').value.trim();
+            const chave = document.getElementById('nova_chave_pix').value.trim();
+            
+            if (!nome || !banco || !chave) return showToast("Preencha todos os campos da chave.", "error");
+
+            const nova = { id: 'pix_' + Date.now(), nome, banco, chave };
+            window.pixChaves.push(nova);
+            
+            document.getElementById('nova_chave_nome').value = '';
+            document.getElementById('nova_chave_banco').value = '';
+            document.getElementById('nova_chave_pix').value = '';
+            
+            renderizarChavesPix();
+            showToast("Chave adicionada à lista local. Salve a estratégia para aplicar.");
+        }
+
+        function removerChavePix(id) {
+            window.pixChaves = window.pixChaves.filter(c => c.id !== id);
+            renderizarChavesPix();
+        }
+
+        function alternarModoRoteamentoPix() {
+            const modo = document.getElementById('pix_modo_roteamento').value;
+            document.getElementById('pix_modo_unico_box').classList.add('hidden');
+            document.getElementById('pix_modo_aleatorio_box').classList.add('hidden');
+            document.getElementById('pix_modo_valor_box').classList.add('hidden');
+            
+            if (modo === 'UNICO') document.getElementById('pix_modo_unico_box').classList.remove('hidden');
+            if (modo === 'ALEATORIO') document.getElementById('pix_modo_aleatorio_box').classList.remove('hidden');
+            if (modo === 'VALOR') document.getElementById('pix_modo_valor_box').classList.remove('hidden');
+        }
+
+        async function salvarConfiguracaoPixAvancada() {
+            if (window.pixChaves.length === 0) return showToast("Cadastre pelo menos uma chave.", "error");
+            
+            const modo = document.getElementById('pix_modo_roteamento').value;
+            let conf = { chaves: window.pixChaves, modo: modo, padrao: null, regras: {} };
+            
+            if (modo === 'UNICO') {
+                conf.padrao = document.getElementById('pix_chave_padrao').value;
+            } else if (modo === 'VALOR') {
+                conf.regras = {
+                    limite: document.getElementById('pix_valor_corte').value || 0,
+                    menor: document.getElementById('pix_chave_menor').value,
+                    maior: document.getElementById('pix_chave_maior').value
+                };
+            }
+
+            try {
+                await fetchSeguro(`${API_BASE}/api/config`, { 
+                    method: 'POST', 
+                    headers: headersAuth, 
+                    body: JSON.stringify({ configs: [{ chave: 'pix_avancado', valor: JSON.stringify(conf) }] }) 
+                });
+                showToast("Estratégia PIX salva com sucesso!");
+                carregarConfig();
+            } catch(e) {
+                showToast("Erro ao salvar estratégia PIX.", "error");
+            }
+        }
+
+        // =====================================
+        // SAFRAS E ANALÍTICO
+        // =====================================
+        async function carregarSafras() {
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/safras`, { headers: headersAuth });
+                const safras = await res.json();
+                
+                const divSafras = document.getElementById('lista-safras');
+                divSafras.innerHTML = '';
+                
+                safras.forEach(s => {
+                    const txInadimplencia = s.total_clientes > 0 ? ((s.atrasados / s.total_clientes) * 100).toFixed(1) : 0;
+                    const txSucesso = s.total_clientes > 0 ? ((s.quitados / s.total_clientes) * 100).toFixed(1) : 0;
+                    
+                    divSafras.innerHTML += `
+                        <div class="glass-card p-5 rounded-2xl border border-slate-700 shadow-lg">
+                            <h4 class="text-sm font-black uppercase text-white mb-4 border-b border-slate-700 pb-2"><i class="fa-solid fa-calendar-days text-purple-500 mr-2"></i> Safra: ${s.mes}</h4>
+                            <div class="space-y-2 text-xs">
+                                <p class="flex justify-between"><span class="text-slate-400">Total de Clientes:</span> <span class="font-bold text-white">${s.total_clientes}</span></p>
+                                <p class="flex justify-between"><span class="text-slate-400">Volume Emprestado:</span> <span class="font-bold text-blue-400">${formatMoney(s.volume_emprestado)}</span></p>
+                                <p class="flex justify-between"><span class="text-slate-400">Contratos Abertos:</span> <span class="font-bold text-yellow-400">${s.abertos}</span></p>
+                                <div class="w-full bg-slate-800 rounded-full h-1.5 mt-2 mb-1"><div class="bg-emerald-500 h-1.5 rounded-full" style="width: ${txSucesso}%"></div></div>
+                                <p class="flex justify-between text-[10px]"><span class="text-slate-500">Taxa de Sucesso (Quitados):</span> <span class="font-bold text-emerald-400">${txSucesso}% (${s.quitados})</span></p>
+                                <div class="w-full bg-slate-800 rounded-full h-1.5 mt-2 mb-1"><div class="bg-red-500 h-1.5 rounded-full" style="width: ${txInadimplencia}%"></div></div>
+                                <p class="flex justify-between text-[10px]"><span class="text-slate-500">Inadimplência (Atraso):</span> <span class="font-bold text-red-400">${txInadimplencia}% (${s.atrasados})</span></p>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch(e) {}
+        }
+        
     </script>
 </body>
 </html>
