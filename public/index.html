@@ -2,7 +2,11 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#020617">
     <meta name="color-scheme" content="light">
     <title>CMS Ventures | Master Cockpit</title>
     <link rel="icon" href="data:,">
@@ -2925,6 +2929,102 @@
             } catch(e) {}
         }
         
+    </script>
+    <style>
+        /* Ajustes dinâmicos aplicados pelo motor apenas no celular */
+        @media (max-width: 768px) {
+            body { flex-direction: column !important; }
+            .sidebar-mobile {
+                position: fixed !important; top: 0; left: 0; z-index: 9999;
+                height: 100vh !important; transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out; 
+                background-color: rgba(15, 23, 42, 0.95);
+                backdrop-filter: blur(15px);
+            }
+            .sidebar-mobile.open { transform: translateX(0); }
+            
+            /* Ajusta as tabelas para deslizarem com o dedo */
+            .table-wrapper { 
+                overflow-x: auto; 
+                -webkit-overflow-scrolling: touch; 
+                width: 100%; 
+                display: block; 
+                padding-bottom: 5px; 
+            }
+            .table-wrapper::-webkit-scrollbar { height: 6px; }
+            .table-wrapper::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 10px; }
+            
+            /* Ajusta a área de rolagem principal */
+            main { 
+                padding: 1rem !important; 
+                padding-bottom: 4rem !important; 
+                height: calc(100vh - 70px) !important; 
+                overflow-y: auto !important; 
+                width: 100% !important;
+            }
+        }
+    </style>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            // 1. Criar a Navbar Superior do Celular (Menu Hambúrguer)
+            const mobileNav = document.createElement("div");
+            mobileNav.className = "md:hidden flex justify-between items-center bg-slate-900 border-b border-slate-800 p-4 sticky top-0 z-[100] shadow-lg w-full shrink-0";
+            mobileNav.innerHTML = `
+                <div class="font-black text-xl tracking-tighter text-white">
+                    CMS<span class="text-blue-500 text-2xl leading-none">.</span><span class="text-slate-400 font-light text-lg">Ventures</span>
+                </div>
+                <button id="btnMenuMobileToggle" class="text-slate-300 hover:text-white focus:outline-none text-2xl">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+            `;
+            // Inserir a Navbar Superior no sistema
+            document.body.insertBefore(mobileNav, document.body.firstChild);
+
+            // 2. Isolar o Menu Lateral (Sidebar) para virar uma gaveta oculta
+            const sidebar = document.querySelector("aside");
+            if (sidebar) {
+                sidebar.classList.add("sidebar-mobile");
+            }
+
+            // 3. Criar a cortina escura de fundo (Overlay)
+            const overlay = document.createElement("div");
+            overlay.className = "fixed inset-0 bg-black/80 z-[9998] hidden backdrop-blur-sm transition-opacity";
+            document.body.appendChild(overlay);
+
+            // 4. Lógica de Abrir/Fechar o Menu no Celular
+            const toggleMenu = () => {
+                if(sidebar) sidebar.classList.toggle("open");
+                if (sidebar && sidebar.classList.contains("open")) {
+                    overlay.classList.remove("hidden");
+                    overlay.classList.add("block");
+                } else {
+                    overlay.classList.add("hidden");
+                    overlay.classList.remove("block");
+                }
+            };
+
+            const btnMobile = document.getElementById("btnMenuMobileToggle");
+            if(btnMobile) btnMobile.addEventListener("click", toggleMenu);
+            overlay.addEventListener("click", toggleMenu);
+
+            // Fazer o menu recolher sozinho se clicar num botão dentro dele
+            const botoesMenu = sidebar ? sidebar.querySelectorAll("button") : [];
+            botoesMenu.forEach(btn => {
+                btn.addEventListener("click", () => {
+                    if(window.innerWidth <= 768) toggleMenu();
+                });
+            });
+
+            // 5. Proteger TODAS as tabelas gigantes com uma barra de rolagem inteligente
+            const tabelas = document.querySelectorAll("table");
+            tabelas.forEach(tabela => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'table-wrapper rounded-xl border border-slate-700/50';
+                tabela.parentNode.insertBefore(wrapper, tabela);
+                wrapper.appendChild(tabela);
+            });
+        });
     </script>
 </body>
 </html>
