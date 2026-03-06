@@ -672,7 +672,6 @@
                         <h3 class="text-2xl font-black text-red-400 mt-1 truncate" id="dash-multas">R$ 0,00</h3>
                     </div>
 
-                    <!-- 🚨 CARD DE PENHORA RESTAURADO COM SUCESSO -->
                     <div class="bg-slate-800/80 p-5 rounded-xl border border-orange-900 relative overflow-hidden col-span-2 lg:col-span-1">
                         <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-gem text-6xl text-orange-500"></i></div>
                         <p class="text-[10px] text-orange-500 font-bold uppercase tracking-wider">Patrimônio em Garantia</p>
@@ -914,7 +913,273 @@
 
     </main>
 
-    <!-- JS GLOBAL COMPLETO COM FUNÇÕES RECUPERADAS -->
+    <!-- MODAIS E POPUPS (RESTAURADOS E SEGUROS) -->
+
+    <!-- Modal de Garantia -->
+    <div id="modalGarantia" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden z-[150] flex items-center justify-center p-4">
+        <div class="glass-card w-full max-w-md rounded-3xl border border-orange-500/30 p-8 relative">
+            <button onclick="fecharModal('modalGarantia')" class="absolute top-6 right-6 text-slate-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+            <h2 class="text-xl font-black uppercase text-orange-500 mb-6"><i class="fa-solid fa-gem mr-2"></i> Registar Penhor</h2>
+            
+            <input type="hidden" id="garantiaCpf">
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Objeto (Descrição)</label>
+                    <input type="text" id="garantiaDesc" placeholder="Ex: iPhone 13 Pro Max - Preto" class="input-dark mt-1 text-sm font-bold text-white">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Valor Estimado de Mercado (R$)</label>
+                    <input type="number" id="garantiaValor" placeholder="3000" class="input-dark mt-1 font-bold text-orange-400" min="0">
+                </div>
+            </div>
+            <button onclick="salvarGarantia()" class="w-full bg-orange-600 hover:bg-orange-500 text-white py-4 rounded-xl font-black uppercase text-sm shadow-lg shadow-orange-500/20 mt-6">Guardar Garantia</button>
+        </div>
+    </div>
+
+    <!-- Modal: Imagem Fullscreen -->
+    <div id="modalZoom" class="fixed inset-0 bg-black/95 z-[200] hidden flex items-center justify-center p-4 cursor-pointer">
+        <img id="zoomSource" src="" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl">
+    </div>
+
+    <!-- Modal: Documentos e Aprovação -->
+    <div id="modalDocumentos" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
+        <div class="glass-card w-full max-w-6xl max-h-[95vh] overflow-y-auto rounded-3xl border border-slate-700 p-8 relative">
+            <button onclick="fecharModal('modalDocumentos')" class="absolute top-6 right-6 text-slate-400 hover:text-white text-2xl"><i class="fa-solid fa-xmark"></i></button>
+            
+            <div class="border-b border-slate-800 pb-4 mb-6 flex justify-between items-end">
+                <div>
+                    <h2 class="text-2xl font-black uppercase text-blue-500">Documentos e Análise</h2>
+                    <p id="docNomeCliente" class="text-lg text-white font-bold mt-1">...</p>
+                    <p id="docCpf" class="text-xs font-mono text-slate-400">...</p>
+                    <p id="docNumContrato" class="text-[10px] text-emerald-400 font-bold hidden mt-1">Contrato: <span></span></p> 
+                </div>
+                <div class="text-right">
+                    <p id="docData" class="text-xs font-bold text-slate-500 uppercase">...</p>
+                </div>
+            </div>
+
+            <!-- Grade de Fotos -->
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                <div class="space-y-2"><p class="text-[10px] font-black uppercase text-center text-slate-400">Selfie</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgSelfie" class="w-full h-32 object-contain cursor-pointer transition-colors" onerror="this.src='https://via.placeholder.com/300x200?text=Erro+na+Foto'" onclick="zoomImg(this.src)"></div></div>
+                <div class="space-y-2"><p class="text-[10px] font-black uppercase text-center text-slate-400">Doc. Frente</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgFrente" class="w-full h-32 object-contain cursor-pointer transition-colors" onerror="this.src='https://via.placeholder.com/300x200?text=Erro+na+Foto'" onclick="zoomImg(this.src)"></div></div>
+                <div class="space-y-2"><p class="text-[10px] font-black uppercase text-center text-slate-400">Doc. Verso</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgVerso" class="w-full h-32 object-contain cursor-pointer transition-colors" onerror="this.src='https://via.placeholder.com/300x200?text=Erro+na+Foto'" onclick="zoomImg(this.src)"></div></div>
+                <div class="space-y-2"><p class="text-[10px] font-black uppercase text-center text-slate-400">Residência</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgResidencia" class="w-full h-32 object-contain cursor-pointer transition-colors" onerror="this.src='https://via.placeholder.com/300x200?text=Erro+na+Foto'" onclick="zoomImg(this.src)"></div></div>
+                <div class="space-y-2 col-span-2 md:col-span-1"><p class="text-[10px] font-black uppercase text-center text-slate-400">Fachada Casa</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgCasa" class="w-full h-32 object-contain cursor-pointer transition-colors" onerror="this.src='https://via.placeholder.com/300x200?text=Erro+na+Foto'" onclick="zoomImg(this.src)"></div></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-slate-900/50 p-5 rounded-2xl border border-slate-700">
+                    <h3 class="text-[10px] font-black uppercase text-blue-400 mb-3">Dados Cadastrais</h3>
+                    <div class="space-y-2 text-xs">
+                        <p class="flex justify-between"><span class="text-slate-500">WhatsApp:</span> <span id="docZap" class="font-bold text-white"></span></p>
+                        <p class="flex justify-between"><span class="text-slate-500">Valor Pedido:</span> <span id="docValor" class="font-bold text-emerald-400"></span></p>
+                        <p class="flex justify-between"><span class="text-slate-500">Plano / Freq:</span> <span id="docPlano" class="font-bold text-white"></span></p>
+                        <p class="flex justify-between"><span class="text-slate-500">Indicador:</span> <span id="docIndicacao" class="font-bold text-purple-400"></span></p>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-slate-800 space-y-2 text-xs">
+                        <p class="text-[9px] font-black uppercase text-slate-500">Referências</p>
+                        <p>1: <span id="docRef1" class="font-bold text-white"></span></p>
+                        <p>2: <span id="docRef2" class="font-bold text-white"></span></p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/50 p-5 rounded-2xl border border-slate-700 flex flex-col">
+                    <h3 class="text-[10px] font-black uppercase text-orange-400 mb-2">Observações / Auditoria</h3>
+                    <textarea id="docObs" class="input-dark flex-1 resize-none text-sm" placeholder="Adicione notas sobre o perfil do cliente, restrições encontradas, itens deixados como garantia..."></textarea>
+                </div>
+
+                <div class="bg-slate-900/50 p-5 rounded-2xl border border-slate-700 flex flex-col justify-between" id="box-simulador-cp">
+                    <h3 class="text-[10px] font-black uppercase text-emerald-400 mb-3 border-b border-slate-700 pb-2">Simulador & Contra-Proposta</h3>
+                    
+                    <label class="flex items-center gap-2 cursor-pointer bg-slate-800 px-3 py-2 rounded-lg mb-3 border border-slate-600">
+                        <input type="checkbox" id="docApenasDinheiro" class="w-4 h-4 accent-emerald-500">
+                        <span class="text-[9px] font-black uppercase text-emerald-400">Apenas Dinheiro Físico (S/ Link PIX)</span>
+                    </label>
+
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                            <label class="text-[9px] font-black uppercase text-slate-500 block mb-1">Valor Aprovado (R$)</label>
+                            <input type="number" id="docNovoValor" class="input-dark text-sm font-bold text-emerald-400" min="0" oninput="if(this.value<0)this.value=0; recalcularSimulacaoDoc()">
+                        </div>
+                        <div>
+                            <label class="text-[9px] font-black uppercase text-slate-500 block mb-1" title="Para planos parcelados, esta taxa é multiplicada pelo número de meses.">Taxa de Juros (Base %)</label>
+                            <input type="number" id="docJuros" class="input-dark text-sm font-bold text-orange-400" min="0" oninput="if(this.value<0)this.value=0; recalcularSimulacaoDoc()">
+                        </div>
+                        <div>
+                            <label class="text-[9px] font-black uppercase text-slate-500 block mb-1">Frequência</label>
+                            <select id="docNovaFreq" class="input-dark text-xs p-2 h-11" onchange="atualizarContraPropostaFreq()">
+                                <option value="MENSAL">Mensal</option>
+                                <option value="SEMANAL">Semanal</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[9px] font-black uppercase text-slate-500 block mb-1">Nº Parcelas</label>
+                            <input type="number" id="docNovasParcelas" class="input-dark text-sm font-bold" min="1" oninput="recalcularSimulacaoDoc()">
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-600 mb-4 shadow-inner">
+                        <div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-2">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase">Valor da Parcela:</span>
+                            <span id="calcParcela" class="text-sm font-black text-blue-400 drop-shadow-[0_0_5px_rgba(59,130,246,0.3)]">R$ 0,00</span>
+                        </div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase">Total c/ Juros:</span>
+                            <span id="calcTotal" class="text-lg font-black text-emerald-400 drop-shadow-[0_0_5px_rgba(16,185,129,0.3)]">R$ 0,00</span>
+                        </div>
+                        <p id="calcTaxaDetalhe" class="text-[8px] text-right text-slate-500 font-bold uppercase tracking-wider"></p>
+                    </div>
+
+                    <div class="space-y-2 mt-auto">
+                        <button onclick="aprovarSolicitacao(false)" id="btnAprovarOriginal" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-black uppercase text-[10px] shadow-lg shadow-blue-500/20 transition-all"><i class="fa-solid fa-check-double mr-1"></i> Aprovar Termos Originais</button>
+                        <button onclick="aprovarSolicitacao(true)" id="btnAprovarCP" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl font-black uppercase text-[10px] shadow-lg shadow-emerald-500/20 transition-all"><i class="fa-solid fa-handshake mr-1"></i> Enviar Contra-Proposta</button>
+                        <button onclick="rejeitarSolicitacao()" class="w-full bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white py-3 rounded-xl font-black uppercase text-[10px] transition-all"><i class="fa-solid fa-xmark mr-1"></i> Rejeitar Ficha</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🚨 NOVO TITULO COM ID DO CONTRATO: Registrar Pagamento / Terminal -->
+    <div id="modalPagamento" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-[150] flex items-center justify-center p-4">
+        <div class="glass-card w-full max-w-4xl max-h-[95vh] overflow-y-auto rounded-3xl border border-slate-700 p-8 relative">
+            <button onclick="fecharModal('modalPagamento')" class="absolute top-6 right-6 text-slate-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+            <h2 class="text-2xl font-black uppercase text-emerald-500 mb-2"><i class="fa-solid fa-cash-register mr-2"></i> Terminal de Recebimento</h2>
+            
+            <div class="mb-6 pb-4 border-b border-slate-700 flex justify-between items-end">
+                <div>
+                    <!-- 🚨 Mostra visualmente que é um contrato específico -->
+                    <h3 id="pgtoNome" class="text-xl font-black text-white uppercase tracking-tight">NOME DO CLIENTE</h3>
+                    <p id="pgtoCpf" class="text-xs text-slate-400 font-mono mt-1">CPF: 000</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-[9px] font-black uppercase text-slate-500">Data de Início do Contrato</p>
+                    <p id="pgtoData" class="text-sm font-bold text-white mt-1">--/--/----</p>
+                </div>
+            </div>
+            
+            <input type="hidden" id="pgtoDevedorId">
+            
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                    <p class="text-[9px] font-black uppercase text-slate-500">Dias em Atraso</p>
+                    <p id="pgtoAtraso" class="text-sm font-black text-orange-400 mt-1">0</p>
+                </div>
+                <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                    <p class="text-[9px] font-black uppercase text-slate-500">Capital Original</p>
+                    <p id="pgtoTotalCapital" class="text-sm font-bold text-white mt-1">R$ 0,00</p>
+                </div>
+                <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                    <p class="text-[9px] font-black uppercase text-slate-500">Total Já Pago</p>
+                    <p id="pgtoTotalPago" class="text-sm font-bold text-emerald-400 mt-1">R$ 0,00</p>
+                </div>
+                <div class="bg-slate-900/50 p-4 rounded-xl border border-red-500/20">
+                    <p class="text-[9px] font-black uppercase text-red-400">Dívida Total Atual</p>
+                    <p id="pgtoSaldo" class="text-sm font-black text-red-500 mt-1">R$ 0,00</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Coluna Esquerda: Recebimento -->
+                <div class="space-y-4">
+                    <div class="bg-emerald-900/10 border border-emerald-500/20 p-4 rounded-xl">
+                        <label class="text-[10px] font-black uppercase text-emerald-500 block mb-2">Valor Recebido (R$)</label>
+                        <input type="number" id="pgtoValor" class="input-dark font-black text-emerald-400 text-4xl h-20 w-full text-center shadow-inner" placeholder="0.00" min="0" oninput="if(this.value<0)this.value=0;">
+                        
+                        <div class="mt-4 p-3 bg-slate-900 rounded-lg border border-slate-800 text-center">
+                            <p class="text-[10px] text-slate-400 uppercase font-bold">Juros/Multas Atuais (Mínimo para Rolagem)</p>
+                            <p id="pgtoMinimoJuros" class="text-lg text-orange-400 font-black mt-1">R$ 0,00</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Coluna Direita: Regras de Pagamento -->
+                <div class="bg-slate-800/30 border border-slate-700 p-5 rounded-2xl space-y-4">
+                    <div>
+                        <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Forma de Pagamento</label>
+                        <select id="pgtoForma" class="input-dark mt-1 text-sm font-bold text-white">
+                            <option value="DINHEIRO">Dinheiro Vivo (Espécie)</option>
+                            <option value="CONTA">PIX / Transferência Bancária</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Data do Recebimento (Se foi no passado)</label>
+                        <input type="date" id="pgtoDataRecebimento" class="input-dark mt-1 text-sm font-bold text-white">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Observações (Opcional)</label>
+                        <input type="text" id="pgtoObs" class="input-dark mt-1 text-sm" placeholder="Ex: Deu desconto de R$ 50 no capital...">
+                    </div>
+                    
+                    <div class="pt-2 border-t border-slate-700">
+                        <p class="text-[9px] font-black uppercase text-blue-400 mb-2">Recálculo Manual de Estrutura</p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="number" id="pgtoNovaTaxa" class="input-dark text-xs" placeholder="Nova Taxa (%)">
+                            <input type="number" id="pgtoNovoParcelamento" class="input-dark text-xs" placeholder="Novo nº Parcelas">
+                            <input type="number" id="pgtoAjuste" class="input-dark text-xs col-span-2" placeholder="Ajustar Saldo Restante (+ ou - R$)">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="confirmarPagamento()" id="btnConfirmarBaixa" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-5 rounded-xl font-black uppercase text-sm shadow-lg shadow-emerald-500/20 mt-8 transition-all"><i class="fa-solid fa-check-double mr-2"></i> Confirmar Baixa e Recalcular Contrato</button>
+        </div>
+    </div>
+
+    <!-- 🚨 NOVO TITULO COM ID DO CONTRATO: Modal: Edição de Contrato -->
+    <div id="modalEditarContrato" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="glass-card w-full max-w-lg rounded-3xl border border-slate-700 p-8 relative">
+            <button onclick="fecharModal('modalEditarContrato')" class="absolute top-6 right-6 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            <h2 class="text-xl font-black uppercase text-blue-500 mb-6 flex items-center">
+                <i class="fa-solid fa-pen-to-square mr-2"></i> Editar Contrato 
+                <!-- 🚨 Identificador do Contrato visível -->
+                <span id="editCtLabel" class="text-slate-400 text-sm ml-2 font-mono bg-slate-900 px-2 py-1 rounded border border-slate-700"></span>
+            </h2>
+            
+            <input type="hidden" id="editDevedorId">
+            <input type="hidden" id="editJaPago">
+            
+            <label class="flex items-center gap-2 cursor-pointer bg-slate-900/50 px-4 py-3 rounded-xl border border-slate-700 hover:border-emerald-500 transition-colors mb-4">
+                <input type="checkbox" id="editApenasDinheiro" class="w-4 h-4 accent-emerald-500 rounded cursor-pointer">
+                <span class="text-[10px] font-black uppercase text-emerald-400">Cliente Paga Só em Dinheiro (Bloqueia Link PIX)</span>
+            </label>
+
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                    <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Novo Vencimento</label>
+                    <input type="date" id="editVencimento" class="input-dark mt-1 text-sm font-bold text-white">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Frequência</label>
+                    <select id="editFrequencia" class="input-dark mt-1 text-sm">
+                        <option value="MENSAL">Mensal</option>
+                        <option value="SEMANAL">Semanal</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Nº Parcelas Restantes</label>
+                    <input type="number" id="editParcelas" class="input-dark mt-1 font-bold text-white" min="1" oninput="autoCalcularEdicao()">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Taxa de Juros Base (%)</label>
+                    <input type="number" id="editTaxa" class="input-dark mt-1 font-bold text-orange-400" min="0" step="0.1" oninput="autoCalcularEdicao()">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Capital Original (R$)</label>
+                    <input type="number" id="editCapital" class="input-dark mt-1 font-bold text-white" min="0" oninput="autoCalcularEdicao()">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Saldo Devedor Atual (R$)</label>
+                    <input type="number" id="editTotal" class="input-dark mt-1 font-bold text-red-400" min="0">
+                </div>
+            </div>
+            <p id="editInfoCalculo" class="text-[10px] font-bold text-blue-400 mb-4 text-center tracking-widest uppercase"></p>
+            <button onclick="salvarEdicaoContrato()" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-black uppercase text-sm shadow-lg shadow-blue-500/20">Salvar Alterações</button>
+        </div>
+    </div>
+
+    <!-- JS GLOBAL COMPLETO COM TODAS AS FUNÇÕES RESTAURADAS -->
     <script>
         const API_BASE = window.location.origin; 
         
@@ -1033,6 +1298,12 @@
             localStorage.removeItem('token'); 
             window.location.href = '/login.html'; 
         }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.fixed.inset-0:not(#modalSessaoExpirada)').forEach(m => m.classList.add('hidden'));
+            }
+        });
 
         // =====================================
         // CALCULADORA FLUTUANTE
@@ -1509,13 +1780,14 @@
                     txtParcelas = `<br><span class="text-[10px] text-blue-400 font-bold">${d.parcelas_pagas || 0}/${d.qtd_parcelas} Pagas</span>`; 
                 }
 
+                // 🚨 NOVO: IDENTIFICAÇÃO VISUAL DO CONTRATO NA LISTA
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-800/30 border-b border-slate-800/50">
                         <td class="px-6 py-4">
                             <p class="font-bold text-white text-xs flex items-center">
                                 ${escapeHTML(d.nome)} ${tagDinheiro}
                             </p>
-                            <p class="text-[9px] font-mono text-slate-500">${escapeHTML(d.cpf)}</p>
+                            <p class="text-[9px] font-mono text-slate-500">${escapeHTML(d.cpf)} <span class="text-blue-400 font-bold ml-1">| CT: #${d.id}</span></p>
                         </td>
                         <td class="px-6 py-4 text-xs text-slate-300 font-bold">${dt.toLocaleDateString('pt-BR')}</td>
                         <td class="px-6 py-4 text-xs text-slate-400">${formatMoney(capital)}</td>
@@ -1605,7 +1877,8 @@
             document.getElementById('pgtoNovaTaxa').value = ''; 
             document.getElementById('pgtoNovoParcelamento').value = '';
 
-            document.getElementById('pgtoNome').innerText = dev.nome; 
+            // 🚨 NOVO: Identifica o Contrato no Terminal de Pagamento
+            document.getElementById('pgtoNome').innerText = `${dev.nome} (CT #${dev.id})`; 
             document.getElementById('pgtoCpf').innerText = dev.cpf; 
             document.getElementById('pgtoDataRecebimento').value = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
 
@@ -1692,6 +1965,9 @@
             if (!dev) return;
             
             document.getElementById('editDevedorId').value = dev.id; 
+            // 🚨 NOVO: Exibe o ID do contrato no Modal de Edição
+            document.getElementById('editCtLabel').innerText = `(CT #${dev.id})`;
+
             document.getElementById('editVencimento').value = dev.data_vencimento; 
             document.getElementById('editFrequencia').value = dev.frequencia || 'MENSAL'; 
             document.getElementById('editCapital').value = dev.valor_emprestado; 
@@ -1835,10 +2111,11 @@
                         sumAtivoPago += pago; 
                     }
                     
+                    // 🚨 NOVO: Cabeçalho com o Número do Contrato
                     vContratos.innerHTML += `
                     <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700 mb-4">
                         <div class="flex justify-between items-center mb-2">
-                            <p class="text-xs font-bold text-white">${c.created_at ? new Date(c.created_at).toLocaleDateString() : ''}</p>
+                            <p class="text-xs font-bold text-white"><i class="fa-solid fa-file-signature text-blue-400 mr-1"></i> CT #${c.id} | Início: ${c.created_at ? new Date(c.created_at).toLocaleDateString() : ''}</p>
                             <span class="text-[9px] font-black ${isActive ? 'text-red-400' : 'text-emerald-400'}">${c.status}</span>
                         </div>
                         <div class="grid grid-cols-3 gap-2 text-[9px] text-center mb-2">
@@ -1993,8 +2270,48 @@
         }
 
         // =====================================
-        // CADASTRO MANUAL (RECUPERADO)
+        // CADASTRO MANUAL E AUTO-JUROS
         // =====================================
+        function togglePreCadastro() {
+            const isPre = document.getElementById('check_precadastro').checked;
+            const areasDiv = document.getElementById('cad_area_financeira');
+            if (isPre) {
+                areasDiv.classList.add('hidden');
+                document.getElementById('cad_capital').removeAttribute('required'); 
+                document.getElementById('cad_saldo').removeAttribute('required'); 
+                document.getElementById('cad_venc').removeAttribute('required');
+            } else {
+                areasDiv.classList.remove('hidden');
+                document.getElementById('cad_capital').setAttribute('required', 'true'); 
+                document.getElementById('cad_saldo').setAttribute('required', 'true'); 
+                document.getElementById('cad_venc').setAttribute('required', 'true');
+            }
+        }
+
+        function autoCalcularSaldoCadastro() {
+            const cap = parseFloat(document.getElementById('cad_capital').value);
+            if (isNaN(cap) || cap <= 0) { 
+                document.getElementById('cad_saldo').value = ''; 
+                document.getElementById('cad_taxa_aplicada_txt').innerText = ''; 
+                return; 
+            }
+            
+            const parcelas = parseInt(document.getElementById('cad_parcelas').value) || 1;
+            const jU = window.sistemaConfig?.juros_unico || 30; 
+            const jP = window.sistemaConfig?.juros_parcelado || 25;
+            
+            let tx = 0;
+            if (parcelas > 1) {
+                tx = (jP / 100) * parcelas;
+                document.getElementById('cad_taxa_aplicada_txt').innerText = `Taxa Aplicada: ${jP}% x ${parcelas} parcelas = ${(jP * parcelas)}%`;
+            } else {
+                tx = (jU / 100);
+                document.getElementById('cad_taxa_aplicada_txt').innerText = `Taxa Aplicada: ${jU}% (Única 30 Dias)`;
+            }
+            
+            document.getElementById('cad_saldo').value = (cap * (1 + tx)).toFixed(2);
+        }
+
         async function buscarParaCadastroLive() {
             const busca = document.getElementById('busca_cliente_cad').value.trim();
             const box = document.getElementById('autocomplete_resultados');
@@ -2038,6 +2355,9 @@
             if (status === 'ABERTO' || status === 'ATRASADO') {
                 alert(`⚠️ ATENÇÃO: O cliente já possui contrato Ativo!`);
             }
+            
+            document.getElementById('check_precadastro').checked = false; 
+            togglePreCadastro();
         }
         
         function marcarUploadCad(input) {
@@ -2049,6 +2369,17 @@
         }
         
         async function salvarCadastroRapido() {
+            const form = document.getElementById('formCadastroRapido'); 
+            if (!form.checkValidity()) { 
+                form.reportValidity(); 
+                return; 
+            }
+            
+            const btn = document.getElementById('btnSalvarCad'); 
+            const oldText = btn.innerHTML; 
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Gravando...`; 
+            btn.disabled = true;
+
             try {
                 const dados = {
                     id_existente: document.getElementById('cad_id_existente').value, 
@@ -2072,16 +2403,23 @@
                 
                 if(res.ok) { 
                     showToast("Registo Salvo!"); 
+                    form.reset();
                     mudarAba('aberto'); 
                     carregarDash(); 
+                } else {
+                    const eBody = await res.json();
+                    throw new Error(eBody.erro || "Erro interno.");
                 }
             } catch(e) { 
-                showToast("Erro ao gravar.", "error"); 
-            } 
+                showToast(e.message, "error"); 
+            } finally {
+                btn.innerHTML = oldText; 
+                btn.disabled = false; 
+            }
         }
         
         // =====================================
-        // RELATÓRIOS E CAIXA (RECUPERADOS)
+        // RELATÓRIOS E CAIXA 
         // =====================================
         async function carregarRelatorios() {
             try {
@@ -2175,7 +2513,7 @@
         }
         
         // =====================================
-        // LISTA NEGRA (RECUPERADO)
+        // LISTA NEGRA
         // =====================================
         async function carregarListaNegra() {
             try {
@@ -2454,16 +2792,18 @@
                     
                     const diasAtraso = Math.floor((new Date() - new Date(c.data_vencimento + 'T12:00:00Z')) / (1000 * 60 * 60 * 24));
                     
+                    // 🚨 NOVO: IDENTIFICAÇÃO DO CONTRATO NO CARTÃO DO KANBAN
                     document.getElementById(destino).innerHTML += `
                         <div id="crm-card-${c.id}" class="bg-slate-800 p-3 rounded-xl border border-slate-600 shadow-lg cursor-grab active:cursor-grabbing hover:border-orange-500 transition-colors" draggable="true" ondragstart="dragKanban(event)">
                             <div class="flex justify-between items-start mb-2">
                                 <p class="text-[11px] font-bold text-white uppercase truncate pr-2">${escapeHTML(c.nome)}</p>
                                 <span class="bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded text-[8px] font-black">${diasAtraso}d Atraso</span>
                             </div>
+                            <p class="text-[9px] text-slate-500 mb-1">CT #${c.id} | Venc: ${new Date(c.data_vencimento + 'T12:00:00Z').toLocaleDateString('pt-BR')}</p>
                             <p class="text-[10px] text-slate-400 mb-2">Dívida: <b class="text-red-400">${formatMoney(c.valor_total)}</b></p>
                             <div class="flex gap-2">
-                                <button onclick="abrirExtratoListagem('${c.cpf}')" class="flex-1 bg-slate-900 text-slate-300 py-1.5 rounded text-[9px] font-bold border border-slate-700">Ficha</button>
-                                <button onclick="window.open('https://wa.me/55${(c.telefone||'').replace(/\D/g,'')}', '_blank')" class="flex-1 bg-emerald-900/30 text-emerald-400 py-1.5 rounded text-[9px] font-bold border border-emerald-500/30">Zap</button>
+                                <button onclick="abrirExtratoListagem('${c.cpf}')" class="flex-1 bg-slate-900 text-slate-300 py-1.5 rounded text-[9px] font-bold border border-slate-700 hover:bg-slate-700 transition-colors">Ficha</button>
+                                <button onclick="window.open('https://wa.me/55${(c.telefone||'').replace(/\D/g,'')}', '_blank')" class="flex-1 bg-emerald-900/30 text-emerald-400 py-1.5 rounded text-[9px] font-bold border border-emerald-500/30 hover:bg-emerald-600 hover:text-white transition-colors">Zap</button>
                             </div>
                         </div>`;
                 });
