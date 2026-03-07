@@ -93,7 +93,6 @@
 </head>
 <body class="flex h-screen overflow-hidden" onload="initApp()">
 
-    <!-- Notificações Toast -->
     <div id="toast" class="fixed top-6 left-1/2 -translate-x-1/2 z-[200] hidden transition-all duration-300">
         <div class="bg-slate-900 border border-white/10 px-6 py-3 rounded-full shadow-2xl flex items-center gap-3">
             <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-500"></i>
@@ -101,7 +100,6 @@
         </div>
     </div>
 
-    <!-- Modal: Sessão Expirada Seguro -->
     <div id="modalSessaoExpirada" class="fixed inset-0 bg-black/95 z-[999] hidden flex flex-col items-center justify-center p-6 text-center backdrop-blur-md">
         <div class="glass-card max-w-md w-full p-8 rounded-3xl border border-red-500/30 shadow-[0_0_50px_rgba(239,68,68,0.2)]">
             <div class="w-20 h-20 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl border border-red-500/50">
@@ -119,7 +117,6 @@
         </div>
     </div>
 
-    <!-- Sidebar Completa -->
     <aside class="w-64 glass-card border-r border-slate-800 flex flex-col h-full relative z-20">
         <div class="p-6 text-center border-b border-slate-800">
             <h1 class="text-2xl font-black italic text-blue-500 tracking-tighter uppercase drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]">CMS Ventures</h1>
@@ -146,6 +143,10 @@
             
             <button onclick="mudarAba('clientes')" id="nav-clientes" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all">
                 <i class="fa-solid fa-users w-6"></i> Clientes / Extrato
+            </button>
+
+            <button onclick="mudarAba('calotes')" id="nav-calotes" class="w-full text-left px-6 py-3 text-xs font-bold text-red-500 hover:text-white transition-all bg-red-900/10">
+                <i class="fa-solid fa-skull-crossbones w-6"></i> Carteira Podre (Calotes)
             </button>
             
             <button onclick="mudarAba('cadastro')" id="nav-cadastro" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all">
@@ -190,11 +191,9 @@
         </div>
     </aside>
 
-    <!-- Main Content -->
     <main class="flex-1 h-full overflow-y-auto p-8 relative">
         <div class="fixed top-[-20%] left-[20%] w-[500px] h-[500px] bg-blue-600 rounded-full mix-blend-multiply filter blur-[150px] opacity-10 pointer-events-none"></div>
 
-        <!-- ABA: DASHBOARD E PREVISÃO DE CAIXA -->
         <div id="aba-dashboard" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-chart-pie text-blue-500 mr-2"></i> Visão Geral Financeira</h2>
             
@@ -252,7 +251,6 @@
             </div>
         </div>
 
-        <!-- ABA: SOLICITAÇÕES -->
         <div id="aba-solicitacoes" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-inbox text-blue-500 mr-2"></i> Novas Solicitações</h2>
             <div class="glass-card rounded-3xl overflow-hidden border border-slate-700">
@@ -268,13 +266,11 @@
                         </tr>
                     </thead>
                     <tbody id="lista-solicitacoes" class="divide-y divide-slate-800">
-                        <!-- Preenchido via JS -->
-                    </tbody>
+                        </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- ABA: COBRANÇA ATIVA -->
         <div id="aba-aberto" class="aba-content hidden">
             <div class="flex flex-col xl:flex-row justify-between items-center mb-6 gap-4">
                 <h2 class="text-2xl font-black uppercase tracking-tighter w-full xl:w-auto"><i class="fa-solid fa-wallet text-emerald-500 mr-2"></i> Cobrança Ativa</h2>
@@ -302,13 +298,11 @@
                         </tr>
                     </thead>
                     <tbody id="lista-aberto" class="divide-y divide-slate-800">
-                        <!-- Preenchido via JS -->
-                    </tbody>
+                        </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- ABA: CRM DE COBRANÇA (KANBAN) -->
         <div id="aba-crm" class="aba-content hidden flex flex-col h-full">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-columns text-orange-500 mr-2"></i> CRM de Cobrança Ativa</h2>
             <p class="text-xs text-slate-400 mb-4">Arraste os clientes em atraso entre as colunas para organizar o fluxo de trabalho da sua equipa.</p>
@@ -344,39 +338,37 @@
             </div>
         </div>
 
-        <!-- ABA: CLIENTES / EXTRATO -->
         <div id="aba-clientes" class="aba-content hidden">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <h2 class="text-2xl font-black uppercase tracking-tighter"><i class="fa-solid fa-users text-blue-500 mr-2"></i> Gestão de Clientes & Extrato</h2>
                 
-                <!-- BADGE COM O TOTAL DE DEVEDORES -->
-                <div id="badge-devedores" class="bg-orange-500/10 border border-orange-500/30 text-orange-400 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest hidden flex items-center shadow-inner">
-                    <span class="relative flex h-3 w-3 mr-2">
-                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-                      <span class="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
-                    </span>
-                    <span id="qtd-devendo">0</span> &nbsp;Clientes c/ Dívida Ativa
+                <div id="box-badges-clientes" class="hidden flex flex-wrap gap-2">
+                    <div class="bg-blue-500/10 border border-blue-500/30 text-blue-400 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-inner">
+                        <i class="fa-solid fa-users mr-1"></i> <span id="qtd-cadastrados">0</span> Cadastros
+                    </div>
+                    <div class="bg-orange-500/10 border border-orange-500/30 text-orange-400 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-inner">
+                        <i class="fa-solid fa-wallet mr-1"></i> <span id="qtd-devendo">0</span> Ativos
+                    </div>
+                    <div class="bg-red-500/10 border border-red-500/30 text-red-500 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-inner">
+                        <i class="fa-solid fa-triangle-exclamation mr-1"></i> <span id="qtd-atrasados">0</span> Atrasados
+                    </div>
                 </div>
             </div>
             
             <div class="flex gap-4 mb-6">
-                <!-- Adicionado o onkeyup para filtrar em tempo real! -->
                 <input type="text" id="extrato-busca" placeholder="Pesquisar por Nome, CPF ou WhatsApp..." class="input-dark w-full md:w-80 text-center text-sm" onkeyup="filtrarListaClientesLocais()">
                 <button onclick="buscarExtrato()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-2 rounded-xl shadow-lg shadow-blue-500/20 whitespace-nowrap">
                     <i class="fa-solid fa-magnifying-glass"></i> Buscar Histórico
                 </button>
             </div>
 
-            <!-- NOVA LISTA DE CLIENTES -->
             <div id="container-lista-clientes" class="mb-6 transition-all">
                 <h3 class="text-xs font-black uppercase text-slate-500 mb-4 tracking-widest border-b border-slate-800 pb-2">Selecione um cliente para ver o extrato</h3>
                 <div id="grid-clientes" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2 pb-6">
-                    <!-- Preenchido via JS -->
-                </div>
+                    </div>
             </div>
 
             <div id="box-extrato" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Botão para voltar à lista -->
                 <div class="col-span-full mb-[-10px]">
                     <button onclick="voltarParaListaClientes()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-lg font-bold transition-all uppercase tracking-widest border border-slate-700">
                         <i class="fa-solid fa-arrow-left mr-2"></i> Voltar para a Lista Geral
@@ -388,7 +380,6 @@
                         <div class="w-16 h-16 bg-blue-500/10 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl border border-blue-500/30"><i class="fa-solid fa-user"></i></div>
                         <h2 id="ext_nome" class="text-xl font-black text-white leading-tight">...</h2>
                         <p id="ext_cpf" class="text-xs font-mono text-slate-400 mt-1">...</p>
-                        <!-- SCORE DE CRÉDITO -->
                         <div id="ext_score_badge" class="mt-3 mx-auto max-w-[150px] py-1 px-3 rounded-full text-[10px] font-black uppercase tracking-widest border border-slate-600 bg-slate-800 text-white">Score: ---</div>
                     </div>
 
@@ -422,8 +413,7 @@
                     <div>
                         <h3 class="text-[10px] font-black uppercase text-slate-400 mb-3 text-center tracking-widest"><i class="fa-solid fa-file-signature mr-1"></i> Todos os Contratos (Histórico)</h3>
                         <div id="ext_lista_contratos" class="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2 pb-4">
-                            <!-- JS Injects Here -->
-                        </div>
+                            </div>
                     </div>
                 </div>
 
@@ -458,8 +448,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="lista-extrato-movimentacoes" class="divide-y divide-slate-800">
-                                    <!-- JS -->
-                                </tbody>
+                                    </tbody>
                             </table>
                         </div>
                     </div>
@@ -467,7 +456,49 @@
             </div>
         </div>
 
-        <!-- ABA: CADASTRO MANUAL / PRÉ-CADASTRO -->
+        <div id="aba-calotes" class="aba-content hidden flex flex-col h-full">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-black uppercase tracking-tighter text-red-500"><i class="fa-solid fa-skull-crossbones mr-2"></i> Carteira Podre (Calotes)</h2>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 shrink-0">
+                <div class="glass-card p-6 rounded-3xl border border-slate-700 bg-slate-800/50">
+                    <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Total de Clientes</p>
+                    <h3 id="calote-qtd" class="text-4xl font-black italic tracking-tighter mt-2 text-white">0</h3>
+                </div>
+                
+                <div class="glass-card p-6 rounded-3xl border border-orange-500/30 bg-orange-900/10">
+                    <p class="text-[10px] font-black uppercase tracking-widest text-orange-400" title="Dinheiro real que saiu do caixa e não retornou">Capital Real Perdido</p>
+                    <h3 id="calote-perda" class="text-3xl font-black italic tracking-tighter mt-2 text-orange-500">R$ 0,00</h3>
+                    <p class="text-[9px] text-slate-500 mt-1 uppercase tracking-wider">Investimento - Já Pago</p>
+                </div>
+
+                <div class="glass-card p-6 rounded-3xl border border-red-500/20 bg-red-900/10">
+                    <p class="text-[10px] font-black uppercase tracking-widest text-red-500" title="Soma total do saldo devedor congelado">Dívida Total Congelada</p>
+                    <h3 id="calote-divida" class="text-3xl font-black italic tracking-tighter mt-2 text-red-500">R$ 0,00</h3>
+                    <p class="text-[9px] text-slate-500 mt-1 uppercase tracking-wider">Capital + Juros + Multas</p>
+                </div>
+            </div>
+            
+            <div class="glass-card rounded-3xl overflow-hidden border border-red-500/30 flex-1 flex flex-col">
+                <div class="overflow-y-auto custom-scrollbar flex-1">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-red-900/20 text-[10px] uppercase font-black text-red-400 tracking-wider sticky top-0 backdrop-blur-md z-10">
+                            <tr>
+                                <th class="px-6 py-4">Devedor</th>
+                                <th class="px-6 py-4">Total Já Pago</th>
+                                <th class="px-6 py-4">Dívida Congelada</th>
+                                <th class="px-6 py-4">Dias de Atraso</th>
+                                <th class="px-6 py-4 text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lista-calotes" class="divide-y divide-red-900/20">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <div id="aba-cadastro" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-user-plus text-blue-500 mr-2"></i> Cadastro Manual / Pré-Cadastro</h2>
             
@@ -481,8 +512,7 @@
                         <input type="text" id="busca_cliente_cad" placeholder="Digite o Nome, CPF ou Zap..." class="input-dark w-full pl-12 text-sm font-bold" oninput="buscarParaCadastroLive()" autocomplete="off">
                     </div>
                     <div id="autocomplete_resultados" class="absolute top-full left-0 w-full bg-slate-800 border border-slate-600 rounded-xl shadow-2xl mt-2 hidden max-h-60 overflow-y-auto custom-scrollbar">
-                        <!-- JS Inject -->
-                    </div>
+                        </div>
                 </div>
             </div>
 
@@ -597,7 +627,6 @@
             </form>
         </div>
 
-        <!-- ABA: SAÍDA DE CAIXA -->
         <div id="aba-caixa" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-money-bill-transfer text-red-500 mr-2"></i> Saída de Caixa / Pró-labore</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -629,15 +658,13 @@
                                 </tr>
                             </thead>
                             <tbody id="lista-saidas" class="divide-y divide-slate-800">
-                                <!-- JS -->
-                            </tbody>
+                                </tbody>
                         </table>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- ABA: RELATÓRIOS E SAFRAS -->
         <div id="aba-relatorios" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-file-invoice-dollar text-emerald-500 mr-2"></i> Dashboard & Relatórios Analíticos</h2>
             
@@ -753,21 +780,17 @@
                             </tr>
                         </thead>
                         <tbody id="lista-relatorio-detalhado" class="divide-y divide-slate-800/50">
-                            <!-- JS -->
-                        </tbody>
+                            </tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- RAIO-X DE SAFRAS -->
             <h3 class="text-lg font-bold text-white mb-4 mt-10"><i class="fa-solid fa-layer-group text-purple-500 mr-2"></i> Raio-X de Safras (Cohort Analysis)</h3>
             <p class="text-xs text-slate-400 mb-6">Acompanhe o desempenho de pagamentos e a taxa de inadimplência mês a mês.</p>
             <div id="lista-safras" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                <!-- JS -->
-            </div>
+                </div>
         </div>
 
-        <!-- ABA: AUDITORIA / LOGS -->
         <div id="aba-logs" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-clock-rotate-left text-orange-500 mr-2"></i> Auditoria de Logs (Nível Sistema)</h2>
             <div class="glass-card rounded-3xl overflow-hidden border border-slate-700">
@@ -782,14 +805,12 @@
                             </tr>
                         </thead>
                         <tbody id="lista-todos-logs" class="divide-y divide-slate-800">
-                            <!-- JS -->
-                        </tbody>
+                            </tbody>
                     </table>
                 </div>
             </div>
         </div>
 
-        <!-- ABA: LISTA NEGRA -->
         <div id="aba-lista-negra" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-user-slash text-red-500 mr-2"></i> Lista Negra de CPFs</h2>
             <div class="glass-card p-6 rounded-3xl border border-red-500/20 max-w-4xl mb-6">
@@ -817,13 +838,11 @@
                         </tr>
                     </thead>
                     <tbody id="lista-negra-body" class="divide-y divide-slate-800">
-                        <!-- JS -->
-                    </tbody>
+                        </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- ABA: ROTEAMENTO PIX -->
         <div id="aba-pix" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-brands fa-pix text-emerald-500 mr-2"></i> Gestão e Roteamento PIX</h2>
             
@@ -884,7 +903,6 @@
             </div>
         </div>
 
-        <!-- ABA: PROMOTORES / RANKING -->
         <div id="aba-ranking" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-handshake text-purple-500 mr-2"></i> Gestão de Indicadores</h2>
             <div class="glass-card p-6 rounded-3xl border border-slate-700 max-w-2xl mb-6">
@@ -906,13 +924,11 @@
                         </tr>
                     </thead>
                     <tbody id="lista-promotores" class="divide-y divide-slate-800">
-                        <!-- JS -->
-                    </tbody>
+                        </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- ABA: CONFIGURAÇÕES -->
         <div id="aba-config" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-gear text-slate-400 mr-2"></i> Configurações do Sistema</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -950,9 +966,6 @@
 
     </main>
 
-    <!-- MODAIS E POPUPS -->
-
-    <!-- Modal de Garantia -->
     <div id="modalGarantia" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden z-[150] flex items-center justify-center p-4">
         <div class="glass-card w-full max-w-md rounded-3xl border border-orange-500/30 p-8 relative">
             <button onclick="fecharModal('modalGarantia')" class="absolute top-6 right-6 text-slate-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
@@ -974,12 +987,10 @@
         </div>
     </div>
 
-    <!-- Modal: Imagem Fullscreen -->
     <div id="modalZoom" class="fixed inset-0 bg-black/95 z-[200] hidden flex items-center justify-center p-4 cursor-pointer">
         <img id="zoomSource" src="" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl">
     </div>
 
-    <!-- Modal: Documentos e Aprovação -->
     <div id="modalDocumentos" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
         <div class="glass-card w-full max-w-6xl max-h-[95vh] overflow-y-auto rounded-3xl border border-slate-700 p-8 relative">
             <button onclick="fecharModal('modalDocumentos')" class="absolute top-6 right-6 text-slate-400 hover:text-white text-2xl"><i class="fa-solid fa-xmark"></i></button>
@@ -996,7 +1007,6 @@
                 </div>
             </div>
 
-            <!-- Grade de Fotos -->
             <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
                 <div class="space-y-2"><p class="text-[10px] font-black uppercase text-center text-slate-400">Selfie</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgSelfie" class="w-full h-32 object-contain cursor-pointer transition-colors" onerror="this.src='https://via.placeholder.com/300x200?text=Erro+na+Foto'" onclick="zoomImg(this.src)"></div></div>
                 <div class="space-y-2"><p class="text-[10px] font-black uppercase text-center text-slate-400">Doc. Frente</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgFrente" class="w-full h-32 object-contain cursor-pointer transition-colors" onerror="this.src='https://via.placeholder.com/300x200?text=Erro+na+Foto'" onclick="zoomImg(this.src)"></div></div>
@@ -1084,7 +1094,6 @@
         </div>
     </div>
 
-    <!-- TERMINAL DE RECEBIMENTO -->
     <div id="modalPagamento" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-[150] flex items-center justify-center p-4">
         <div class="glass-card w-full max-w-4xl max-h-[95vh] overflow-y-auto rounded-3xl border border-slate-700 p-8 relative">
             <button onclick="fecharModal('modalPagamento')" class="absolute top-6 right-6 text-slate-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
@@ -1123,7 +1132,6 @@
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Coluna Esquerda: Recebimento -->
                 <div class="space-y-4">
                     <div class="bg-emerald-900/10 border border-emerald-500/20 p-4 rounded-xl">
                         <label class="text-[10px] font-black uppercase text-emerald-500 block mb-2">Valor Recebido (R$)</label>
@@ -1136,7 +1144,6 @@
                     </div>
                 </div>
 
-                <!-- Coluna Direita: Regras de Pagamento -->
                 <div class="bg-slate-800/30 border border-slate-700 p-5 rounded-2xl space-y-4">
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Forma de Pagamento</label>
@@ -1179,7 +1186,6 @@
         </div>
     </div>
 
-    <!-- Modal: Edição de Contrato -->
     <div id="modalEditarContrato" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
         <div class="glass-card w-full max-w-lg rounded-3xl border border-slate-700 p-8 relative">
             <button onclick="fecharModal('modalEditarContrato')" class="absolute top-6 right-6 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
@@ -1236,7 +1242,6 @@
         </div>
     </div>
 
-    <!-- MODAL ELEGANTE DE DATA DE PROMESSA (KANBAN) -->
     <div id="modalDataPromessa" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden z-[200] flex items-center justify-center p-4">
         <div class="glass-card w-full max-w-sm rounded-3xl border border-emerald-500/30 p-8 relative shadow-[0_0_40px_rgba(16,185,129,0.1)]">
             <h2 class="text-xl font-black uppercase text-emerald-500 mb-4"><i class="fa-solid fa-calendar-check mr-2"></i> Promessa de Pagamento</h2>
@@ -1342,11 +1347,12 @@
             } else if (aba === 'crm') {
                 carregarCRM();
             } else if (aba === 'clientes') {
-                // Esconde o extrato detalhado e exibe a lista principal ao entrar na aba
                 document.getElementById('box-extrato').classList.add('hidden');
                 document.getElementById('container-lista-clientes').classList.remove('hidden');
                 document.getElementById('extrato-busca').value = '';
                 carregarListaClientes();
+            } else if (aba === 'calotes') {
+                carregarCalotes();
             } else if (aba === 'cadastro') {
                 // Nada extra a fazer
             } else if (aba === 'caixa') {
@@ -1874,6 +1880,9 @@
                                 <button onclick="abrirExtratoListagem('${d.cpf}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-blue-400">
                                     <i class="fa-solid fa-file-invoice mr-2"></i> Ver Extrato
                                 </button>
+                                <button onclick="marcarComoCalote('${d.id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-red-500">
+                                    <i class="fa-solid fa-skull mr-2"></i> Declarar Calote
+                                </button>
                             </div>
                         </td>
                     </tr>
@@ -2337,6 +2346,93 @@
         }
 
         // =====================================
+        // LISTAGEM ATUALIZADA (COM BADGES)
+        // =====================================
+        let listaClientesCache = [];
+
+        async function carregarListaClientes() {
+            const grid = document.getElementById('grid-clientes');
+            grid.innerHTML = '<div class="col-span-full text-center py-10 text-slate-500 font-bold"><i class="fa-solid fa-spinner fa-spin text-2xl mb-2"></i><br>A carregar base de clientes...</div>';
+            
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/clientes-lista`, { headers: headersAuth });
+                const data = await res.json();
+                
+                listaClientesCache = data.clientes || [];
+                
+                // Preenche os 3 Badges Novos
+                document.getElementById('qtd-cadastrados').innerText = data.totalCadastrados || 0;
+                document.getElementById('qtd-devendo').innerText = data.totalDevendo || 0;
+                document.getElementById('qtd-atrasados').innerText = data.totalAtrasados || 0;
+                document.getElementById('box-badges-clientes').classList.remove('hidden');
+                
+                renderizarGridClientes(listaClientesCache);
+            } catch(e) {
+                grid.innerHTML = '<div class="col-span-full text-center py-10 text-red-500 font-bold">Erro ao carregar clientes. Verifique sua conexão.</div>';
+            }
+        }
+
+        function renderizarGridClientes(lista) {
+            const grid = document.getElementById('grid-clientes');
+            grid.innerHTML = '';
+            
+            if (lista.length === 0) {
+                grid.innerHTML = '<div class="col-span-full text-center py-10 text-slate-500 font-bold">Nenhum cliente encontrado.</div>';
+                return;
+            }
+
+            lista.forEach(c => {
+                const isDevendo = c.status === 'ABERTO' || c.status === 'ATRASADO';
+                const isCalote = c.status === 'CALOTE';
+                
+                let statusIndicator = '<span class="w-2.5 h-2.5 rounded-full bg-slate-700 border border-slate-600" title="Sem dívidas ativas"></span>';
+                if (isDevendo) statusIndicator = '<span class="w-2.5 h-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]" title="Possui dívida ativa"></span>';
+                if (isCalote) statusIndicator = '<span class="w-2.5 h-2.5 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.8)]" title="Carteira Podre (Calote)"></span>';
+
+                grid.innerHTML += `
+                    <div onclick="abrirExtratoListagem('${c.cpf}')" class="bg-slate-800/40 hover:bg-slate-700/80 border border-slate-700/50 hover:border-blue-500 p-4 rounded-xl cursor-pointer transition-all flex items-center justify-between group shadow-sm hover:shadow-lg">
+                        <div class="overflow-hidden">
+                            <p class="text-[11px] font-black text-white truncate group-hover:text-blue-400 transition-colors uppercase tracking-tight">${escapeHTML(c.nome)}</p>
+                            <p class="text-[10px] text-slate-400 font-mono mt-1">${escapeHTML(c.cpf)}</p>
+                        </div>
+                        <div class="flex items-center gap-3 ml-2 shrink-0">
+                            ${statusIndicator}
+                            <i class="fa-solid fa-chevron-right text-slate-600 group-hover:text-blue-500 text-[10px]"></i>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function filtrarListaClientesLocais() {
+            const termo = document.getElementById('extrato-busca').value.toLowerCase();
+            
+            if (termo.length === 0) {
+                renderizarGridClientes(listaClientesCache);
+                document.getElementById('container-lista-clientes').classList.remove('hidden');
+                document.getElementById('box-extrato').classList.add('hidden');
+                return;
+            }
+
+            const filtrados = listaClientesCache.filter(c => 
+                c.nome.toLowerCase().includes(termo) || 
+                c.cpf.includes(termo) || 
+                (c.telefone && c.telefone.includes(termo))
+            );
+            
+            document.getElementById('container-lista-clientes').classList.remove('hidden');
+            document.getElementById('box-extrato').classList.add('hidden');
+            renderizarGridClientes(filtrados);
+        }
+
+        function voltarParaListaClientes() {
+            document.getElementById('box-extrato').classList.add('hidden');
+            document.getElementById('container-lista-clientes').classList.remove('hidden');
+            document.getElementById('extrato-busca').value = '';
+            renderizarGridClientes(listaClientesCache);
+        }
+
+        // =====================================
         // CADASTRO MANUAL E AUTO-JUROS
         // =====================================
         function togglePreCadastro() {
@@ -2775,6 +2871,106 @@
         }
 
         // =====================================
+        // CARTEIRA PODRE (CALOTES)
+        // =====================================
+        async function carregarCalotes() {
+            const tbody = document.getElementById('lista-calotes');
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-6 text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Procurando calotes...</td></tr>';
+            
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/calotes`, { headers: headersAuth });
+                const dados = await res.json();
+                
+                tbody.innerHTML = '';
+                
+                // Variáveis para as novas estatísticas
+                let qtdClientes = dados.length;
+                let dividaTotalCongelada = 0;
+                let capitalRealPerdido = 0;
+
+                if(dados.length === 0) {
+                    document.getElementById('calote-qtd').innerText = '0';
+                    document.getElementById('calote-divida').innerText = 'R$ 0,00';
+                    document.getElementById('calote-perda').innerText = 'R$ 0,00';
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-10 text-emerald-500 font-bold text-xs uppercase tracking-widest"><i class="fa-solid fa-champagne-glasses text-2xl mb-2 block"></i>Nenhum calote registado!</td></tr>';
+                    return;
+                }
+                
+                const hoje = new Date();
+                hoje.setHours(0,0,0,0);
+
+                dados.forEach(d => {
+                    const dtVenc = new Date(d.data_vencimento + 'T12:00:00Z');
+                    let diasAtraso = 0;
+                    if(dtVenc < hoje) {
+                        diasAtraso = Math.floor((hoje - dtVenc) / (1000 * 60 * 60 * 24));
+                    }
+                    
+                    // Lógica Financeira do Calote
+                    const vEmprestado = parseFloat(d.valor_emprestado) || 0;
+                    const vTotalDivida = parseFloat(d.valor_total) || 0;
+                    const vJaPago = parseFloat(d.total_ja_pego) || 0;
+
+                    dividaTotalCongelada += vTotalDivida;
+                    
+                    // O Capital Perdido é o quanto ele pegou menos o quanto ele devolveu
+                    // Se o resultado for negativo (ele devolveu mais que o capital, mas não pagou o juros todo), a perda de capital é zero.
+                    let perdaDesteCliente = vEmprestado - vJaPago;
+                    if (perdaDesteCliente < 0) perdaDesteCliente = 0;
+                    
+                    capitalRealPerdido += perdaDesteCliente;
+                    
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-red-900/10 transition-colors">
+                            <td class="px-6 py-4">
+                                <p class="font-bold text-white text-xs uppercase">${escapeHTML(d.nome)}</p>
+                                <p class="text-[9px] font-mono text-slate-500 mt-1">${escapeHTML(d.cpf)} | Tel: ${escapeHTML(d.telefone)}</p>
+                            </td>
+                            <td class="px-6 py-4 text-emerald-400 font-bold text-xs">${formatMoney(vJaPago)}</td>
+                            <td class="px-6 py-4 text-red-500 font-black text-sm">${formatMoney(vTotalDivida)}</td>
+                            <td class="px-6 py-4 text-orange-400 font-bold text-xs"><i class="fa-regular fa-clock mr-1"></i> ${diasAtraso} dias</td>
+                            <td class="px-6 py-4 text-center">
+                                <button onclick="marcarComoCalote('${d.id}', true)" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all">
+                                    <i class="fa-solid fa-rotate-left mr-1"></i> Reverter
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                // Atualizar o Painel no Topo
+                document.getElementById('calote-qtd').innerText = qtdClientes;
+                document.getElementById('calote-divida').innerText = formatMoney(dividaTotalCongelada);
+                document.getElementById('calote-perda').innerText = formatMoney(capitalRealPerdido);
+
+            } catch(e) {}
+        }
+
+        async function marcarComoCalote(id, isReverter = false) {
+            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show')); 
+            
+            const acaoText = isReverter ? "recuperar este contrato para a esteira de cobrança" : "declarar este contrato como PERDA DEFINITIVA";
+            if(!confirm(`Tem certeza que deseja ${acaoText}?`)) return;
+            
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/marcar-calote`, { 
+                    method: 'POST', 
+                    headers: headersAuth, 
+                    body: JSON.stringify({ id, reverter: isReverter }) 
+                });
+                
+                if(res.ok) {
+                    showToast(isReverter ? "Contrato recuperado!" : "Movido para Carteira Podre!");
+                    carregarAberto();
+                    carregarCalotes();
+                    carregarDash();
+                }
+            } catch(e) {
+                showToast("Erro ao processar calote.", "error");
+            }
+        }
+
+        // =====================================
         // CONFIGURAÇÕES E PIX
         // =====================================
         async function carregarConfig() {
@@ -2963,85 +3159,6 @@
                     `;
                 });
             } catch(e) {}
-        }
-        
-        let listaClientesCache = [];
-
-        async function carregarListaClientes() {
-            const grid = document.getElementById('grid-clientes');
-            grid.innerHTML = '<div class="col-span-full text-center py-10 text-slate-500 font-bold"><i class="fa-solid fa-spinner fa-spin text-2xl mb-2"></i><br>A carregar base de clientes...</div>';
-            
-            try {
-                const res = await fetchSeguro(`${API_BASE}/api/clientes-lista`, { headers: headersAuth });
-                const data = await res.json();
-                
-                listaClientesCache = data.clientes || [];
-                
-                document.getElementById('qtd-devendo').innerText = data.totalDevendo || 0;
-                document.getElementById('badge-devedores').classList.remove('hidden');
-                
-                renderizarGridClientes(listaClientesCache);
-            } catch(e) {
-                grid.innerHTML = '<div class="col-span-full text-center py-10 text-red-500 font-bold">Erro ao carregar clientes. Verifique sua conexão.</div>';
-            }
-        }
-
-        function renderizarGridClientes(lista) {
-            const grid = document.getElementById('grid-clientes');
-            grid.innerHTML = '';
-            
-            if (lista.length === 0) {
-                grid.innerHTML = '<div class="col-span-full text-center py-10 text-slate-500 font-bold">Nenhum cliente encontrado.</div>';
-                return;
-            }
-
-            lista.forEach(c => {
-                const isDevendo = c.status === 'ABERTO' || c.status === 'ATRASADO';
-                const statusIndicator = isDevendo 
-                    ? '<span class="w-2.5 h-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]" title="Possui dívida ativa"></span>' 
-                    : '<span class="w-2.5 h-2.5 rounded-full bg-slate-700 border border-slate-600" title="Sem dívidas ativas"></span>';
-
-                grid.innerHTML += `
-                    <div onclick="abrirExtratoListagem('${c.cpf}')" class="bg-slate-800/40 hover:bg-slate-700/80 border border-slate-700/50 hover:border-blue-500 p-4 rounded-xl cursor-pointer transition-all flex items-center justify-between group shadow-sm hover:shadow-lg">
-                        <div class="overflow-hidden">
-                            <p class="text-[11px] font-black text-white truncate group-hover:text-blue-400 transition-colors uppercase tracking-tight">${escapeHTML(c.nome)}</p>
-                            <p class="text-[10px] text-slate-400 font-mono mt-1">${escapeHTML(c.cpf)}</p>
-                        </div>
-                        <div class="flex items-center gap-3 ml-2 shrink-0">
-                            ${statusIndicator}
-                            <i class="fa-solid fa-chevron-right text-slate-600 group-hover:text-blue-500 text-[10px]"></i>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-
-        function filtrarListaClientesLocais() {
-            const termo = document.getElementById('extrato-busca').value.toLowerCase();
-            
-            if (termo.length === 0) {
-                renderizarGridClientes(listaClientesCache);
-                document.getElementById('container-lista-clientes').classList.remove('hidden');
-                document.getElementById('box-extrato').classList.add('hidden');
-                return;
-            }
-
-            const filtrados = listaClientesCache.filter(c => 
-                c.nome.toLowerCase().includes(termo) || 
-                c.cpf.includes(termo) || 
-                (c.telefone && c.telefone.includes(termo))
-            );
-            
-            document.getElementById('container-lista-clientes').classList.remove('hidden');
-            document.getElementById('box-extrato').classList.add('hidden');
-            renderizarGridClientes(filtrados);
-        }
-
-        function voltarParaListaClientes() {
-            document.getElementById('box-extrato').classList.add('hidden');
-            document.getElementById('container-lista-clientes').classList.remove('hidden');
-            document.getElementById('extrato-busca').value = '';
-            renderizarGridClientes(listaClientesCache);
         }
         
     </script>

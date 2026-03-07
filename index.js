@@ -414,11 +414,14 @@ app.get('/api/clientes-lista', async (req, res) => {
         const unicos = [];
         const cpfs = new Set();
         const cpfsDevendo = new Set();
+        const cpfsAtrasados = new Set();
+        const cpfsCadastrados = new Set();
 
         todos.forEach(c => {
-            if (['ABERTO', 'ATRASADO'].includes(c.status)) {
-                cpfsDevendo.add(c.cpf);
-            }
+            if (c.status !== 'PRE_CADASTRO') cpfsCadastrados.add(c.cpf);
+            if (['ABERTO', 'ATRASADO'].includes(c.status)) cpfsDevendo.add(c.cpf);
+            if (c.status === 'ATRASADO') cpfsAtrasados.add(c.cpf);
+            
             if (!cpfs.has(c.cpf)) {
                 cpfs.add(c.cpf);
                 unicos.push(c);
@@ -429,10 +432,40 @@ app.get('/api/clientes-lista', async (req, res) => {
 
         res.json({
             clientes: unicos,
-            totalDevendo: cpfsDevendo.size
+            totalDevendo: cpfsDevendo.size,
+            totalAtrasados: cpfsAtrasados.size,
+            totalCadastrados: cpfsCadastrados.size
         });
     } catch(e) { 
         res.status(500).json({ erro: e.message }); 
+    }
+});
+
+// ==========================================
+// ROTAS DE CALOTE (INADIMPLÊNCIA PERMANENTE)
+// ==========================================
+app.get('/api/calotes', async (req, res) => {
+    try {
+        const { data } = await supabase.from('devedores').select('*').eq('status', 'CALOTE').order('data_vencimento', { ascending: true });
+        res.json(data || []);
+    } catch(e) { 
+        res.status(500).json({ erro: e.message }); 
+    }
+});
+
+app.post('/api/marcar-calote', async (req, res) => {
+    try {
+        const { id, reverter } = req.body;
+        const novoStatus = reverter ? 'ATRASADO' : 'CALOTE';
+        const evento = reverter ? 'Recuperação de Calote' : 'Baixa por Calote / Perda';
+        const detalhes = reverter ? 'Cliente voltou para a esteira de cobrança.' : 'Contrato congelado e removido das projeções de lucro.';
+        
+        await supabase.from('devedores').update({ status: novoStatus }).eq('id', id);
+        await supabase.from('logs').insert([{ evento, detalhes, devedor_id: id }]);
+        
+        res.json({ sucesso: true });
+    } catch(e) {
+        res.status(500).json({ erro: e.message });
     }
 });
 
