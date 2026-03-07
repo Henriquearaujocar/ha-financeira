@@ -441,12 +441,14 @@ app.post('/api/enviar-cobranca-manual', async (req, res) => {
         const { data: dev } = await supabase.from('devedores').select('*').eq('id', req.body.id).single();
         if (!dev) throw new Error("Cliente não encontrado");
         
+        // Puxa as configurações de PIX do painel
         const { data: confPix } = await supabase.from('config').select('valor').eq('chave', 'pix_avancado').maybeSingle();
         
         let valorMensalidadeOuTotal = dev.qtd_parcelas > 1 ? (parseFloat(dev.valor_total) / dev.qtd_parcelas) : parseFloat(dev.valor_total);
+        
+        // Passa pelo seu motor inteligente
         const pixDados = escolherPixInteligente(confPix?.valor, valorMensalidadeOuTotal);
 
-        let msg = '';
         const nomeCurto = dev.nome.split(' ')[0];
         const valorFormatado = Number(valorMensalidadeOuTotal).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         
@@ -461,11 +463,13 @@ app.post('/api/enviar-cobranca-manual', async (req, res) => {
              textoAtraso = `\n⚠️ *Atenção:* Identificámos que o seu contrato está com ${diasAtraso} dias de atraso.`;
         }
 
+        let msg = '';
         if (dev.cobrar_so_em_dinheiro) {
-            msg = `Olá ${nomeCurto},\n\nEste é um aviso da *CMS Ventures* sobre a sua fatura no valor de *${valorFormatado}* (Vencimento: ${dtFormatada}).${textoAtraso}\n\nConforme acordado, este contrato deve ser regularizado em *dinheiro físico*. Por favor, prepare o valor para o nosso cobrador ou entre em contato.`;
+            msg = `Olá ${nomeCurto},\n\nEste é um aviso da *HA Elite* sobre a sua fatura no valor de *${valorFormatado}* (Vencimento: ${dtFormatada}).${textoAtraso}\n\nConforme acordado, este contrato deve ser regularizado em *dinheiro físico*. Por favor, prepare o valor para o nosso cobrador ou entre em contato.`;
         } else {
-            msg = `Olá ${nomeCurto},\n\nEste é um aviso da *CMS Ventures* sobre a sua fatura no valor de *${valorFormatado}* (Vencimento: ${dtFormatada}).${textoAtraso}\n\n`;
+            msg = `Olá ${nomeCurto},\n\nEste é um aviso da *HA Elite* sobre a sua fatura no valor de *${valorFormatado}* (Vencimento: ${dtFormatada}).${textoAtraso}\n\n`;
             
+            // SE TIVER PIX CONFIGURADO, ELE MONTA A MENSAGEM COM A CHAVE
             if (pixDados && pixDados.chave) {
                 msg += `🏦 *DADOS PARA PAGAMENTO (PIX)*\n`;
                 msg += `Favorecido: ${pixDados.nome}\n`;
@@ -473,6 +477,8 @@ app.post('/api/enviar-cobranca-manual', async (req, res) => {
                 msg += `Copie a chave abaixo e cole no aplicativo do seu banco:\n`;
                 msg += `${pixDados.chave}\n\n`;
                 msg += `⚠️ _Após o pagamento, envie o comprovante de pagamento por aqui para validarmos a baixa._\n\n`;
+            } else {
+                msg += `Para realizar o acerto, por favor, entre em contato com o nosso setor de cobrança.\n\n`;
             }
         }
         
@@ -480,7 +486,7 @@ app.post('/api/enviar-cobranca-manual', async (req, res) => {
         
         await supabase.from('logs').insert([{ 
             evento: "Envio Manual de Cobrança", 
-            detalhes: `Cobrança PIX enviada via WhatsApp.`, 
+            detalhes: `Cobrança enviada via WhatsApp.`, 
             devedor_id: dev.id 
         }]);
         
@@ -1316,10 +1322,10 @@ cron.schedule('0 * * * *', async () => {
 
                     // 4. DISPARA LOG E MENSAGEM (Apenas se o juros foi cobrado AGORA)
                     if (cobrouJurosAgora) {
-                        await supabase.from('logs').insert([{ 
-                            evento: `Juros de Atraso (${taxaDiariaPercentual.toFixed(1)}%/dia)`, 
-                            detalhes: `Cobrança de 1 dia aplicado. Multa: R$ ${valorMultaDeHoje.toFixed(2)}. Saldo Final: R$ ${novoValorTotal.toFixed(2)}`, 
-                            devedor_id: dev.id 
+                        await supabase.from('logs').insert([{
+                            evento: `Juros de Atraso (${taxaDiariaPercentual.toFixed(1)}%/dia)`,
+                            detalhes: `Cobrança de 1 dia aplicado. Multa: R$ ${valorMultaDeHoje.toFixed(2)}. Saldo Final: R$ ${novoValorTotal.toFixed(2)}`,
+                            devedor_id: dev.id
                         }]);
 
                         let valorParcelaComAtraso = dev.qtd_parcelas > 1 ? (novoValorTotal / dev.qtd_parcelas) : novoValorTotal;
@@ -1327,7 +1333,8 @@ cron.schedule('0 * * * *', async () => {
                         
                         try {
                             await enviarAvisoAtraso(dev.telefone, dev.nome, valorParcelaComAtraso, totalDiasAtraso, pixDaVezAtraso);
-                        } catch (zapErr) {
+                           } catch (zapErr) {
+                        
                             console.log(`[AVISO] Falha Z-API (WhatsApp) para ${dev.telefone}: ${zapErr.message}`);
                         }
                         
