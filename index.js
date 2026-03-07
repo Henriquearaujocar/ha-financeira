@@ -194,7 +194,6 @@ app.post('/cliente-aceitou', async (req, res) => {
         momentBRT.setDate(momentBRT.getDate() + (dev.frequencia === 'SEMANAL' ? 7 : 30));
         const dataVencimentoReal = momentBRT.toISOString().split('T')[0];
 
-        // MANTEMOS A DATA ORIGINAL GRAVADA NO MOMENTO DA APROVAÇÃO, EM VEZ DE RECALCULAR
         await supabase.from('devedores').update({ status: 'ABERTO' }).eq('id', dev.id);
         await supabase.from('solicitacoes').update({ status: 'ASSINADO' }).eq('cpf', dev.cpf).eq('status', 'APROVADO_CP');
         await supabase.from('logs').insert([{ evento: "Assinatura Digital", detalhes: `Contrato ativado. Vencimento mantido em: ${dev.data_vencimento}.`, devedor_id: dev.id }]); 
@@ -399,7 +398,6 @@ app.get('/api/clientes-lista', async (req, res) => {
         let buscar = true;
         let ptr = 0;
         
-        // Paginação automática para garantir que puxa TODOS os clientes
         while (buscar) {
             const { data, error } = await supabase
                 .from('devedores')
@@ -418,19 +416,15 @@ app.get('/api/clientes-lista', async (req, res) => {
         const cpfsDevendo = new Set();
 
         todos.forEach(c => {
-            // Se o contrato estiver em aberto ou atrasado, o cliente está devendo
             if (['ABERTO', 'ATRASADO'].includes(c.status)) {
                 cpfsDevendo.add(c.cpf);
             }
-            
-            // Adiciona na lista apenas 1 vez por CPF (evita duplicar nomes de quem tem vários contratos)
             if (!cpfs.has(c.cpf)) {
                 cpfs.add(c.cpf);
                 unicos.push(c);
             }
         });
 
-        // Ordena a lista final alfabeticamente
         unicos.sort((a, b) => a.nome.localeCompare(b.nome));
 
         res.json({
@@ -520,18 +514,16 @@ app.get('/api/cliente-extrato/:busca', async (req, res) => {
         const clientePrincipal = cls[0]; 
         const { data: tds } = await supabase.from('devedores').select('*').eq('cpf', clientePrincipal.cpf).order('created_at', { ascending: false });
         
-        let scoreCalculado = 500; // Base Score Padrão
+        let scoreCalculado = 500; 
 
         const tdsComParcelas = (tds || cls).map(dev => {
             dev.valor_parcela = (dev.qtd_parcelas > 1) ? (dev.valor_total / dev.qtd_parcelas) : dev.valor_total;
             dev.parcelas_pagas = (dev.qtd_parcelas > 1 && dev.valor_parcela > 0) ? Math.floor((dev.total_ja_pego || 0) / dev.valor_parcela) : ((dev.total_ja_pego >= dev.valor_total) ? 1 : 0);
             
-            // Lógica de Recompensa
             if (dev.status === 'QUITADO') {
                 scoreCalculado += 150;
             }
             
-            // Lógica de Punição
             if (dev.status === 'ATRASADO') {
                 const dtVenc = new Date(dev.data_vencimento + 'T12:00:00Z');
                 const hj = new Date(); 
@@ -539,13 +531,12 @@ app.get('/api/cliente-extrato/:busca', async (req, res) => {
                 
                 if (dtVenc < hj) {
                     const diasOff = Math.floor((hj - dtVenc) / (1000 * 60 * 60 * 24));
-                    scoreCalculado -= (diasOff * 5); // Perde 5 pontos por cada dia de atraso
+                    scoreCalculado -= (diasOff * 5); 
                 }
             }
             return dev;
         });
 
-        // Limita o Score para não passar dos limites do Serasa
         scoreCalculado = Math.min(1000, Math.max(0, scoreCalculado));
 
         const idsArray = (tds || []).map(c => c.id);
@@ -640,7 +631,6 @@ app.put('/api/crm/:id', async (req, res) => {
 
 app.get('/api/safras', async (req, res) => {
     try {
-        // 1. Paginação para suportar bases maiores sem quebrar
         let todosDevs = [];
         let buscar = true;
         let ptr = 0;
@@ -652,7 +642,6 @@ app.get('/api/safras', async (req, res) => {
             ptr += 1000;
         }
 
-        // 2. Puxar logs para o capital real (evita erro de amortização)
         let todosLogs = [];
         buscar = true;
         ptr = 0;
@@ -682,7 +671,6 @@ app.get('/api/safras', async (req, res) => {
 
             safras[mes].total_clientes++;
 
-            // 🚨 O Segredo: Pega do Log (histórico intocável). Se falhar, pega o atual.
             const valorOriginal = capitalRealPorContrato[d.id] > 0 ? capitalRealPorContrato[d.id] : (parseFloat(d.valor_emprestado) || 0);
             safras[mes].volume_emprestado += valorOriginal;
 
@@ -780,7 +768,6 @@ app.get('/api/estatisticas-pagamento/:id', async (req, res) => {
 });
 
 app.post('/api/baixar-manual', async (req, res) => {
-    // 🚨 ATUALIZADO: Recebe a instrução 'recalculoTratamento'
     const { id, valorPago, observacoes, recalculoAjuste, recalculoTaxa, recalculoParcelas, dataRecebimento, formaPagamento, recalculoTratamento } = req.body;
     
     const lockKey = `baixa_${id}`;
@@ -793,7 +780,6 @@ app.post('/api/baixar-manual', async (req, res) => {
         let resRecalculo = { sucesso: true, status: 'apenas_ajuste' };
         const vPago = limparMoeda(valorPago); 
 
-        // Invoca o Motor ACID Externo
         if (vPago > 0) {
             resRecalculo = await recalcularDivida(id, vPago, null, dataRecebimento, formaPagamento, recalculoTratamento); 
             if (resRecalculo.erro) throw new Error(resRecalculo.erro);
@@ -1063,7 +1049,7 @@ app.get('/api/logs-auditoria', async (req, res) => {
 });
 
 // ==========================================
-// 11. MATEMÁTICA DE LUCRO LÍQUIDO REAL E EXATO
+// 11. MATEMÁTICA DE LUCRO LÍQUIDO REAL E EXATO (ATUALIZADO)
 // ==========================================
 app.post('/api/relatorio-periodo', async (req, res) => {
     try {
@@ -1107,11 +1093,16 @@ app.post('/api/relatorio-periodo', async (req, res) => {
         if (devedorIdsPeriodo.length > 0) {
             for (let i = 0; i < devedorIdsPeriodo.length; i += 200) {
                 const chunk = devedorIdsPeriodo.slice(i, i + 200);
-                const { data: devs } = await supabase.from('devedores').select('id, taxa_juros, qtd_parcelas').in('id', chunk);
+                // 🚨 BUSCA ATUALIZADA: Puxamos o valor_emprestado para usar como TETO
+                const { data: devs } = await supabase.from('devedores').select('id, taxa_juros, qtd_parcelas, valor_emprestado').in('id', chunk);
                 
                 if (devs) {
                     devs.forEach(d => { 
-                        taxasDevedores[d.id] = { taxa: parseFloat(d.taxa_juros) || 30, parcelas: parseInt(d.qtd_parcelas) || 1 }; 
+                        taxasDevedores[d.id] = { 
+                            taxa: parseFloat(d.taxa_juros) || 30, 
+                            parcelas: parseInt(d.qtd_parcelas) || 1,
+                            capitalOriginal: parseFloat(d.valor_emprestado) || 0 // Usado na trava de ouro
+                        }; 
                     });
                 }
             }
@@ -1132,9 +1123,7 @@ app.post('/api/relatorio-periodo', async (req, res) => {
                 totalRecebido += v;
                 if (ev === 'Quitação Total') qtdQuitados++;
                 
-                // 🚨 MATEMÁTICA DEFINITIVA DE LUCRO REAL (À PROVA DE ERROS)
                 let lucroExtra = 0;
-                // 1. Extrai juros extras sem quebrar casas decimais (ex: 200.00 não vira 20000)
                 const matchExtra1 = (log.detalhes || "").match(/R\$ ([\d.,]+) convertidos/);
                 const matchExtra2 = (log.detalhes || "").match(/Excedente de R\$ ([\d.,]+)/);
                 
@@ -1146,32 +1135,44 @@ app.post('/api/relatorio-periodo', async (req, res) => {
 
                 let jurosBaseCalculado = 0;
 
-                // 2. Rolagem: O cliente paga os juros vencidos para manter o capital na rua
                 if (ev.includes('Rolagem')) {
                     const matchCap = (log.detalhes || "").match(/Cap Reajustado: R\$ ([\d.,]+)/);
                     if (matchCap && log.devedor_id && taxasDevedores[log.devedor_id]) {
                         let cNew = limparMoeda(matchCap[1]);
                         let info = taxasDevedores[log.devedor_id];
                         let R = info.taxa / 100;
-                        // Cálculo Algébrico Exato do Juro Pago na Rolagem: J = (CapitalNovo + BasePaga) * Taxa / (1 + Taxa)
                         jurosBaseCalculado = ((cNew + basePaid) * R) / (1 + R);
                     } else {
-                        // Fallback seguro: toda a base da rolagem costuma ser juros
                         jurosBaseCalculado = basePaid;
                     }
                 } 
-                // 3. Pagamentos Proporcionais (Parcela Normal ou Quitação)
                 else if (ev.includes('Pagamento') || ev.includes('Recebimento') || ev.includes('Quitação')) {
                     if (log.devedor_id && taxasDevedores[log.devedor_id]) {
                         const info = taxasDevedores[log.devedor_id];
                         let tDec = info.taxa / 100;
                         let taxaAp = info.parcelas > 1 ? tDec * info.parcelas : tDec;
-                        // Fórmula Proporcional de Amortização
-                        jurosBaseCalculado = basePaid - (basePaid / (1 + taxaAp));
+                        
+                        // 1. Tenta achar o capital pela proporção normal
+                        let capitalCalculado = basePaid / (1 + taxaAp);
+
+                        // 🚨 TRAVA 1 (Quitações ou Pagamentos Maiores que a Dívida Raiz)
+                        if (capitalCalculado > info.capitalOriginal) {
+                            capitalCalculado = info.capitalOriginal;
+                        }
+
+                        // 🚨 TRAVA 2 (O cliente pagou a mais na mensalidade)
+                        if (!ev.includes('Quitação') && info.parcelas > 1) {
+                            let capitalPorParcela = info.capitalOriginal / info.parcelas;
+                            if (capitalCalculado > capitalPorParcela) {
+                                capitalCalculado = capitalPorParcela; 
+                            }
+                        }
+
+                        // REGRA MESTRA: "Se não é capital, é juros"
+                        jurosBaseCalculado = Math.max(0, basePaid - capitalCalculado);
                     }
                 }
 
-                // Soma o Juro da Parcela + O Juro Extra Retido
                 jurosMensalidadeFix += (lucroExtra + jurosBaseCalculado);
             }
             
@@ -1227,32 +1228,30 @@ app.post('/api/relatorio-periodo', async (req, res) => {
 });
 
 // ==========================================
-// 🚨 O GRANDE CRON JOB DE AUTOMAÇÃO E COBRANÇA
+// 🚨 O GRANDE CRON JOB DE AUTOMAÇÃO E COBRANÇA (KANBAN + JUROS)
 // ==========================================
+
+let cronAtrasosRodando = false; 
+
+// Rodando de hora em hora para manter o Kanban (CRM) atualizado
 cron.schedule('0 * * * *', async () => {
-    console.log('[CRON] Iniciando verificação de atrasos e juros...');
+    if (cronAtrasosRodando) {
+        console.log('[CRON] ALERTA: Execução ignorada. O loop anterior ainda está rodando.');
+        return;
+    }
+    
+    cronAtrasosRodando = true;
+    console.log('[CRON] 🔍 Iniciando varredura de Kanban e Juros...');
 
     try {
-        // 1. Puxa a taxa de juros diária das Configurações do Sistema
-        const { data: configMulta } = await supabase
-            .from('config')
-            .select('valor')
-            .eq('chave', 'multa_diaria') // Certifique-se de criar essa chave na tabela 'config'
-            .maybeSingle();
-
-        // Se não tiver configurado no painel, o padrão é 2% (2.0)
-        let taxaDiariaPercentual = 2.0; 
-        if (configMulta && configMulta.valor) {
-            taxaDiariaPercentual = parseFloat(configMulta.valor) || 2.0;
-        }
+        const { data: configMulta } = await supabase.from('config').select('valor').eq('chave', 'multa_diaria').maybeSingle();
+        const taxaDiariaPercentual = configMulta?.valor ? parseFloat(configMulta.valor) : 2.0;
         const taxaMultaDec = taxaDiariaPercentual / 100;
 
-        // Pega a data atual no fuso horário do Brasil
         const momentoBRT = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
         momentoBRT.setHours(0,0,0,0);
         const dataHojeStr = momentoBRT.toISOString().split('T')[0];
 
-        // 2. Busca configurações de PIX para enviar na mensagem (se usar)
         const { data: configPixData } = await supabase.from('config').select('valor').eq('chave', 'pix_avancado').maybeSingle();
         const configPixString = configPixData ? configPixData.valor : null;
 
@@ -1265,69 +1264,94 @@ cron.schedule('0 * * * *', async () => {
                 .from('devedores')
                 .select('*')
                 .in('status', ['ABERTO', 'ATRASADO'])
-                .lt('data_vencimento', dataHojeStr) // Venceu antes de hoje
+                .lt('data_vencimento', dataHojeStr) // Venceu ontem ou antes
                 .range(pA, pA + 999);
 
             if (error || !emAtraso || emAtraso.length === 0) break;
 
             for (const dev of emAtraso) {
-                if (clientesOff.has(dev.id) || dev.isento_multa) continue;
+                if (clientesOff.has(dev.id)) continue;
 
                 try {
-                    // TRAVA DE SEGURANÇA: Se já cobrou juros HOJE, ignora e vai pro próximo cliente.
-                    if (dev.ultima_cobranca_atraso === dataHojeStr) {
-                        continue; 
-                    }
-
                     const dtVenc = new Date(dev.data_vencimento + 'T12:00:00Z');
                     dtVenc.setHours(0,0,0,0);
-                    
                     const totalDiasAtraso = Math.floor((momentoBRT - dtVenc) / (1000 * 60 * 60 * 24));
                     
-                    if (totalDiasAtraso > 0 && totalDiasAtraso <= 365) {
-                        // Calcula a multa apenas sobre o Capital Emprestado (Raiz) para 1 DIA
-                        const capitalRaiz = parseFloat(dev.valor_emprestado) || parseFloat(dev.valor_total);
-                        const valorMultaDeHoje = capitalRaiz * taxaMultaDec;
-                        
-                        const saldoAtual = parseFloat(dev.valor_total) || 0;
-                        const novoValor = saldoAtual + valorMultaDeHoje;
+                    if (totalDiasAtraso > 365) {
+                        clientesOff.add(dev.id);
+                        continue;
+                    }
 
-                        // 3. Atualiza o banco, cravando que HOJE já foi cobrado
-                        await supabase.from('devedores').update({ 
-                            valor_total: novoValor, 
-                            status: 'ATRASADO',
-                            ultima_cobranca_atraso: dataHojeStr // <-- ISSO EVITA O BUG DA DUPLICIDADE!
-                        }).eq('id', dev.id);
+                    let precisaAtualizarBanco = false;
+                    let payloadAtualizacao = {};
+                    let cobrouJurosAgora = false;
+                    let novoValorTotal = parseFloat(dev.valor_total) || 0;
+                    let valorMultaDeHoje = 0;
+
+                    // 1. ETAPA KANBAN: Puxa para o CRM imediatamente se ainda estiver ABERTO
+                    if (dev.status === 'ABERTO') {
+                        payloadAtualizacao.status = 'ATRASADO';
+                        precisaAtualizarBanco = true;
+                    }
+
+                    // 2. ETAPA FINANCEIRA: A Trava de Ouro do Juros Diário
+                    // Só aplica a matemática se a data de hoje NÃO estiver carimbada no cliente
+                    if (dev.ultima_cobranca_atraso !== dataHojeStr && !dev.isento_multa && totalDiasAtraso > 0) {
+                        const capitalRaiz = parseFloat(dev.valor_emprestado) || parseFloat(dev.valor_total);
+                        valorMultaDeHoje = capitalRaiz * taxaMultaDec;
+                        novoValorTotal += valorMultaDeHoje;
+
+                        payloadAtualizacao.valor_total = novoValorTotal;
+                        payloadAtualizacao.ultima_cobranca_atraso = dataHojeStr; // Carimba o dia de hoje!
+                        payloadAtualizacao.status = 'ATRASADO'; // Garante o status correto
                         
-                        // Registra no Log
+                        cobrouJurosAgora = true;
+                        precisaAtualizarBanco = true;
+                    }
+
+                    // 3. SALVA NO BANCO (Se houve mudança de status ou cobrança)
+                    if (precisaAtualizarBanco) {
+                        await supabase.from('devedores').update(payloadAtualizacao).eq('id', dev.id);
+                    }
+
+                    // 4. DISPARA LOG E MENSAGEM (Apenas se o juros foi cobrado AGORA)
+                    if (cobrouJurosAgora) {
                         await supabase.from('logs').insert([{ 
                             evento: `Juros de Atraso (${taxaDiariaPercentual.toFixed(1)}%/dia)`, 
-                            detalhes: `Cobrança de 1 dia aplicado. Multa: R$ ${valorMultaDeHoje.toFixed(2)}. Saldo Final: R$ ${novoValor.toFixed(2)}`, 
+                            detalhes: `Cobrança de 1 dia aplicado. Multa: R$ ${valorMultaDeHoje.toFixed(2)}. Saldo Final: R$ ${novoValorTotal.toFixed(2)}`, 
                             devedor_id: dev.id 
                         }]);
 
-                        let valorParcelaComAtraso = dev.qtd_parcelas > 1 ? (novoValor / dev.qtd_parcelas) : novoValor;
+                        let valorParcelaComAtraso = dev.qtd_parcelas > 1 ? (novoValorTotal / dev.qtd_parcelas) : novoValorTotal;
                         const pixDaVezAtraso = escolherPixInteligente(configPixString, valorParcelaComAtraso);
                         
-                        // Envia aviso no Zap (opcional, comente se não quiser mandar msg todo dia)
-                        await enviarAvisoAtraso(dev.telefone, dev.nome, valorParcelaComAtraso, totalDiasAtraso, pixDaVezAtraso);
-                        await sleep(2500); // Pausa para não banir o WhatsApp
+                        try {
+                            await enviarAvisoAtraso(dev.telefone, dev.nome, valorParcelaComAtraso, totalDiasAtraso, pixDaVezAtraso);
+                        } catch (zapErr) {
+                            console.log(`[AVISO] Falha Z-API (WhatsApp) para ${dev.telefone}: ${zapErr.message}`);
+                        }
                         
-                    } else if (totalDiasAtraso > 365) {
-                        clientesOff.add(dev.id); // Cliente muito atrasado, para de rodar para economizar processamento
+                        // Pausa de proteção do WhatsApp apenas se mandou mensagem
+                        await sleep(3000); 
                     }
-                } catch (e) { 
+
+                } catch (errLoop) { 
+                    console.log(`[ERRO] Falha no cliente ID ${dev.id}: ${errLoop.message}`);
                     clientesOff.add(dev.id); 
                 }
             }
+            
             if (emAtraso.length < 1000) runAtraso = false;
             pA += 1000;
         }
         
-    } catch (err) {
-        console.log('[CRON] Erro ao processar atrasados: ', err.message);
+    } catch (errGeral) {
+        console.log('[CRON] Erro crítico na varredura: ', errGeral.message);
+    } finally {
+        cronAtrasosRodando = false; 
+        console.log('[CRON] ✅ Varredura de Kanban/Juros concluída com segurança.');
     }
 });
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`🚀 Servidor Alta Performance a rodar na porta ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Plataforma HA Elite operando com Alta Performance na porta ${PORT}`));
