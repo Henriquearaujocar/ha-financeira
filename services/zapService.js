@@ -27,7 +27,7 @@ const enviarZap = async (numeroRecebido, mensagem) => {
             headers: { 'client-token': process.env.ZAPI_CLIENT_TOKEN }
         });
         
-        console.log(`✅ ZAP Enviado p/ ${numeroFormatado}`);
+        console.log(`✅ CMS Ventures Zap p/ ${numeroFormatado}`);
         return true;
     } catch (error) {
         console.error(`❌ Erro Zap p/ ${numeroFormatado}:`, error.response ? error.response.data : error.message);
@@ -42,9 +42,9 @@ const enviarAprovacaoComTermos = async (numero, nome, valor, parcelas, frequenci
     let msg = '';
     
     if (isContraProposta) {
-        msg = `Olá, ${nome.split(' ')[0]}! 🤝\n\nA sua análise de crédito foi concluída. Não conseguimos liberar as condições originais, mas temos uma *CONTRAPROPOSTA* aprovada para você:\n\n`;
+        msg = `Olá, ${nome.split(' ')[0]}! 🤝\n\nA sua análise na *CMS Ventures* foi concluída. Não conseguimos liberar as condições originais, mas temos uma *CONTRAPROPOSTA* aprovada para você:\n\n`;
     } else {
-        msg = `🎉 *Boas notícias, ${nome.split(' ')[0]}!*\n\nA sua análise de crédito foi concluída e temos uma proposta aprovada para você:\n\n`;
+        msg = `🎉 *Boas notícias, ${nome.split(' ')[0]}!*\n\nA sua análise na *CMS Ventures* foi concluída e temos uma proposta aprovada para você:\n\n`;
     }
 
     msg += `💰 *Valor Liberado:* R$ ${Number(valor).toFixed(2)}\n`;
@@ -66,7 +66,7 @@ const enviarAprovacaoComTermos = async (numero, nome, valor, parcelas, frequenci
 const enviarLembreteVencimento = async (numero, nome, valor, dataVenc, pixDados) => {
     const dataFormatada = new Date(dataVenc + 'T12:00:00Z').toLocaleDateString('pt-BR');
     
-    let msg = `⏰ *LEMBRETE DE VENCIMENTO*\n\nOlá ${nome.split(' ')[0]}, a sua fatura de *R$ ${Number(valor).toFixed(2)}* tem vencimento em *${dataFormatada}*.\n\n`;
+    let msg = `⏰ *CMS VENTURES - LEMBRETE DE VENCIMENTO*\n\nOlá ${nome.split(' ')[0]}, a sua fatura de *R$ ${Number(valor).toFixed(2)}* tem vencimento em *${dataFormatada}*.\n\n`;
     
     if (pixDados && pixDados.chave) {
         msg += `🏦 *DADOS PARA PAGAMENTO (PIX)*\n`;
@@ -75,7 +75,7 @@ const enviarLembreteVencimento = async (numero, nome, valor, dataVenc, pixDados)
         msg += `Instituição: *${pixDados.banco}*\n\n`;
         msg += `Copie a chave PIX abaixo:\n`;
         msg += `${pixDados.chave}\n\n`;
-        msg += `⚠️ _Assim que realizar o pagamento, por favor, envie o comprovante de pagamento aqui nesta conversa para darmos baixa no sistema._\n\n`;
+        msg += `⚠️ _Assim que realizar o pagamento, por favor, envie o comprovante aqui nesta conversa para darmos baixa no sistema._\n\n`;
     }
 
     return await enviarZap(numero, msg);
@@ -85,7 +85,7 @@ const enviarLembreteVencimento = async (numero, nome, valor, dataVenc, pixDados)
  * Aviso de Atraso Diário com PIX direto na mensagem
  */
 const enviarAvisoAtraso = async (numero, nome, valorAtualizado, diasAtraso, pixDados) => {
-    let msg = `⚠️ *AVISO DE ATRASO - ${diasAtraso} DIAS* ⚠️\n\nOlá ${nome.split(' ')[0]},\n\nIdentificamos que a sua fatura encontra-se em atraso.\n\nO valor atualizado (com as multas diárias aplicadas) é de *R$ ${Number(valorAtualizado).toFixed(2)}*.\n\n`;
+    let msg = `⚠️ *CMS VENTURES - AVISO DE ATRASO (${diasAtraso} DIAS)* ⚠️\n\nOlá ${nome.split(' ')[0]},\n\nIdentificamos que a sua fatura encontra-se em atraso.\n\nO valor atualizado (com as multas diárias aplicadas) é de *R$ ${Number(valorAtualizado).toFixed(2)}*.\n\n`;
     
     if (pixDados && pixDados.chave) {
         msg += `🏦 *REGULARIZE AGORA VIA PIX:*\n`;

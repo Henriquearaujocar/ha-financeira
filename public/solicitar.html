@@ -84,8 +84,10 @@
                         <input type="tel" id="whatsapp" placeholder="(00) 00000-0000" class="input-field mt-1" maxlength="15" oninput="mascaraTel(this)" required>
                     </div>
                     <div>
-                        <label class="text-[10px] font-black uppercase text-slate-500 ml-2">CPF do indicador (Opcional)</label>
-                        <input type="text" id="indicado_por" placeholder="000.000.000-00" class="input-field mt-1" maxlength="14" oninput="mascaraCPF(this)">
+                        <label class="text-[10px] font-black uppercase text-slate-500 ml-2">CPF do Avalista / Fiador (Opcional)</label>
+                        <input type="text" id="indicado_por" placeholder="000.000.000-00" class="input-field mt-1 border-purple-500/30" maxlength="14" oninput="mascaraCPF(this); buscarNomeAvalista(this)">
+                        <p id="nome_avalista_txt" class="text-[10px] text-purple-400 font-bold ml-2 mt-1"></p>
+                        <input type="hidden" id="nome_avalista_hidden">
                     </div>
                 </div>
             </div>
@@ -506,6 +508,32 @@
         pSelect.addEventListener('change', atualizarInterface);
         fSelect.addEventListener('change', atualizarParcelas);
         qSelect.addEventListener('change', calcularSimulacao);
+      
+        async function buscarNomeAvalista(input) {
+            const cpf = input.value.replace(/\D/g, '');
+            const txtEl = document.getElementById('nome_avalista_txt');
+            const hiddenEl = document.getElementById('nome_avalista_hidden');
+
+            if (cpf.length === 11) {
+                txtEl.innerText = "Buscando avalista...";
+                try {
+                    const res = await fetch(`${API_BASE}/api/buscar-cliente-publico/${cpf}`);
+                    if (res.ok) {
+                        const cli = await res.json();
+                        txtEl.innerHTML = `<i class="fa-solid fa-check-circle"></i> Avalista Encontrado: ${cli.nome}`;
+                        hiddenEl.value = `${cli.nome} (CPF: ${input.value})`;
+                    } else {
+                        txtEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-red-500"></i> Cliente não encontrado na base.`;
+                        hiddenEl.value = input.value; 
+                    }
+                } catch(e) { txtEl.innerText = ""; }
+            } else {
+                txtEl.innerText = "";
+                hiddenEl.value = "";
+            }
+        }
+
+
 
         async function enviarProposta() {
             if (isSubmitting) return;
@@ -570,7 +598,7 @@
                     tipo_plano: pSelect.value,
                     frequencia: fSelect.value,
                     qtd_parcelas: pSelect.value === '30DIAS' ? 1 : parseInt(qSelect.value),
-                    indicado_por: document.getElementById('indicado_por').value.replace(/\D/g, '') || 'DIRETO',
+                    indicado_por: document.getElementById('nome_avalista_hidden').value || 'DIRETO',
                     
                     url_selfie: imagensBase64.img_selfie,
                     url_residencia: imagensBase64.img_residencia,
