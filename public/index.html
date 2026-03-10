@@ -160,7 +160,7 @@
             </button>
             
             <button onclick="mudarAba('ranking')" id="nav-ranking" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all">
-                <i class="fa-solid fa-handshake w-6"></i> Indicadores
+                <i class="fa-solid fa-handshake w-6"></i> Gestão de Avalistas
             </button>
             
             <button onclick="mudarAba('relatorios')" id="nav-relatorios" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all">
@@ -380,6 +380,7 @@
                         <div class="w-16 h-16 bg-blue-500/10 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl border border-blue-500/30"><i class="fa-solid fa-user"></i></div>
                         <h2 id="ext_nome" class="text-xl font-black text-white leading-tight">...</h2>
                         <p id="ext_cpf" class="text-xs font-mono text-slate-400 mt-1">...</p>
+                        <p id="ext_avalista" class="text-[10px] font-bold text-purple-400 mt-1 hidden"><i class="fa-solid fa-user-shield"></i> Avalista: <span></span></p>
                         <div id="ext_score_badge" class="mt-3 mx-auto max-w-[150px] py-1 px-3 rounded-full text-[10px] font-black uppercase tracking-widest border border-slate-600 bg-slate-800 text-white">Score: ---</div>
                     </div>
 
@@ -502,6 +503,15 @@
         <div id="aba-cadastro" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-user-plus text-blue-500 mr-2"></i> Cadastro Manual / Pré-Cadastro</h2>
             
+            <!-- NOVO CAMPO DE BUSCA REINSERIDO E MELHORADO AQUI -->
+            <div class="relative mb-6 max-w-4xl z-50">
+                <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                    <input type="text" id="busca_cliente_cad" placeholder="Buscar cliente existente na base para puxar dados (Nome ou CPF)..." class="input-dark pl-11 text-sm font-bold w-full bg-slate-800/80 border-blue-500/30 focus:border-blue-500" onkeyup="buscarParaCadastroLive()">
+                </div>
+                <div id="autocomplete_resultados" class="hidden absolute top-full left-0 w-full mt-2 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto z-[100]"></div>
+            </div>
+
             <form id="formCadastroRapido" class="glass-card p-8 rounded-3xl space-y-6 max-w-4xl border border-slate-700 relative z-10">
                 <input type="hidden" id="cad_id_existente">
 
@@ -531,15 +541,17 @@
                     </div>
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-2">CPF</label>
-                        <input type="text" id="cad_cpf" class="input-dark mt-1" required>
+                        <input type="text" id="cad_cpf" class="input-dark mt-1" maxlength="14" oninput="mascaraCPF(this)" required>
                     </div>
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-2">WhatsApp</label>
                         <input type="text" id="cad_zap" class="input-dark mt-1" required>
                     </div>
                     <div>
-                        <label class="text-[10px] font-black uppercase text-purple-400 ml-2">Avalista / Indicador (Opcional)</label>
-                        <input type="text" id="cad_avalista" placeholder="Nome ou CPF" class="input-dark mt-1 border-purple-500/30">
+                        <label class="text-[10px] font-black uppercase text-purple-400 ml-2">CPF do Avalista (Opcional)</label>
+                        <input type="text" id="cad_avalista_cpf" placeholder="000.000.000-00" class="input-dark mt-1 border-purple-500/30" maxlength="14" oninput="mascaraCPF(this); buscarNomeAvalistaCad(this)">
+                        <p id="cad_avalista_nome_txt" class="text-[10px] text-purple-400 font-bold ml-2 mt-1"></p>
+                        <input type="hidden" id="cad_avalista_hidden">
                     </div>
                 </div>
 
@@ -625,7 +637,7 @@
                     <div class="space-y-4">
                         <div>
                             <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Motivo / Descrição</label>
-                            <input type="text" id="saida_motivo" placeholder="Ex: Retirada Pró-labore, Pagamento Indicador..." class="input-dark mt-1">
+                            <input type="text" id="saida_motivo" placeholder="Ex: Retirada Pró-labore, Pagamento Avalista..." class="input-dark mt-1">
                         </div>
                         <div>
                             <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Valor (R$)</label>
@@ -894,13 +906,13 @@
         </div>
 
         <div id="aba-ranking" class="aba-content hidden">
-            <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-handshake text-purple-500 mr-2"></i> Gestão de Indicadores</h2>
+            <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-handshake text-purple-500 mr-2"></i> Gestão de Avalistas</h2>
             
             <div class="glass-card rounded-3xl overflow-hidden border border-slate-700">
                 <table class="w-full text-left text-sm">
                     <thead class="bg-slate-800/50 text-xs uppercase font-black text-slate-400 tracking-wider">
                         <tr>
-                            <th class="px-6 py-4">Indicador</th>
+                            <th class="px-6 py-4">Avalista</th>
                             <th class="px-6 py-4">Ativos</th>
                             <th class="px-6 py-4">Status</th>
                             <th class="px-6 py-4 text-right text-emerald-500"><i class="fa-solid fa-sack-dollar"></i> Volume Avalizado</th>
@@ -1005,7 +1017,7 @@
                         <p class="flex justify-between"><span class="text-slate-500">WhatsApp:</span> <span id="docZap" class="font-bold text-white"></span></p>
                         <p class="flex justify-between"><span class="text-slate-500">Valor Pedido:</span> <span id="docValor" class="font-bold text-emerald-400"></span></p>
                         <p class="flex justify-between"><span class="text-slate-500">Plano / Freq:</span> <span id="docPlano" class="font-bold text-white"></span></p>
-                        <p class="flex justify-between"><span class="text-slate-500">Indicador:</span> <span id="docIndicacao" class="font-bold text-purple-400"></span></p>
+                        <p class="flex justify-between"><span class="text-slate-500">Avalista:</span> <span id="docIndicacao" class="font-bold text-purple-400"></span></p>
                     </div>
                     <div class="mt-4 pt-4 border-t border-slate-800 space-y-2 text-xs">
                         <p class="text-[9px] font-black uppercase text-slate-500">Referências</p>
@@ -1274,6 +1286,39 @@
             return String(str).replace(/[&<>'"]/g, tag => ({
                 '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
             }[tag] || tag));
+        }
+
+        // Função de máscara de CPF (agora incluída)
+        function mascaraCPF(input) {
+            let x = input.value.replace(/\D/g, '').match(/(\d{0,3})(\d{0,3})(\d{0,3})(\d{0,2})/);
+            input.value = !x[2] ? x[1] : x[1] + '.' + x[2] + (x[3] ? '.' + x[3] : '') + (x[4] ? '-' + x[4] : '');
+        }
+
+        // Busca o nome do Avalista pelo CPF no Cadastro Manual
+        async function buscarNomeAvalistaCad(input) {
+            const cpf = input.value.replace(/\D/g, '');
+            const txtEl = document.getElementById('cad_avalista_nome_txt');
+            const hiddenEl = document.getElementById('cad_avalista_hidden');
+
+            if (cpf.length === 11) {
+                txtEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Procurando cliente...`;
+                try {
+                    const res = await fetchSeguro(`${API_BASE}/api/buscar-cliente-admin/${cpf}`, { headers: headersAuth });
+                    if (res.ok) {
+                        const clientes = await res.json();
+                        if(clientes.length > 0) {
+                            txtEl.innerHTML = `<i class="fa-solid fa-check-circle"></i> Avalista Válido: ${clientes[0].nome}`;
+                            hiddenEl.value = `${clientes[0].nome} (CPF: ${input.value})`;
+                        } else {
+                            txtEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-red-500"></i> Este CPF não pertence a um cliente ativo.`;
+                            hiddenEl.value = ""; 
+                        }
+                    }
+                } catch(e) { txtEl.innerText = ""; }
+            } else {
+                txtEl.innerText = "";
+                hiddenEl.value = "";
+            }
         }
 
         async function initApp() {
@@ -2138,6 +2183,13 @@
                 document.getElementById('ext_nome').innerText = data.cliente.nome; 
                 document.getElementById('ext_cpf').innerText = data.cliente.cpf;
 
+                if(data.cliente.indicado_por && data.cliente.indicado_por !== 'DIRETO') {
+                    document.getElementById('ext_avalista').classList.remove('hidden');
+                    document.getElementById('ext_avalista').querySelector('span').innerText = data.cliente.indicado_por;
+                } else {
+                    document.getElementById('ext_avalista').classList.add('hidden');
+                }
+
                 const scoreBox = document.getElementById('ext_score_badge'); 
                 let sc = data.score || 500;
                 
@@ -2526,6 +2578,11 @@
             document.getElementById('cad_zap').value = tel;
             document.getElementById('cad_obs').value = '';
             
+            // Limpa avalista para não virar bagunça
+            document.getElementById('cad_avalista_cpf').value = '';
+            document.getElementById('cad_avalista_nome_txt').innerHTML = '';
+            document.getElementById('cad_avalista_hidden').value = '';
+
             document.getElementById('autocomplete_resultados').classList.add('hidden'); 
             document.getElementById('busca_cliente_cad').value = nome;
             
@@ -2573,7 +2630,7 @@
                     cobrar_so_em_dinheiro: document.getElementById('cad_apenas_dinheiro').checked,
                     isento_multa: document.getElementById('cad_isento_multa').checked,
                     observacoes: document.getElementById('cad_obs').value,
-                    indicado_por: document.getElementById('cad_avalista').value || 'DIRETO'
+                    indicado_por: document.getElementById('cad_avalista_hidden').value || 'DIRETO'
                 };
                 
                 const res = await fetchSeguro(`${API_BASE}/api/cadastrar-cliente-manual`, { 
@@ -2585,7 +2642,15 @@
                 if(res.ok) { 
                     showToast("Registo Salvo!"); 
                     form.reset();
-                    document.getElementById('cad_avalista').value = ''; // Limpa o novo campo
+                    
+                    // Limpa o novo campo de avalista
+                    document.getElementById('cad_avalista_cpf').value = '';
+                    document.getElementById('cad_avalista_nome_txt').innerHTML = '';
+                    document.getElementById('cad_avalista_hidden').value = '';
+                    
+                    // Limpa campo de pesquisa
+                    document.getElementById('busca_cliente_cad').value = '';
+
                     mudarAba('aberto'); 
                     carregarDash(); 
                 } else {
@@ -3270,7 +3335,7 @@
                 wrapper.className = 'table-wrapper rounded-xl border border-slate-700/50';
                 tabela.parentNode.insertBefore(wrapper, tabela);
                 wrapper.appendChild(tabela);
-            });SVV
+            });
         });
     </script>
 </body>
