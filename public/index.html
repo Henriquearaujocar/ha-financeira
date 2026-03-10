@@ -502,20 +502,6 @@
         <div id="aba-cadastro" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-user-plus text-blue-500 mr-2"></i> Cadastro Manual / Pré-Cadastro</h2>
             
-            <div class="glass-card p-6 rounded-3xl border border-slate-700 mb-6 max-w-4xl relative z-30">
-                <label class="block text-[10px] font-black uppercase text-slate-400 mb-2">Já tem pré-cadastro? Pesquise para lançar dívida:</label>
-                <div class="relative">
-                    <div class="flex gap-2 relative z-10">
-                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                            <i class="fa-solid fa-search text-slate-500"></i>
-                        </div>
-                        <input type="text" id="busca_cliente_cad" placeholder="Digite o Nome, CPF ou Zap..." class="input-dark w-full pl-12 text-sm font-bold" oninput="buscarParaCadastroLive()" autocomplete="off">
-                    </div>
-                    <div id="autocomplete_resultados" class="absolute top-full left-0 w-full bg-slate-800 border border-slate-600 rounded-xl shadow-2xl mt-2 hidden max-h-60 overflow-y-auto custom-scrollbar">
-                        </div>
-                </div>
-            </div>
-
             <form id="formCadastroRapido" class="glass-card p-8 rounded-3xl space-y-6 max-w-4xl border border-slate-700 relative z-10">
                 <input type="hidden" id="cad_id_existente">
 
@@ -538,7 +524,7 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Nome Completo</label>
                         <input type="text" id="cad_nome" class="input-dark mt-1" required>
@@ -551,9 +537,13 @@
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-2">WhatsApp</label>
                         <input type="text" id="cad_zap" class="input-dark mt-1" required>
                     </div>
+                    <div>
+                        <label class="text-[10px] font-black uppercase text-purple-400 ml-2">Avalista / Indicador (Opcional)</label>
+                        <input type="text" id="cad_avalista" placeholder="Nome ou CPF" class="input-dark mt-1 border-purple-500/30">
+                    </div>
                 </div>
 
-                <div class="col-span-1 md:col-span-3 border-t border-slate-700 pt-6 mt-4">
+                <div class="col-span-1 md:col-span-4 border-t border-slate-700 pt-6 mt-4">
                     <label class="text-[10px] font-black uppercase text-slate-400 ml-2 block mb-3 text-center md:text-left">Anexar Documentos (Opcional - Atualiza a ficha do cliente)</label>
                     <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
                         <label class="flex flex-col items-center justify-center bg-slate-900/50 border border-slate-700 rounded-xl p-3 cursor-pointer hover:border-blue-500 transition-all text-center">
@@ -617,7 +607,7 @@
                 </div>
 
                 <div class="mt-4 mb-6">
-                    <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Observações / Garantias (Visível no Extrato)</label>
+                    <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Observações / Garantias (Visível nos Documentos)</label>
                     <textarea id="cad_obs" class="input-dark mt-1 text-sm h-16 resize-none" placeholder="Ex: Deixou moto placa XXX como garantia..."></textarea>
                 </div>
 
@@ -904,35 +894,20 @@
         </div>
 
         <div id="aba-ranking" class="aba-content hidden">
-            <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-handshake text-purple-500 mr-2"></i> Gestão de Avalistas</h2>
+            <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-handshake text-purple-500 mr-2"></i> Gestão de Indicadores</h2>
             
             <div class="glass-card rounded-3xl overflow-hidden border border-slate-700">
                 <table class="w-full text-left text-sm">
                     <thead class="bg-slate-800/50 text-xs uppercase font-black text-slate-400 tracking-wider">
                         <tr>
-                            <th class="px-6 py-4">Avalista / Fiador</th>
+                            <th class="px-6 py-4">Indicador</th>
                             <th class="px-6 py-4">Ativos</th>
                             <th class="px-6 py-4">Status</th>
                             <th class="px-6 py-4 text-right text-emerald-500"><i class="fa-solid fa-sack-dollar"></i> Volume Avalizado</th>
                         </tr>
                     </thead>
                     <tbody id="lista-promotores" class="divide-y divide-slate-800">
-                        </tbody>
-                </table>
-            </div>
-        </div>
-            <div class="glass-card rounded-3xl overflow-hidden border border-slate-700">
-                <table class="w-full text-left text-sm">
-                    <thead class="bg-slate-800/50 text-xs uppercase font-black text-slate-400 tracking-wider">
-                        <tr>
-                            <th class="px-6 py-4">Indicador</th>
-                            <th class="px-6 py-4">CPF (Código)</th>
-                            <th class="px-6 py-4">Data Início</th>
-                            <th class="px-6 py-4 text-right text-emerald-500"><i class="fa-solid fa-sack-dollar"></i> Volume Gerado</th>
-                        </tr>
-                    </thead>
-                    <tbody id="lista-promotores" class="divide-y divide-slate-800">
-                        </tbody>
+                    </tbody>
                 </table>
             </div>
         </div>
@@ -2597,7 +2572,8 @@
                     qtd_parcelas: parseInt(document.getElementById('cad_parcelas').value) || 1, 
                     cobrar_so_em_dinheiro: document.getElementById('cad_apenas_dinheiro').checked,
                     isento_multa: document.getElementById('cad_isento_multa').checked,
-                    observacoes: document.getElementById('cad_obs').value
+                    observacoes: document.getElementById('cad_obs').value,
+                    indicado_por: document.getElementById('cad_avalista').value || 'DIRETO'
                 };
                 
                 const res = await fetchSeguro(`${API_BASE}/api/cadastrar-cliente-manual`, { 
@@ -2609,6 +2585,7 @@
                 if(res.ok) { 
                     showToast("Registo Salvo!"); 
                     form.reset();
+                    document.getElementById('cad_avalista').value = ''; // Limpa o novo campo
                     mudarAba('aberto'); 
                     carregarDash(); 
                 } else {
@@ -3293,7 +3270,7 @@
                 wrapper.className = 'table-wrapper rounded-xl border border-slate-700/50';
                 tabela.parentNode.insertBefore(wrapper, tabela);
                 wrapper.appendChild(tabela);
-            });
+            });SVV
         });
     </script>
 </body>

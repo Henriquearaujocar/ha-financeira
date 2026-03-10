@@ -750,11 +750,19 @@ app.post('/api/cadastrar-cliente-manual', async (req, res) => {
         const uC = d.img_casa ? await fazerUploadNoSupabase(d.img_casa, `${cpfLimpo}_c_${Date.now()}.jpg`) : (oldDev?.url_casa || null);
         
         let db = { 
-            nome: d.nome, cpf: cpfLimpo, telefone: d.whatsapp, 
-            observacoes: d.observacoes ? `[Manual] ${d.observacoes}` : "[Via Cadastro Manual de Balcão]", 
-            cobrar_so_em_dinheiro: d.cobrar_so_em_dinheiro || false, isento_multa: d.isento_multa || false,
-            url_selfie: uS, url_frente: uF, url_verso: uV, url_residencia: uR, url_casa: uC
-        };
+                nome: d.nome, 
+                cpf: cpfLimpo, 
+                telefone: d.whatsapp, 
+                observacoes: d.observacoes ? `[Manual] ${d.observacoes}` : "[Via Cadastro Manual de Balcão]", 
+                cobrar_so_em_dinheiro: d.cobrar_so_em_dinheiro || false, 
+                isento_multa: d.isento_multa || false,
+                url_selfie: uS, 
+                url_frente: uF, 
+                url_verso: uV, 
+                url_residencia: uR, 
+                url_casa: uC,
+                indicado_por: d.indicado_por || 'DIRETO'
+            };
 
         if (!d.is_precadastro) {
             db.valor_emprestado = limparMoeda(d.valor_emprestado); 
