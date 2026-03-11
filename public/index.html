@@ -67,28 +67,6 @@
             from { opacity: 0; transform: translateY(-5px); } 
             to { opacity: 1; transform: translateY(0); } 
         }
-
-        /* Calculadora Flutuante */
-        .floating-calc {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 100;
-        }
-        
-        .calc-panel {
-            display: none;
-            position: absolute;
-            bottom: 60px;
-            right: 0;
-            width: 320px;
-            transform-origin: bottom right;
-            animation: fadeIn 0.2s ease-out;
-        }
-        
-        .calc-panel.show { 
-            display: block; 
-        }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden" onload="initApp()">
