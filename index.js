@@ -516,16 +516,18 @@ app.post('/api/enviar-cobranca-manual', async (req, res) => {
 
         let msg = '';
         if (dev.cobrar_so_em_dinheiro) {
-            msg = `Olá ${nomeCurto},\n\nEste é um aviso da *CMS Ventures* sobre a sua fatura no valor de *${valorFormatado}* (Vencimento: ${dtFormatada}).${textoAtraso}\n\nConforme acordado, este contrato deve ser regularizado em *dinheiro físico*. Por favor, prepare o valor para o nosso cobrador ou entre em contato.`;
+            sg = `Olá ${nomeCurto},\n\nEste é um aviso da *CMS Ventures* sobre a sua fatura no valor de *${valorFormatado}* (Vencimento: ${dtFormatada}).${textoAtraso}\n\nConforme acordado, este contrato deve ser regularizado em *dinheiro físico*. Por favor, prepare o valor para o nosso cobrador ou entre em contato.\n\n`;
         } else {
             msg = `Olá ${nomeCurto},\n\nEste é um aviso da *CMS Ventures* sobre a sua fatura no valor de *${valorFormatado}* (Vencimento: ${dtFormatada}).${textoAtraso}\n\n`;
-            
+
             if (pixDados && pixDados.chave) {
                 msg += `🏦 *DADOS PARA PAGAMENTO (PIX)*\nFavorecido: ${pixDados.nome}\nInstituição: ${pixDados.banco}\n\nCopie a chave abaixo:\n${pixDados.chave}\n\n⚠️ _Após o pagamento, envie o comprovante por aqui._\n\n`;
             } else {
                 msg += `Para realizar o acerto, por favor, entre em contato com o nosso setor de cobrança.\n\n`;
             }
         }
+
+        msg += `🤖 _Esta é uma mensagem automática. Qualquer dúvida ou se precisar de ajuda, basta responder aqui mesmo!_`;
         
         await enviarZap(dev.telefone, msg);
         await supabase.from('logs').insert([{ evento: "Envio Manual de Cobrança", detalhes: `Cobrança enviada via WhatsApp.`, devedor_id: dev.id }]);

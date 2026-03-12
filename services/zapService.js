@@ -67,7 +67,7 @@ const enviarLembreteVencimento = async (numero, nome, valor, dataVenc, pixDados)
     const dataFormatada = new Date(dataVenc + 'T12:00:00Z').toLocaleDateString('pt-BR');
     
     let msg = `⏰ *CMS VENTURES - LEMBRETE DE VENCIMENTO*\n\nOlá ${nome.split(' ')[0]}, a sua fatura de *R$ ${Number(valor).toFixed(2)}* tem vencimento em *${dataFormatada}*.\n\n`;
-    
+
     if (pixDados && pixDados.chave) {
         msg += `🏦 *DADOS PARA PAGAMENTO (PIX)*\n`;
         msg += `Para sua comodidade, realize a transferência para a conta oficial:\n\n`;
@@ -77,6 +77,8 @@ const enviarLembreteVencimento = async (numero, nome, valor, dataVenc, pixDados)
         msg += `${pixDados.chave}\n\n`;
         msg += `⚠️ _Assim que realizar o pagamento, por favor, envie o comprovante aqui nesta conversa para darmos baixa no sistema._\n\n`;
     }
+
+    msg += `🤖 _Esta é uma mensagem automática. Qualquer dúvida ou se precisar de ajuda, basta responder aqui mesmo!_`;
 
     return await enviarZap(numero, msg);
 };
@@ -96,6 +98,8 @@ const enviarAvisoAtraso = async (numero, nome, valorAtualizado, diasAtraso, pixD
         msg += `⚠️ _Evite que o seu saldo continue a crescer. Assim que pagar, envie-nos o comprovante de pagamento por aqui!_\n\n`;
     }
     
+    msg += `🤖 _Esta é uma mensagem automática. Qualquer dúvida ou se precisar de ajuda, basta responder aqui mesmo!_`;
+
     return await enviarZap(numero, msg);
 };
 
