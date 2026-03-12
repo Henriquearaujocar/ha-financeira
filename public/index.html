@@ -2417,9 +2417,36 @@
             const c = window.clienteAtualExtrato; 
             if (!c) return;
             
-            document.getElementById('docNomeCliente').textContent = c.nome; 
-            document.getElementById('docCpf').textContent = c.cpf; 
-            document.getElementById('box-simulador-cp').classList.add('hidden'); 
+            ocument.getElementById('docNomeCliente').textContent = c.nome || 'NOME NÃO INFORMADO';
+            document.getElementById('docCpf').textContent = c.cpf || '';
+            document.getElementById('docData').innerText = c.created_at ? new Date(c.created_at).toLocaleString('pt-BR') : '';
+            
+            document.getElementById('docZap').textContent = c.telefone || 'Não informado';
+            document.getElementById('docPlano').textContent = `${c.frequencia || 'MENSAL'} / ${c.qtd_parcelas || 1}x`;
+            document.getElementById('docValor').innerText = formatMoney(c.valor_emprestado || 0);
+            document.getElementById('docIndicacao').textContent = c.indicado_por || 'DIRETO';
+            document.getElementById('docRef1').textContent = c.referencia1_nome ? `${c.referencia1_nome} - ${c.referencia1_tel || ''}` : 'N/A';
+            document.getElementById('docRef2').textContent = c.referencia2_nome ? `${c.referencia2_nome} - ${c.referencia2_tel || ''}` : 'N/A';
+            document.getElementById('docObs').value = c.observacoes || "";
+
+            document.getElementById('box-simulador-cp').classList.add('hidden');
+
+            const imgPlaceholder = "https://placehold.co/300x200/1e293b/a8a29e?text=Sem+Foto";
+
+            const fotos = [
+                { id: 'imgSelfie', url: c.url_selfie },
+                { id: 'imgFrente', url: c.url_frente },
+                { id: 'imgVerso', url: c.url_verso },
+                { id: 'imgResidencia', url: c.url_residencia },
+                { id: 'imgCasa', url: c.url_casa }
+            ];
+
+            fotos.forEach(foto => {
+                const imgElement = document.getElementById(foto.id);
+                if (imgElement) {
+                    imgElement.src = (foto.url && foto.url.trim() !== "") ? foto.url : imgPlaceholder;}
+                    });
+
             document.getElementById('modalDocumentos').classList.remove('hidden');
         }
 
