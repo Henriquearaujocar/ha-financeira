@@ -704,32 +704,29 @@ app.get('/api/estatisticas-pagamento/:id', async (req, res) => {
 });
 
 app.post('/api/baixar-manual', async (req, res) => {
-    const { id, valorPago, observacoes, recalculoAjuste, recalculoTaxa, recalculoParcelas, dataRecebimento, formaPagamento, recalculoTratamento } = req.body;
-    
-    const lockKey = `baixa_${id}`;
-    if (travasAtivasPainel.has(lockKey)) return res.status(429).json({ erro: "Aguarde processamento..." });
-    travasAtivasPainel.add(lockKey);
-
-    try { 
-        const edicoesManuais = {
-            recalculoAjuste: limparMoeda(recalculoAjuste),
-            recalculoTaxa: limparMoeda(recalculoTaxa),
-            recalculoParcelas: recalculoParcelas
-        };
-
-        const vPago = limparMoeda(valorPago); 
-        const resRecalculo = await recalcularDivida(id, vPago, null, dataRecebimento, formaPagamento, recalculoTratamento, edicoesManuais); 
+    try {
+        const { id, valorPago, dataRecebimento, formaPagamento, recalculoTratamento, observacoes, recalculoAjuste, recalculoTaxa, recalculoParcelas } = req.body;
         
-        if (resRecalculo.erro) throw new Error(resRecalculo.erro);
+        // 🚨 BLINDAGEM DE DADOS: Assegura que o FrontEnd não envie Textos Vazios ou Nulos que quebram o SQL
+        const valPago = parseFloat(valorPago) || 0;
+        const ajuste = recalculoAjuste ? parseFloat(recalculoAjuste) : null;
+        const taxa = recalculoTaxa ? parseFloat(recalculoTaxa) : null;
+        const parcelas = recalculoParcelas ? parseInt(recalculoParcelas) : null;
+
+        const edicao = { recalculoAjuste: ajuste, recalculoTaxa: taxa, recalculoParcelas: parcelas, observacoes: observacoes };
         
-        if (observacoes) {
-            const { data: dev } = await supabase.from('devedores').select('observacoes').eq('id', id).single();
-            const obsFinal = (dev?.observacoes ? dev.observacoes + " | " : "") + `[${new Date().toLocaleDateString()}] ${observacoes}`;
-            await supabase.from('devedores').update({ observacoes: obsFinal }).eq('id', id);
+        // Chama o serviço financeiro com os valores devidamente higienizados
+        const resultado = await recalcularDivida(parseInt(id), valPago, null, dataRecebimento, formaPagamento, recalculoTratamento, edicao);
+        
+        if (resultado && resultado.erro) {
+            return res.status(400).json(resultado);
         }
-
-        res.json(resRecalculo);
-    } catch (e) { res.status(500).json({ erro: e.message }); } finally { travasAtivasPainel.delete(lockKey); }
+        
+        res.json({ sucesso: true, detalhes: resultado });
+    } catch (e) {
+        console.error("Erro CRÍTICO na rota baixar-manual:", e);
+        res.status(500).json({ erro: "Erro interno no servidor ao processar a baixa financeira." });
+    }
 });
 
 // ==========================================

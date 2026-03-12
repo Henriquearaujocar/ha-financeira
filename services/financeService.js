@@ -10,33 +10,34 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
     if (error || !dev) return { erro: "Devedor não encontrado na base de dados." };
     if (dev.status === 'QUITADO' || dev.pago === true) return { erro: "Operação Bloqueada: Contrato já quitado." };
 
-    let totalAnterior = Math.round(parseFloat(dev.valor_total) * 100) / 100;
-    let capitalAtual = Math.round(parseFloat(dev.valor_emprestado) * 100) / 100;
-    let parcelasAtuais = dev.qtd_parcelas || 1;
+    // BLINDAGEM ANTI-NaN: Força rigorosamente tudo a ser Número
+    let totalAnterior = Math.round(parseFloat(dev.valor_total || 0) * 100) / 100;
+    let capitalAtual = Math.round(parseFloat(dev.valor_emprestado || 0) * 100) / 100;
+    let parcelasAtuais = parseInt(dev.qtd_parcelas) || 1;
     let taxaAtualDec = parseFloat(dev.taxa_juros || 30) / 100;
+    
+    // CORREÇÃO DO BUG FATAL: Variável declarada apenas UMA vez
+    let pago = Math.round(parseFloat(valorPago || 0) * 100) / 100;
     
     let notasManuais = [];
 
     // --- APLICAÇÃO DE EDIÇÃO MANUAL ANTES DO PAGAMENTO ---
     if (edicaoManual) {
-        if (edicaoManual.recalculoAjuste) {
-            totalAnterior += edicaoManual.recalculoAjuste;
-            notasManuais.push(`Ajuste de Saldo (R$ ${edicaoManual.recalculoAjuste})`);
+        if (edicaoManual.recalculoAjuste !== null && edicaoManual.recalculoAjuste !== undefined) {
+            const ajuste = parseFloat(edicaoManual.recalculoAjuste) || 0;
+            totalAnterior += ajuste;
+            notasManuais.push(`Ajuste de Saldo: ${ajuste > 0 ? '+' : ''}${ajuste.toFixed(2)}`);
         }
-        if (edicaoManual.recalculoParcelas > 0) {
-            parcelasAtuais = parseInt(edicaoManual.recalculoParcelas);
-            notasManuais.push(`Reestruturado para ${parcelasAtuais} parc.`);
+        if (edicaoManual.recalculoTaxa !== null && edicaoManual.recalculoTaxa !== undefined) {
+            taxaAtualDec = parseFloat(edicaoManual.recalculoTaxa) / 100 || 0;
+            notasManuais.push(`Nova Taxa: ${edicaoManual.recalculoTaxa}%`);
         }
-        if (edicaoManual.recalculoTaxa > 0) {
-            taxaAtualDec = edicaoManual.recalculoTaxa / 100;
-            let txApli = parcelasAtuais > 1 ? taxaAtualDec * parcelasAtuais : taxaAtualDec;
-            totalAnterior = capitalAtual * (1 + txApli);
-            notasManuais.push(`Taxa Base alterada para ${edicaoManual.recalculoTaxa}%`);
+        if (edicaoManual.recalculoParcelas !== null && edicaoManual.recalculoParcelas !== undefined) {
+            parcelasAtuais = parseInt(edicaoManual.recalculoParcelas) || 1;
+            notasManuais.push(`Novo Prazo: ${parcelasAtuais}x`);
         }
     }
 
-    const pago = Math.round(parseFloat(valorPago) * 100) / 100;
-    
     let valorParaAbaterDoSaldo = pago;
     let jurosAbatido = 0;
     let capitalAbatido = 0;
@@ -46,7 +47,7 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
     if (pago > 0 && tratamento === 'JUROS_EXTRA' && pago < totalAnterior) {
         if (parcelasAtuais > 1) {
             const parcelaEstimada = totalAnterior / parcelasAtuais;
-            if (pago > parcelaEstimada) {
+            if (parcelaEstimada > 0 && pago > parcelaEstimada) {
                 let numParcPagas = Math.floor(pago / parcelaEstimada);
                 valorParaAbaterDoSaldo = numParcPagas * parcelaEstimada;
                 excedenteRetidoComoJuros = pago - valorParaAbaterDoSaldo;
@@ -67,7 +68,7 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
 
     let novoTotal = Math.max(0, Math.round((totalAnterior - valorParaAbaterDoSaldo) * 100) / 100);
 
-    // 🚨 MATEMÁTICA DO DRE: Separação Exata de Capital e Juros
+    // MATEMÁTICA DO DRE: Separação Exata de Capital e Juros
     if (novoTotal <= 0.05) {
         capitalAbatido = capitalAtual;
         jurosAbatido = pago - capitalAbatido;
@@ -128,8 +129,11 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
     // B - PARCELADO
     if (parcelasAtuais > 1) {
         const parcelaEstimada = totalAnterior / parcelasAtuais;
-        let parcelasPagasInt = Math.floor(valorParaAbaterDoSaldo / parcelaEstimada);
-        if ((valorParaAbaterDoSaldo - (parcelasPagasInt * parcelaEstimada)) >= (parcelaEstimada * 0.90)) parcelasPagasInt += 1;
+        let parcelasPagasInt = 0;
+        if (parcelaEstimada > 0) {
+            parcelasPagasInt = Math.floor(valorParaAbaterDoSaldo / parcelaEstimada);
+            if ((valorParaAbaterDoSaldo - (parcelasPagasInt * parcelaEstimada)) >= (parcelaEstimada * 0.90)) parcelasPagasInt += 1;
+        }
 
         rpcPayload.p_evento = pago > 0 ? (excedenteRetidoComoJuros > 0 ? "Pagamento + Juros Retidos" : "Pagamento de Parcela") : "Ajuste de Balcão";
         rpcPayload.p_detalhes += `${tagPgto} Abateu R$ ${pago.toFixed(2)} (Cap: R$${rpcPayload.p_valor_capital.toFixed(2)} | Lucro: R$${rpcPayload.p_valor_juros.toFixed(2)}).`;

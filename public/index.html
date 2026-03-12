@@ -67,6 +67,28 @@
             from { opacity: 0; transform: translateY(-5px); } 
             to { opacity: 1; transform: translateY(0); } 
         }
+
+        /* Calculadora Flutuante */
+        .floating-calc {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 100;
+        }
+        
+        .calc-panel {
+            display: none;
+            position: absolute;
+            bottom: 60px;
+            right: 0;
+            width: 320px;
+            transform-origin: bottom right;
+            animation: fadeIn 0.2s ease-out;
+        }
+        
+        .calc-panel.show { 
+            display: block; 
+        }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden" onload="initApp()">
@@ -1266,7 +1288,7 @@
             }[tag] || tag));
         }
 
-        // Função de máscara de CPF (agora incluída)
+        // Função de máscara de CPF
         function mascaraCPF(input) {
             let x = input.value.replace(/\D/g, '').match(/(\d{0,3})(\d{0,3})(\d{0,3})(\d{0,2})/);
             input.value = !x[2] ? x[1] : x[1] + '.' + x[2] + (x[3] ? '.' + x[3] : '') + (x[4] ? '-' + x[4] : '');
@@ -1962,10 +1984,14 @@
             
             document.getElementById('pgtoDevedorId').value = dev.id; 
             
-            if (dev.qtd_parcelas > 1 && dev.valor_parcela) {
-                document.getElementById('pgtoValor').value = parseFloat(dev.valor_parcela).toFixed(2); 
+            const totalDev = parseFloat(dev.valor_total) || 0;
+            const parcelas = parseInt(dev.qtd_parcelas) || 1;
+            
+            // Corrige o BUG do NaN (dev.valor_parcela não existe no banco de dados)
+            if (parcelas > 1) {
+                document.getElementById('pgtoValor').value = (totalDev / parcelas).toFixed(2); 
             } else {
-                document.getElementById('pgtoValor').value = parseFloat(dev.valor_total).toFixed(2);
+                document.getElementById('pgtoValor').value = totalDev.toFixed(2);
             }
 
             document.getElementById('pgtoObs').value = ''; 
@@ -2029,15 +2055,15 @@
                     method: 'POST', 
                     headers: headersAuth, 
                     body: JSON.stringify({ 
-                        id: id, 
+                        id: parseInt(id), 
                         valorPago: v || 0, 
                         dataRecebimento: document.getElementById('pgtoDataRecebimento').value, 
                         formaPagamento: document.getElementById('pgtoForma').value, 
                         recalculoTratamento: document.getElementById('pgtoTratamento').value,
                         observacoes: document.getElementById('pgtoObs').value, 
-                        recalculoAjuste: document.getElementById('pgtoAjuste').value, 
-                        recalculoTaxa: document.getElementById('pgtoNovaTaxa').value, 
-                        recalculoParcelas: document.getElementById('pgtoNovoParcelamento').value 
+                        recalculoAjuste: document.getElementById('pgtoAjuste').value ? parseFloat(document.getElementById('pgtoAjuste').value) : null, 
+                        recalculoTaxa: document.getElementById('pgtoNovaTaxa').value ? parseFloat(document.getElementById('pgtoNovaTaxa').value) : null, 
+                        recalculoParcelas: document.getElementById('pgtoNovoParcelamento').value ? parseInt(document.getElementById('pgtoNovoParcelamento').value) : null 
                     }) 
                 });
                 
@@ -2047,10 +2073,11 @@
                     carregarAberto(); 
                     carregarDash();
                 } else { 
-                    throw new Error("Erro na baixa no servidor"); 
+                    const eBody = await res.json().catch(() => ({}));
+                    throw new Error(eBody.erro || eBody.details || eBody.message || "Erro interno no servidor ao registar a baixa."); 
                 }
             } catch(e) { 
-                showToast("Erro", "error"); 
+                showToast(e.message, "error"); 
             } finally { 
                 btn.innerHTML = oldText; 
                 btn.disabled = false; 
@@ -2111,9 +2138,12 @@
                     showToast("Salvo!"); 
                     fecharModal('modalEditarContrato'); 
                     carregarAberto(); 
+                } else {
+                    const eBody = await res.json().catch(() => ({}));
+                    throw new Error(eBody.erro || eBody.details || "Erro ao editar contrato."); 
                 }
             } catch(e) { 
-                showToast("Erro", "error"); 
+                showToast(e.message, "error"); 
             }
         }
 
@@ -2363,18 +2393,23 @@
         async function alterarStatusGarantia(idGarantia, novoStatus) {
             if(!confirm(`Deseja marcar este penhor como ${novoStatus}?`)) return;
             try {
-                await fetchSeguro(`${API_BASE}/api/garantias/${idGarantia}/status`, { 
+                const res = await fetchSeguro(`${API_BASE}/api/garantias/${idGarantia}/status`, { 
                     method: 'PUT', 
                     headers: headersAuth, 
                     body: JSON.stringify({ status: novoStatus }) 
                 });
                 
-                showToast(`Garantia atualizada!`);
-                if(window.clienteAtualExtrato) {
-                    carregarGarantiasDoCliente(window.clienteAtualExtrato.cpf);
+                if (res.ok) {
+                    showToast(`Garantia atualizada!`);
+                    if(window.clienteAtualExtrato) {
+                        carregarGarantiasDoCliente(window.clienteAtualExtrato.cpf);
+                    }
+                } else {
+                    const eBody = await res.json().catch(() => ({}));
+                    throw new Error(eBody.erro || "Erro ao atualizar garantia.");
                 }
             } catch(e) { 
-                showToast("Erro.", "error"); 
+                showToast(e.message, "error"); 
             }
         }
 
@@ -2814,7 +2849,7 @@
         
         async function adicionarPromotor() {
             try { 
-                await fetchSeguro(`${API_BASE}/api/adicionar-promotor`, { 
+                const res = await fetchSeguro(`${API_BASE}/api/adicionar-promotor`, { 
                     method: 'POST', 
                     headers: headersAuth, 
                     body: JSON.stringify({ 
@@ -2823,12 +2858,17 @@
                     }) 
                 }); 
                 
-                showToast("Adicionado!"); 
-                carregarPromotores();
-                document.getElementById('promo_nome').value = '';
-                document.getElementById('promo_cpf').value = '';
+                if (res.ok) {
+                    showToast("Adicionado!"); 
+                    carregarPromotores();
+                    document.getElementById('promo_nome').value = '';
+                    document.getElementById('promo_cpf').value = '';
+                } else {
+                    const eBody = await res.json().catch(() => ({}));
+                    throw new Error(eBody.erro || "Erro ao adicionar avalista.");
+                }
             } catch(e) {
-                showToast("Erro ao adicionar.", "error");
+                showToast(e.message, "error");
             }
         }
 
@@ -3022,9 +3062,12 @@
                     carregarAberto();
                     carregarCalotes();
                     carregarDash();
+                } else {
+                    const eBody = await res.json().catch(() => ({}));
+                    throw new Error(eBody.erro || "Erro ao processar calote.");
                 }
             } catch(e) {
-                showToast("Erro ao processar calote.", "error");
+                showToast(e.message, "error");
             }
         }
 
@@ -3174,15 +3217,21 @@
             }
 
             try {
-                await fetchSeguro(`${API_BASE}/api/config`, { 
+                const res = await fetchSeguro(`${API_BASE}/api/config`, { 
                     method: 'POST', 
                     headers: headersAuth, 
                     body: JSON.stringify({ configs: [{ chave: 'pix_avancado', valor: JSON.stringify(conf) }] }) 
                 });
-                showToast("Estratégia PIX salva com sucesso!");
-                carregarConfig();
+                
+                if (res.ok) {
+                    showToast("Estratégia PIX salva com sucesso!");
+                    carregarConfig();
+                } else {
+                    const eBody = await res.json().catch(() => ({}));
+                    throw new Error(eBody.erro || "Erro ao salvar estratégia PIX.");
+                }
             } catch(e) {
-                showToast("Erro ao salvar estratégia PIX.", "error");
+                showToast(e.message, "error");
             }
         }
 
