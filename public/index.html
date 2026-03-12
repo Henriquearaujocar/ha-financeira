@@ -1867,9 +1867,10 @@
                 let labelTipo = 'TOTAL DA DÍVIDA';
                 
                 if(d.qtd_parcelas > 1) { 
-                    valorExibido = total / d.qtd_parcelas; 
-                    labelTipo = 'VALOR DA MENSALIDADE'; 
-                    txtParcelas = `<br><span class="text-[10px] text-blue-400 font-bold">${d.parcelas_pagas || 0}/${d.qtd_parcelas} Pagas</span>`; 
+                    valorExibido = total / d.qtd_parcelas;
+                    labelTipo = 'VALOR DA MENSALIDADE';
+                    const totalOriginal = (d.parcelas_pagas || 0) + d.qtd_parcelas;
+                    txtParcelas = `<br><span class="text-[10px] text-blue-400 font-bold">${d.parcelas_pagas || 0}/${totalOriginal} Pagas</span>`;
                 }
 
                 tbody.innerHTML += `
@@ -2050,6 +2051,11 @@
             btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processando...`; 
             btn.disabled = true;
             
+            const inputDataStr = document.getElementById('pgtoDataRecebimento').value;
+            const dataHojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+
+            const dataEnvioFinal = (inputDataStr === dataHojeStr) ? new Date().toISOString() : `${inputDataStr}T12:00:00-03:00`;
+            
             try {
                 const res = await fetchSeguro(`${API_BASE}/api/baixar-manual`, { 
                     method: 'POST', 
@@ -2057,8 +2063,8 @@
                     body: JSON.stringify({ 
                         id: parseInt(id), 
                         valorPago: v || 0, 
-                        dataRecebimento: document.getElementById('pgtoDataRecebimento').value, 
-                        formaPagamento: document.getElementById('pgtoForma').value, 
+                        dataRecebimento: dataEnvioFinal, // Usando a nova data corrigida aqui! 
+                        formaPagamento: document.getElementById('pgtoForma').value,
                         recalculoTratamento: document.getElementById('pgtoTratamento').value,
                         observacoes: document.getElementById('pgtoObs').value, 
                         recalculoAjuste: document.getElementById('pgtoAjuste').value ? parseFloat(document.getElementById('pgtoAjuste').value) : null, 

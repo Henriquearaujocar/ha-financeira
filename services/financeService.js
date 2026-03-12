@@ -86,7 +86,24 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
     }
 
     let strVencimento = dev.data_vencimento;
-    const dataObjOperacao = dataRecebimento ? new Date(dataRecebimento + 'T12:00:00Z') : new Date();
+    
+    // --- CORREÇÃO DE FUSO HORÁRIO E HORA EXATA ---
+    let dataObjOperacao = new Date();
+    let dataParaBanco = null;
+
+    if (dataRecebimento) {
+        if (dataRecebimento.includes('T')) {
+            // Se já vier com a hora exata do frontend, usa ela mesma
+            dataObjOperacao = new Date(dataRecebimento);
+            dataParaBanco = dataRecebimento;
+        } else {
+            // Se for apenas o dia (pagamento retroativo), crava meio-dia no fuso do Brasil
+            dataObjOperacao = new Date(dataRecebimento + 'T12:00:00-03:00');
+            dataParaBanco = dataRecebimento + 'T12:00:00-03:00';
+        }
+    }
+    // ---------------------------------------------
+
     const vencObjOrig = new Date(strVencimento + 'T12:00:00Z');
     const statusDefault = vencObjOrig < dataObjOperacao ? 'ATRASADO' : 'ABERTO';
     const tagPgto = formaPagamento === 'DINHEIRO' ? '[DINHEIRO]' : '[CONTA/PIX]';
@@ -103,7 +120,7 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
         p_evento: '', 
         p_detalhes: '', 
         p_transaction_id: transactionId,
-        p_data_pagamento: dataRecebimento ? (dataRecebimento + 'T12:00:00Z') : null,
+        p_data_pagamento: dataParaBanco, // Data corrigida injetada aqui
         p_valor_capital: Math.round(capitalAbatido * 100) / 100,
         p_valor_juros: Math.round(jurosAbatido * 100) / 100
     };
