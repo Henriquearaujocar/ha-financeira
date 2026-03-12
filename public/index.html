@@ -2600,7 +2600,16 @@
             document.getElementById('busca_cliente_cad').value = nome;
             
             if (status === 'ABERTO' || status === 'ATRASADO') {
-                alert(`⚠️ ATENÇÃO: O cliente já possui contrato Ativo!`);
+                const confirmarSegundaDivida = confirm(`⚠️ ATENÇÃO: Este cliente já possui uma dívida ativa (Status: ${status}).\n\nDeseja realmente adicionar um NOVO contrato (segunda dívida) para ele?`);
+                if (!confirmarSegundaDivida) {
+                    // Limpa os campos se o usuário cancelar a ação
+                    document.getElementById('cad_id_existente').value = ''; 
+                    document.getElementById('cad_nome').value = '';
+                    document.getElementById('cad_cpf').value = ''; 
+                    document.getElementById('cad_zap').value = '';
+                    document.getElementById('busca_cliente_cad').value = '';
+                    return; // Interrompe o processo
+                }
             }
             
             document.getElementById('check_precadastro').checked = false; 

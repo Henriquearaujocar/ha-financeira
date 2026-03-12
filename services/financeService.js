@@ -16,9 +16,7 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
     let parcelasAtuais = parseInt(dev.qtd_parcelas) || 1;
     let taxaAtualDec = parseFloat(dev.taxa_juros || 30) / 100;
     
-    // CORREÇÃO DO BUG FATAL: Variável declarada apenas UMA vez
     let pago = Math.round(parseFloat(valorPago || 0) * 100) / 100;
-    
     let notasManuais = [];
 
     // --- APLICAÇÃO DE EDIÇÃO MANUAL ANTES DO PAGAMENTO ---
@@ -43,7 +41,7 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
     let capitalAbatido = 0;
     let excedenteRetidoComoJuros = 0;
 
-    // MOTOR DE RETENÇÃO DE LUCRO (Ajusta excedentes que o cliente pagou a mais)
+    // MOTOR DE RETENÇÃO DE LUCRO
     if (pago > 0 && tratamento === 'JUROS_EXTRA' && pago < totalAnterior) {
         if (parcelasAtuais > 1) {
             const parcelaEstimada = totalAnterior / parcelasAtuais;
@@ -68,7 +66,7 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
 
     let novoTotal = Math.max(0, Math.round((totalAnterior - valorParaAbaterDoSaldo) * 100) / 100);
 
-    // MATEMÁTICA DO DRE: Separação Exata de Capital e Juros
+    // MATEMÁTICA DO DRE
     if (novoTotal <= 0.05) {
         capitalAbatido = capitalAtual;
         jurosAbatido = pago - capitalAbatido;
@@ -76,7 +74,7 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
         const proporcaoCapital = totalAnterior > 0 ? (capitalAtual / totalAnterior) : 1;
         capitalAbatido = valorParaAbaterDoSaldo * proporcaoCapital;
         jurosAbatido = pago - capitalAbatido;
-    } else { // 30 Dias (Rolagem ou Pagamento Incompleto)
+    } else { 
         const valorJurosAtual = totalAnterior - capitalAtual;
         if (valorParaAbaterDoSaldo >= (valorJurosAtual * 0.95)) {
             jurosAbatido = valorJurosAtual + excedenteRetidoComoJuros;
@@ -114,6 +112,16 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
         rpcPayload.p_detalhes += `(Edições Manuais: ${notasManuais.join(' | ')}) `;
     }
 
+    // CAPTURADOR DE ERRO SQL (A MÁGICA QUE FALTAVA)
+    const executarNoBanco = async (payload) => {
+        const { error: errDB } = await supabase.rpc('processar_transacao_financeira', payload);
+        if (errDB) {
+            console.error("❌ ERRO SQL processar_transacao_financeira:", errDB);
+            return { erro: "Falha de Banco de Dados: " + errDB.message };
+        }
+        return null;
+    };
+
     // A - QUITAÇÃO TOTAL
     if (novoTotal <= 0.05) {
         rpcPayload.p_novo_total = 0;
@@ -122,7 +130,8 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
         rpcPayload.p_evento = "Quitação Total";
         rpcPayload.p_detalhes += `${tagPgto} Liquidou o contrato. (Cap: R$${rpcPayload.p_valor_capital.toFixed(2)} | Lucro: R$${rpcPayload.p_valor_juros.toFixed(2)})`;
         
-        await supabase.rpc('processar_transacao_financeira', rpcPayload);
+        const falha = await executarNoBanco(rpcPayload);
+        if (falha) return falha;
         return { sucesso: true, status: 'quitado' };
     }
 
@@ -159,7 +168,8 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
                 rpcPayload.p_detalhes += ` Ficou em dia. Restam ${rpcPayload.p_novas_parcelas} parc.`;
             }
         }
-        await supabase.rpc('processar_transacao_financeira', rpcPayload);
+        const falha = await executarNoBanco(rpcPayload);
+        if (falha) return falha;
         return { sucesso: true, status: 'parcela_abatida', novoVencimento: rpcPayload.p_novo_vencimento };
     }
 
@@ -182,12 +192,15 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
         rpcPayload.p_evento = "Rolagem de Contrato";
         rpcPayload.p_detalhes += `${tagPgto} Rolou com R$ ${pago.toFixed(2)} (Lucro Base: R$${rpcPayload.p_valor_juros.toFixed(2)}). Novo Venc: ${rpcPayload.p_novo_vencimento}.`;
 
-        await supabase.rpc('processar_transacao_financeira', rpcPayload);
+        const falha = await executarNoBanco(rpcPayload);
+        if (falha) return falha;
         return { sucesso: true, status: 'rolado', novoVencimento: rpcPayload.p_novo_vencimento };
     } else {
         rpcPayload.p_evento = "Pagamento Incompleto";
         rpcPayload.p_detalhes += `${tagPgto} R$ ${pago.toFixed(2)} não cobriu juros mínimos. Lucro extraído: R$${rpcPayload.p_valor_juros.toFixed(2)}.`;
-        await supabase.rpc('processar_transacao_financeira', rpcPayload);
+        
+        const falha = await executarNoBanco(rpcPayload);
+        if (falha) return falha;
         return { sucesso: true, status: 'parcial_abatido' };
     }
 };

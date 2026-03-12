@@ -17,8 +17,9 @@ const { fazerUploadNoSupabase } = require('./services/uploadService');
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '15mb' })); 
-app.use(express.urlencoded({ limit: '15mb', extended: true }));
+// Limite aumentado para suportar múltiplas fotos em Base64 no Cadastro Manual e Solicitação
+app.use(express.json({ limit: '50mb' })); 
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static('public'));
 
 const APP_URL = process.env.APP_URL || `http://localhost:${process.env.PORT || 3001}`;
@@ -83,7 +84,18 @@ app.post('/api/login', async (req, res) => {
 });
 
 const authMiddleware = async (req, res, next) => {
-    const rotasPublicas = ['/api/login', '/upload-foto', '/enviar-solicitacao', '/api/enviar-solicitacao', '/validar-extrato', '/cliente-aceitou', '/status-zapi', '/api/config-publica', '/favicon.ico'];
+    const rotasPublicas = [
+        '/api/login', 
+        '/upload-foto', 
+        '/enviar-solicitacao', 
+        '/api/enviar-solicitacao', 
+        '/validar-extrato', 
+        '/cliente-aceitou', 
+        '/cliente-gerar-pagamento', 
+        '/status-zapi', 
+        '/api/config-publica', 
+        '/favicon.ico'
+    ];
     if (rotasPublicas.includes(req.path) || req.path.startsWith('/api/buscar-cliente-publico')) return next();
     
     const tokenHeader = req.headers['authorization'];
@@ -124,7 +136,7 @@ app.post('/api/enviar-solicitacao', async (req, res) => {
     try {
         const d = req.body;
         const imagensParaVerificar = [d.url_selfie, d.url_residencia, d.url_frente, d.url_verso, d.url_casa];
-        for (let img of imagensParaVerificar) { if (img && img.length > 4 * 1024 * 1024) return res.status(413).json({ erro: "Imagem excede o limite de tamanho." }); }
+        for (let img of imagensParaVerificar) { if (img && img.length > 15 * 1024 * 1024) return res.status(413).json({ erro: "Imagem excede o limite de tamanho." }); }
 
         const { data: bl } = await supabase.from('lista_negra').select('cpf').eq('cpf', d.cpf).single();
         if (bl) return res.status(403).json({ erro: "CPF bloqueado pelo sistema." });
@@ -198,6 +210,21 @@ app.post('/cliente-aceitou', async (req, res) => {
         await supabase.from('logs').insert([{ evento: "Assinatura Digital", detalhes: `Contrato ativado. Vencimento mantido em: ${dev.data_vencimento}.`, devedor_id: dev.id }]); 
         res.json({ status: 'Assinado' }); 
     } catch(e) { res.status(500).json({ erro: e.message }); } 
+});
+
+app.post('/cliente-gerar-pagamento', async (req, res) => {
+    try {
+        const { id, valorParaPagar } = req.body;
+        
+        const { data: dev, error } = await supabase.from('devedores').select('*').eq('uuid', id).single();
+        if (error || !dev) return res.status(404).json({ erro: "Fatura não encontrada." });
+
+        const checkoutUrl = process.env.INFINITY_TOKEN;
+        res.json({ checkout_url: checkoutUrl });
+    } catch (e) {
+        console.error("Erro ao gerar pagamento:", e);
+        res.status(500).json({ erro: "Falha ao conectar com o banco." });
+    }
 });
 
 // ==========================================
@@ -707,7 +734,6 @@ app.post('/api/baixar-manual', async (req, res) => {
     try {
         const { id, valorPago, dataRecebimento, formaPagamento, recalculoTratamento, observacoes, recalculoAjuste, recalculoTaxa, recalculoParcelas } = req.body;
         
-        // 🚨 BLINDAGEM DE DADOS: Assegura que o FrontEnd não envie Textos Vazios ou Nulos que quebram o SQL
         const valPago = parseFloat(valorPago) || 0;
         const ajuste = recalculoAjuste ? parseFloat(recalculoAjuste) : null;
         const taxa = recalculoTaxa ? parseFloat(recalculoTaxa) : null;
@@ -715,7 +741,6 @@ app.post('/api/baixar-manual', async (req, res) => {
 
         const edicao = { recalculoAjuste: ajuste, recalculoTaxa: taxa, recalculoParcelas: parcelas, observacoes: observacoes };
         
-        // Chama o serviço financeiro com os valores devidamente higienizados
         const resultado = await recalcularDivida(parseInt(id), valPago, null, dataRecebimento, formaPagamento, recalculoTratamento, edicao);
         
         if (resultado && resultado.erro) {
@@ -940,14 +965,8 @@ app.post('/api/relatorio-periodo', async (req, res) => {
 let cronAtrasosRodando = false; 
 
 cron.schedule('0 * * * *', async () => {
-    if (cronAtrasosRodando) {
-        console.log('[CRON] ALERTA: Execução ignorada. Loop anterior ativo.');
-        return;
-    }
-    
+    if (cronAtrasosRodando) return;
     cronAtrasosRodando = true;
-    console.log('[CRON] 🔍 Iniciando varredura de Kanban e Juros...');
-
     try {
         const { data: configMulta } = await supabase.from('config').select('valor').eq('chave', 'multa_diaria').maybeSingle();
         const taxaDiariaPercentual = configMulta?.valor ? parseFloat(configMulta.valor) : 2.0;
@@ -961,7 +980,7 @@ cron.schedule('0 * * * *', async () => {
         const configPixString = configPixData ? configPixData.valor : null;
 
         let runAtraso = true;
-        let lastId = 0; // Prevenção contra ciclo infinito (Bomba de Memória corrigida)
+        let lastId = 0; 
 
         while (runAtraso) {
             const { data: emAtraso, error } = await supabase
@@ -974,7 +993,6 @@ cron.schedule('0 * * * *', async () => {
                 .limit(500);
 
             if (error || !emAtraso || emAtraso.length === 0) break;
-
             lastId = emAtraso[emAtraso.length - 1].id;
 
             for (const dev of emAtraso) {
@@ -982,14 +1000,12 @@ cron.schedule('0 * * * *', async () => {
                     const dtVenc = new Date(dev.data_vencimento + 'T12:00:00Z');
                     dtVenc.setHours(0,0,0,0);
                     const totalDiasAtraso = Math.floor((momentoBRT - dtVenc) / (1000 * 60 * 60 * 24));
-                    
-                    if (totalDiasAtraso > 365) continue; // Pula dívidas inativas
+                    if (totalDiasAtraso > 365) continue; 
 
                     let cobrouJurosAgora = false;
                     let novoValorTotal = parseFloat(dev.valor_total) || 0;
                     let valorMultaDeHoje = 0;
 
-                    // FINANÇAS: Aplica Multa se ainda não aplicou hoje
                     if (dev.ultima_cobranca_atraso !== dataHojeStr && !dev.isento_multa && totalDiasAtraso > 0) {
                         const capitalRaiz = parseFloat(dev.valor_emprestado) || parseFloat(dev.valor_total);
                         valorMultaDeHoje = capitalRaiz * taxaMultaDec;
@@ -998,21 +1014,12 @@ cron.schedule('0 * * * *', async () => {
                     }
 
                     if (cobrouJurosAgora) {
-                        // 🛡️ GRAVAÇÃO ACID: Multa Segura via RPC
                         const rpcPayload = {
-                            p_devedor_id: dev.id,
-                            p_pago: 0, 
-                            p_novo_total: novoValorTotal,
-                            p_capital: parseFloat(dev.valor_emprestado) || 0,
-                            p_status: 'ATRASADO',
-                            p_novo_vencimento: dev.data_vencimento,
-                            p_novas_parcelas: dev.qtd_parcelas,
-                            p_limpar_atraso: false,
-                            p_evento: `Juros de Atraso (${taxaDiariaPercentual.toFixed(1)}%/dia)`,
+                            p_devedor_id: dev.id, p_pago: 0, p_novo_total: novoValorTotal, p_capital: parseFloat(dev.valor_emprestado) || 0,
+                            p_status: 'ATRASADO', p_novo_vencimento: dev.data_vencimento, p_novas_parcelas: dev.qtd_parcelas,
+                            p_limpar_atraso: false, p_evento: `Juros de Atraso (${taxaDiariaPercentual.toFixed(1)}%/dia)`,
                             p_detalhes: `Cobrança de 1 dia aplicado. Multa: R$ ${valorMultaDeHoje.toFixed(2)}. Saldo Final: R$ ${novoValorTotal.toFixed(2)}`,
-                            p_data_pagamento: new Date().toISOString(),
-                            p_valor_capital: 0,
-                            p_valor_juros: 0 
+                            p_data_pagamento: new Date().toISOString(), p_valor_capital: 0, p_valor_juros: 0 
                         };
 
                         const { error: rpcErr } = await supabase.rpc('processar_transacao_financeira', rpcPayload);
@@ -1021,29 +1028,18 @@ cron.schedule('0 * * * *', async () => {
                         let valorParcelaComAtraso = dev.qtd_parcelas > 1 ? (novoValorTotal / dev.qtd_parcelas) : novoValorTotal;
                         const pixDaVezAtraso = escolherPixInteligente(configPixString, valorParcelaComAtraso);
                         
-                        try {
-                            await enviarAvisoAtraso(dev.telefone, dev.nome, valorParcelaComAtraso, totalDiasAtraso, pixDaVezAtraso);
-                        } catch (zapErr) {
-                            console.log(`[AVISO] Falha Z-API (WhatsApp) para ${dev.telefone}`);
-                        }
-                        
-                        await sleep(3000); // Evita Ban no WhatsApp
+                        try { await enviarAvisoAtraso(dev.telefone, dev.nome, valorParcelaComAtraso, totalDiasAtraso, pixDaVezAtraso); } catch (zapErr) {}
+                        await sleep(3000); 
                     } else if (dev.status === 'ABERTO') {
-                        // KANBAN: Move o post-it sem alterar finanças
                         await supabase.from('devedores').update({ status: 'ATRASADO' }).eq('id', dev.id);
                     }
-
-                } catch (errLoop) { 
-                    console.log(`[ERRO] Falha no cliente ID ${dev.id}: ${errLoop.message}`);
-                }
+                } catch (errLoop) { }
             }
             if (emAtraso.length < 500) runAtraso = false;
         }
     } catch (errGeral) {
-        console.log('[CRON] Erro crítico na varredura: ', errGeral.message);
     } finally {
         cronAtrasosRodando = false; 
-        console.log('[CRON] ✅ Varredura de Kanban/Juros concluída com segurança.');
     }
 });
 
