@@ -2625,6 +2625,15 @@
             }
         }
         
+        const getBase64 = (file) => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+            });
+
+        
+
         async function salvarCadastroRapido() {
             const form = document.getElementById('formCadastroRapido'); 
             if (!form.checkValidity()) { 
@@ -2634,10 +2643,18 @@
             
             const btn = document.getElementById('btnSalvarCad'); 
             const oldText = btn.innerHTML; 
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Gravando...`; 
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Gravando (Pode demorar se tiver fotos)...`; 
             btn.disabled = true;
 
             try {
+
+                const fSelfie = document.getElementById('cad_img_selfie').files[0];
+                const fFrente = document.getElementById('cad_img_frente').files[0];
+                const fVerso = document.getElementById('cad_img_verso').files[0];
+                const fResidencia = document.getElementById('cad_img_residencia').files[0];
+                const fCasa = document.getElementById('cad_img_casa').files[0];
+
+
                 const dados = {
                     id_existente: document.getElementById('cad_id_existente').value, 
                     is_precadastro: document.getElementById('check_precadastro').checked, 
@@ -2652,7 +2669,13 @@
                     cobrar_so_em_dinheiro: document.getElementById('cad_apenas_dinheiro').checked,
                     isento_multa: document.getElementById('cad_isento_multa').checked,
                     observacoes: document.getElementById('cad_obs').value,
-                    indicado_por: document.getElementById('cad_avalista_hidden').value || 'DIRETO'
+                    indicado_por: document.getElementById('cad_avalista_hidden').value || 'DIRETO',
+                    img_selfie: fSelfie ? await getBase64(fSelfie) : null,
+                    img_frente: fFrente ? await getBase64(fFrente) : null,
+                    img_verso: fVerso ? await getBase64(fVerso) : null,
+                    img_residencia: fResidencia ? await getBase64(fResidencia) : null,
+                    img_casa: fCasa ? await getBase64(fCasa) : null
+                    
                 };
                 
                 const res = await fetchSeguro(`${API_BASE}/api/cadastrar-cliente-manual`, { 
@@ -2665,6 +2688,7 @@
                     showToast("Registo Salvo!"); 
                     form.reset();
                     
+                    document.querySelectorAll('[id^="text_cad_img_"]').forEach(el => el.innerText = el.getAttribute('data-orig'));
                     // Limpa o novo campo de avalista
                     document.getElementById('cad_avalista_cpf').value = '';
                     document.getElementById('cad_avalista_nome_txt').innerHTML = '';
