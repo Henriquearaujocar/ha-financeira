@@ -2417,7 +2417,7 @@
             const c = window.clienteAtualExtrato; 
             if (!c) return;
             
-            ocument.getElementById('docNomeCliente').textContent = c.nome || 'NOME NÃO INFORMADO';
+            document.getElementById('docNomeCliente').textContent = c.nome || 'NOME NÃO INFORMADO';
             document.getElementById('docCpf').textContent = c.cpf || '';
             document.getElementById('docData').innerText = c.created_at ? new Date(c.created_at).toLocaleString('pt-BR') : '';
             
