@@ -171,18 +171,19 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
     if (edicaoManual && edicaoManual.modoBaixa === 'SIMPLES') {
         let rpcPayloadSimples = {
             p_devedor_id: devedorId,
-            p_transaction_id: transactionId || `SIMPLES_${Date.now()}`,
-            p_pago_agora: pago,
+            p_pago: pago, // CORRIGIDO: Era "p_pago_agora"
+            p_novo_total: totalRestante,
             p_capital: capitalAtual, 
-            p_novo_total: totalRestante, // Apenas abate do total, não mexe no capital
-            p_novo_vencimento: strVencimento, // Mantém ou prorroga se solicitado acima
             p_status: totalRestante <= 0 ? 'QUITADO' : dev.status,
-            p_limpar_atraso: false, // O abatimento simples não limpa o atraso automaticamente
+            p_novo_vencimento: strVencimento, 
+            p_novas_parcelas: parcelasAtuais, // ADICIONADO: Obrigatório para o banco
+            p_limpar_atraso: false, 
             p_evento: "Pagamento Parcial (Abatimento Simples)",
             p_detalhes: `${tagPgto} Abatimento direto. Saldo anterior: R$ ${totalAnterior.toFixed(2)} -> Novo Saldo: R$ ${totalRestante.toFixed(2)}. ${edicaoManual.observacoes ? `Obs: ${edicaoManual.observacoes}` : ''}`,
-            p_data_pagamento: strLogData,
-            p_valor_capital: 0, // Não calcula amortização
-            p_valor_juros: pago  // Tudo vai pro lucro
+            p_transaction_id: transactionId || `SIMPLES_${Date.now()}`,
+            p_data_pagamento: dataParaBanco || strLogData, // CORRIGIDO: Para sincronizar o calendário corretamente
+            p_valor_capital: 0, 
+            p_valor_juros: pago  
         };
 
         if (totalRestante <= 0) {
