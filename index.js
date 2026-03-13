@@ -40,41 +40,63 @@ const limparMoeda = (valor) => {
 };
 
 // ==========================================
-// MOTOR DE RECONSTRUÇÃO DE CARNÊ
+// MOTOR DE RECONSTRUÇÃO DE CARNÊ (V2 - Magic Dual Rule)
 // ==========================================
 const formatarContratoCarne = (dev) => {
     const totalAtual = parseFloat(dev.valor_total) || 0;
     const jaPago = parseFloat(dev.total_ja_pego) || 0;
-    const qtdRestante = parseInt(dev.qtd_parcelas) || 1;
+    const qtdDB = parseInt(dev.qtd_parcelas) || 1;
     
-    if (qtdRestante > 1) {
+    if (qtdDB > 1) {
         const globalOriginal = totalAtual + jaPago;
-        if (jaPago === 0) {
-            dev.valor_parcela = totalAtual / qtdRestante;
-            dev.parcelas_pagas = 0;
-            dev.qtd_parcelas_original = qtdRestante;
-        } else {
-            let melhorN = qtdRestante;
-            let menorResto = Infinity;
-            let melhorParcela = globalOriginal / qtdRestante;
+        
+        // H1: Banco reduziu as parcelas corretamente (qtdDB = parcelas restantes reais)
+        const parcelaH1 = totalAtual / qtdDB;
+        // H2: Banco travou na quantidade original por causa de pagamentos picados
+        const parcelaH2 = globalOriginal / qtdDB;
 
-            for (let n = qtdRestante; n <= qtdRestante + 20; n++) {
-                const parcelaT = globalOriginal / n;
-                const pagasT = Math.floor(jaPago / parcelaT);
-                const resto = jaPago % parcelaT;
-                
-                if (Math.abs((n - pagasT) - qtdRestante) <= 1) {
-                    if (resto < menorResto) {
-                        menorResto = resto;
-                        melhorN = n;
-                        melhorParcela = parcelaT;
-                    }
+        const isPerfect = (val, div) => div > 0 && Math.abs((val / div) - Math.round(val / div)) < 0.02;
+
+        const checkH1 = isPerfect(globalOriginal, parcelaH1);
+        const checkH2 = isPerfect(globalOriginal, parcelaH2);
+
+        let parcelaEscolhida = parcelaH1;
+        let origN = qtdDB;
+
+        if (checkH2 && !checkH1) {
+            parcelaEscolhida = parcelaH2;
+            origN = qtdDB;
+        } else if (checkH1 && !checkH2) {
+            parcelaEscolhida = parcelaH1;
+            origN = Math.round(globalOriginal / parcelaH1);
+        } else {
+            // Empate! Desempata usando o resto dos pagamentos já feitos
+            const restoH1 = jaPago % parcelaH1;
+            const restoH2 = jaPago % parcelaH2;
+            
+            if (restoH1 < 1 && restoH2 >= 1) {
+                parcelaEscolhida = parcelaH1;
+                origN = Math.round(globalOriginal / parcelaH1);
+            } else if (restoH2 < 1 && restoH1 >= 1) {
+                parcelaEscolhida = parcelaH2;
+                origN = qtdDB;
+            } else {
+                // Se continuar empatado, escolhe a MAIOR parcela (corrige o bug do achatamento)
+                if (parcelaH2 > parcelaH1) {
+                    parcelaEscolhida = parcelaH2;
+                    origN = qtdDB;
+                } else {
+                    parcelaEscolhida = parcelaH1;
+                    origN = Math.round(globalOriginal / parcelaH1);
                 }
             }
-            dev.valor_parcela = melhorParcela;
-            dev.parcelas_pagas = Math.floor(jaPago / melhorParcela);
-            dev.qtd_parcelas_original = melhorN;
         }
+
+        if (!parcelaEscolhida || parcelaEscolhida === Infinity) parcelaEscolhida = totalAtual;
+
+        dev.valor_parcela = parcelaEscolhida;
+        dev.parcelas_pagas = Math.floor(jaPago / parcelaEscolhida);
+        dev.qtd_parcelas_original = Math.max(1, origN);
     } else {
         dev.valor_parcela = totalAtual;
         dev.parcelas_pagas = jaPago >= totalAtual && totalAtual > 0 ? 1 : 0;
