@@ -1311,31 +1311,7 @@
         }
 
         // Busca o nome do Avalista pelo CPF no Cadastro Manual
-        async function buscarNomeAvalistaCad(input) {
-            const cpf = input.value.replace(/\D/g, '');
-            const txtEl = document.getElementById('cad_avalista_nome_txt');
-            const hiddenEl = document.getElementById('cad_avalista_hidden');
-
-            if (cpf.length === 11) {
-                txtEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Procurando cliente...`;
-                try {
-                    const res = await fetchSeguro(`${API_BASE}/api/buscar-cliente-admin/${cpf}`, { headers: headersAuth });
-                    if (res.ok) {
-                        const clientes = await res.json();
-                        if(clientes.length > 0) {
-                            txtEl.innerHTML = `<i class="fa-solid fa-check-circle"></i> Avalista Válido: ${clientes[0].nome}`;
-                            hiddenEl.value = `${clientes[0].nome} (CPF: ${input.value})`;
-                        } else {
-                            txtEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-red-500"></i> Este CPF não pertence a um cliente ativo.`;
-                            hiddenEl.value = ""; 
-                        }
-                    }
-                } catch(e) { txtEl.innerText = ""; }
-            } else {
-                txtEl.innerText = "";
-                hiddenEl.value = "";
-            }
-        }
+        
 
         async function initApp() {
             if (!token && window.location.hostname !== 'localhost') {
