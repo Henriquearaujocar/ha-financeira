@@ -577,7 +577,7 @@ app.post('/api/enviar-cobranca-manual', async (req, res) => {
 
         let msg = '';
         if (dev.cobrar_so_em_dinheiro) {
-            sg = `Olá ${nomeCurto},\n\nEste é um aviso da *CMS Ventures* sobre a sua fatura no valor de *${valorFormatado}* (Vencimento: ${dtFormatada}).${textoAtraso}\n\nConforme acordado, este contrato deve ser regularizado em *dinheiro físico*. Por favor, prepare o valor para o nosso cobrador ou entre em contato.\n\n`;
+            msg = `Olá ${nomeCurto},\n\nEste é um aviso da *CMS Ventures* sobre a sua fatura no valor de *${valorFormatado}* (Vencimento: ${dtFormatada}).${textoAtraso}\n\nConforme acordado, este contrato deve ser regularizado em *dinheiro físico*. Por favor, prepare o valor para o nosso cobrador ou entre em contato.\n\n`;
         } else {
             msg = `Olá ${nomeCurto},\n\nEste é um aviso da *CMS Ventures* sobre a sua fatura no valor de *${valorFormatado}* (Vencimento: ${dtFormatada}).${textoAtraso}\n\n`;
 
@@ -801,14 +801,18 @@ app.post('/api/baixar-manual', async (req, res) => {
         const taxa = recalculoTaxa ? parseFloat(recalculoTaxa) : null;
         const parcelas = recalculoParcelas ? parseInt(recalculoParcelas) : null;
 
+        // O financeService.js atual busca por recalculoAjuste e ajusteTotal dependendo do bloco.
+        // Aqui mapeamos as variáveis para cobrir os dois casos e garantir total integridade
         const edicao = {
             recalculoAjuste: ajuste,
             recalculoTaxa: taxa,
             recalculoParcelas: parcelas,
+            ajusteTotal: ajuste, // Usado pelo bloco "SIMPLES" no financeService.js
+            novaTaxa: taxa,      // Usado pelo bloco "SIMPLES" no financeService.js
             observacoes: observacoes,
             novoVencimento: novoVencimento,
-            modoBaixa: modoBaixa // <--- ADICIONE ESTA LINHA
-            };
+            modoBaixa: modoBaixa
+        };
         
         const resultado = await recalcularDivida(parseInt(id), valPago, null, dataRecebimento, formaPagamento, recalculoTratamento, edicao);
         

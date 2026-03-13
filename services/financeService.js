@@ -34,6 +34,7 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
             parcelasAtuais = parseInt(edicaoManual.recalculoParcelas) || 1;
             notasManuais.push(`Novo Prazo: ${parcelasAtuais}x`);
         }
+        // === ADIÇÃO: VERIFICAR PRORROGAÇÃO MANUAL DE VENCIMENTO ===
         if (edicaoManual.novoVencimento) {
             notasManuais.push(`Prorrogado para: ${new Date(edicaoManual.novoVencimento + 'T12:00:00Z').toLocaleDateString('pt-BR')}`);
         }
@@ -68,7 +69,8 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
     }
 
     let novoTotal = Math.max(0, Math.round((totalAnterior - valorParaAbaterDoSaldo) * 100) / 100);
-
+    let totalRestante = novoTotal; // Variável auxiliar para o modo SIMPLES
+    
     // MATEMÁTICA DO DRE
     if (novoTotal <= 0.05) {
         capitalAbatido = capitalAtual;
@@ -89,6 +91,11 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
     }
 
     let strVencimento = dev.data_vencimento;
+
+    // === ADIÇÃO: VERIFICAR PRORROGAÇÃO MANUAL DE VENCIMENTO ===
+    if (edicaoManual && edicaoManual.novoVencimento) {
+        strVencimento = edicaoManual.novoVencimento; // Substitui o vencimento se o utilizador escolheu prorrogar
+    }
     
     // --- CORREÇÃO DE FUSO HORÁRIO E HORA EXATA ---
     let dataObjOperacao = new Date();
@@ -105,11 +112,12 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
             dataParaBanco = dataRecebimento + 'T12:00:00-03:00';
         }
     }
+    const strLogData = dataObjOperacao.toISOString();
     // ---------------------------------------------
 
     const vencObjOrig = new Date(strVencimento + 'T12:00:00Z');
     const statusDefault = vencObjOrig < dataObjOperacao ? 'ATRASADO' : 'ABERTO';
-    const tagPgto = formaPagamento === 'DINHEIRO' ? '[DINHEIRO]' : '[CONTA/PIX]';
+    const tagPgto = formaPagamento === 'DINHEIRO' ? '[💸 ESPÉCIE]' : '[🏦 PIX/CONTA]';
 
     let rpcPayload = {
         p_devedor_id: dev.id, 
@@ -122,7 +130,7 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
         p_limpar_atraso: false, 
         p_evento: '', 
         p_detalhes: '', 
-        p_transaction_id: transactionId,
+        p_transaction_id: transactionId || `PGTO_${Date.now()}`,
         p_data_pagamento: dataParaBanco, 
         p_valor_capital: Math.round(capitalAbatido * 100) / 100,
         p_valor_juros: Math.round(jurosAbatido * 100) / 100
@@ -133,14 +141,15 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
     }
 
     // CAPTURADOR DE ERRO SQL E OVERRIDE DE VENCIMENTO
-    const executarNoBanco = async (payload) => {
+    const executarNoBanco = async (payload, edicaoParam = null) => {
         // Se foi enviada uma data de prorrogação no frontend, forçamos ela aqui no final
-        if (edicaoManual && edicaoManual.novoVencimento) {
-            payload.p_novo_vencimento = edicaoManual.novoVencimento;
+        const edicao = edicaoParam || edicaoManual;
+        if (edicao && edicao.novoVencimento) {
+            payload.p_novo_vencimento = edicao.novoVencimento;
             payload.p_limpar_atraso = true; // Zera a trava de multa diária
             
             // Se a nova data de prorrogação for igual ou maior que hoje, tira o status de ATRASADO
-            const dataNova = new Date(edicaoManual.novoVencimento + 'T12:00:00Z');
+            const dataNova = new Date(edicao.novoVencimento + 'T12:00:00Z');
             const dataHojeValida = new Date();
             dataHojeValida.setHours(0,0,0,0);
             
@@ -157,6 +166,50 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
         return null;
     };
 
+
+    // === ADIÇÃO: MODO DE ABATIMENTO SIMPLES ===
+    if (edicaoManual && edicaoManual.modoBaixa === 'SIMPLES') {
+        let rpcPayloadSimples = {
+            p_devedor_id: devedorId,
+            p_transaction_id: transactionId || `SIMPLES_${Date.now()}`,
+            p_pago_agora: pago,
+            p_capital: capitalAtual, 
+            p_novo_total: totalRestante, // Apenas abate do total, não mexe no capital
+            p_novo_vencimento: strVencimento, // Mantém ou prorroga se solicitado acima
+            p_status: totalRestante <= 0 ? 'QUITADO' : dev.status,
+            p_limpar_atraso: false, // O abatimento simples não limpa o atraso automaticamente
+            p_evento: "Pagamento Parcial (Abatimento Simples)",
+            p_detalhes: `${tagPgto} Abatimento direto. Saldo anterior: R$ ${totalAnterior.toFixed(2)} -> Novo Saldo: R$ ${totalRestante.toFixed(2)}. ${edicaoManual.observacoes ? `Obs: ${edicaoManual.observacoes}` : ''}`,
+            p_data_pagamento: strLogData,
+            p_valor_capital: 0, // Não calcula amortização
+            p_valor_juros: pago  // Tudo vai pro lucro
+        };
+
+        if (totalRestante <= 0) {
+            rpcPayloadSimples.p_novo_total = 0;
+            rpcPayloadSimples.p_capital = 0;
+            rpcPayloadSimples.p_limpar_atraso = true;
+            rpcPayloadSimples.p_evento = "Liquidação Total";
+            rpcPayloadSimples.p_detalhes = `${tagPgto} Contrato Liquidado.`;
+        }
+
+        // Aplica ajustes manuais se existirem
+        if (edicaoManual.ajusteTotal !== null && edicaoManual.ajusteTotal !== undefined && !isNaN(edicaoManual.ajusteTotal)) {
+            rpcPayloadSimples.p_novo_total = Math.max(0, rpcPayloadSimples.p_novo_total + parseFloat(edicaoManual.ajusteTotal));
+            rpcPayloadSimples.p_detalhes += ` (Ajuste Manual de Saldo: R$ ${parseFloat(edicaoManual.ajusteTotal).toFixed(2)})`;
+        }
+        if (edicaoManual.novaTaxa !== null && edicaoManual.novaTaxa !== undefined && !isNaN(edicaoManual.novaTaxa)) {
+             rpcPayloadSimples.p_detalhes += ` (Taxa alterada para ${edicaoManual.novaTaxa}%)`;
+        }
+
+        const falha = await executarNoBanco(rpcPayloadSimples, edicaoManual);
+        if (falha) return falha;
+        
+        return { sucesso: true, status: rpcPayloadSimples.p_status };
+    }
+    // === FIM DA ADIÇÃO DO MODO SIMPLES ===
+
+
     // A - QUITAÇÃO TOTAL
     if (novoTotal <= 0.05) {
         rpcPayload.p_novo_total = 0;
@@ -169,20 +222,6 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
         if (falha) return falha;
         return { sucesso: true, status: 'quitado' };
     }
-
-    if (edicaoManual && edicaoManual.modoBaixa === 'SIMPLES' && novoTotal > 0.05) {
-        rpcPayload.p_evento = "Pagamento Parcial (Abatimento Simples)";
-        rpcPayload.p_detalhes += `${tagPgto} Abateu R$ ${pago.toFixed(2)} direto do saldo. Resta R$ ${novoTotal.toFixed(2)}.`;
-
-        if (vencObjOrig < dataObjOperacao && !rpcPayload.p_limpar_atraso) {
-            rpcPayload.p_status = 'ATRASADO';
-        } else {
-            rpcPayload.p_status = 'ABERTO';
-        }
-        const falha = await executarNoBanco(rpcPayload);
-        if (falha) return falha;
-        return { sucesso: true, status: 'abatimento_simples', novoVencimento: rpcPayload.p_novo_vencimento };
-        }
 
     // B - PARCELADO
     if (parcelasAtuais > 1) {

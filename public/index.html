@@ -68,6 +68,13 @@
             to { opacity: 1; transform: translateY(0); } 
         }
 
+        /* Colorir ícones de calendário nos inputs nativos para azul forte */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(48%) sepia(79%) saturate(2476%) hue-rotate(200deg) brightness(108%) contrast(104%);
+            cursor: pointer;
+            opacity: 1;
+        }
+
         /* Calculadora Flutuante */
         .floating-calc {
             position: fixed;
@@ -282,19 +289,23 @@
                     <button onclick="aplicarFiltroAberto('PENDENTE', this)" class="filtro-aberto-btn px-4 py-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all">Falta Assinar</button>
                 </div>
 
-                <input type="text" id="busca-aberto" placeholder="Buscar Cliente..." class="input-dark w-full xl:w-64 text-sm" onkeyup="filtrarAberto()">
+                <div class="relative w-full xl:w-64">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-blue-500"></i>
+                    <input type="text" id="busca-aberto" placeholder="Buscar Cliente..." class="input-dark w-full pl-10 text-sm" onkeyup="filtrarAberto()">
+                </div>
             </div>
             
             <div class="glass-card rounded-3xl overflow-visible border border-slate-700">
                 <table class="w-full text-left text-sm">
                     <thead class="bg-slate-800/50 text-[10px] uppercase font-black text-slate-400 tracking-wider">
                         <tr>
-                            <th class="px-6 py-4">Cliente</th>
-                            <th class="px-6 py-4">Vencimento</th>
-                            <th class="px-6 py-4">Capital</th>
-                            <th class="px-6 py-4">Saldo Devedor</th>
-                            <th class="px-6 py-4">Status</th>
-                            <th class="px-6 py-4 text-center">Opções</th>
+                            <th class="px-4 py-4">Cliente</th>
+                            <th class="px-4 py-4">Vencimento</th>
+                            <th class="px-4 py-4">Falta na Parcela</th>
+                            <th class="px-4 py-4 text-emerald-400">Agendamento</th>
+                            <th class="px-4 py-4">Saldo Restante</th>
+                            <th class="px-4 py-4">Status</th>
+                            <th class="px-4 py-4 text-center">Opções</th>
                         </tr>
                     </thead>
                     <tbody id="lista-aberto" class="divide-y divide-slate-800">
@@ -356,7 +367,10 @@
             </div>
             
             <div class="flex gap-4 mb-6">
-                <input type="text" id="extrato-busca" placeholder="Pesquisar por Nome, CPF ou WhatsApp..." class="input-dark w-full md:w-80 text-center text-sm" onkeyup="filtrarListaClientesLocais()">
+                <div class="relative w-full md:w-80">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-blue-500"></i>
+                    <input type="text" id="extrato-busca" placeholder="Pesquisar por Nome, CPF ou WhatsApp..." class="input-dark w-full pl-10 text-center text-sm" onkeyup="filtrarListaClientesLocais()">
+                </div>
                 <button onclick="buscarExtrato()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-2 rounded-xl shadow-lg shadow-blue-500/20 whitespace-nowrap">
                     <i class="fa-solid fa-magnifying-glass"></i> Buscar Histórico
                 </button>
@@ -395,15 +409,18 @@
                         <div class="col-span-2 mb-2 bg-blue-900/20 border border-blue-500/20 p-3 rounded-xl shadow-inner">
                             <p class="text-[9px] font-black uppercase text-blue-400 mb-1">Montante Histórico Total Emprestado</p>
                             <p id="ext_global_emprestado" class="text-xl font-black text-white drop-shadow-md">R$ 0,00</p>
-                            <p class="text-[8px] text-slate-400 mt-1 uppercase tracking-wider">Soma do Capital de Todos os Contratos</p>
                         </div>
                         <div class="bg-slate-900/80 border border-slate-700 p-3 rounded-xl">
                             <p class="text-[9px] font-black uppercase text-slate-400 mb-1">Total Já Recebido</p>
                             <p id="ext_global_pago" class="text-sm font-bold text-emerald-400">R$ 0,00</p>
                         </div>
                         <div class="bg-purple-900/20 border border-purple-500/20 p-3 rounded-xl">
-                            <p class="text-[9px] font-black uppercase text-purple-400 mb-1" title="Calculado: Recebido - Emprestado">Lucro Líquido Real</p>
+                            <p class="text-[9px] font-black uppercase text-purple-400 mb-1" title="Calculado: Recebido - Capital Emprestado">Lucro Líquido Real</p>
                             <p id="ext_global_lucro" class="text-sm font-black text-white">R$ 0,00</p>
+                        </div>
+                        <div class="col-span-2 mt-2 bg-emerald-900/20 border border-emerald-500/20 p-3 rounded-xl">
+                            <p class="text-[9px] font-black uppercase text-emerald-400 mb-1" title="O que você vai lucrar no total quando todas as parcelas ativas forem pagas">Futuro Lucro Projetado da Dívida</p>
+                            <p id="ext_global_lucro_projetado" class="text-lg font-black text-emerald-400">R$ 0,00</p>
                         </div>
                     </div>
 
@@ -506,7 +523,7 @@
             <!-- NOVO CAMPO DE BUSCA REINSERIDO E MELHORADO AQUI -->
             <div class="relative mb-6 max-w-4xl z-50">
                 <div class="relative">
-                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-blue-500 text-lg"></i>
                     <input type="text" id="busca_cliente_cad" placeholder="Buscar cliente existente na base para puxar dados (Nome ou CPF)..." class="input-dark pl-11 text-sm font-bold w-full bg-slate-800/80 border-blue-500/30 focus:border-blue-500" onkeyup="buscarParaCadastroLive()">
                 </div>
                 <div id="autocomplete_resultados" class="hidden absolute top-full left-0 w-full mt-2 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto z-[100]"></div>
@@ -699,9 +716,10 @@
                 </div>
 
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700 relative overflow-hidden col-span-2 lg:col-span-1">
+                    <!-- Lucro Líquido Real (Antigo Fluxo de Caixa) -->
+                    <div class="bg-slate-800/80 p-5 rounded-xl border border-blue-900 relative overflow-hidden col-span-2 lg:col-span-1">
                         <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-scale-balanced text-6xl text-blue-400"></i></div>
-                        <p class="text-[10px] text-blue-400 font-bold uppercase tracking-wider" title="Recebido - Emprestado">Fluxo de Caixa Mensal</p>
+                        <p class="text-[10px] text-blue-400 font-bold uppercase tracking-wider" title="Recebido - Emprestado">Lucro Líquido Real</p>
                         <h3 class="text-2xl font-black mt-1 truncate" id="dash-fluxo-caixa">R$ 0,00</h3>
                     </div>
                     <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700 relative overflow-hidden">
@@ -718,12 +736,6 @@
                         <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-vault text-6xl text-emerald-500"></i></div>
                         <p class="text-[10px] text-emerald-500 font-bold uppercase tracking-wider">Retorno para a Conta</p>
                         <h3 class="text-2xl font-black text-emerald-400 mt-1 truncate" id="dash-retorno">R$ 0,00</h3>
-                    </div>
-                    
-                    <div class="bg-slate-800/80 p-5 rounded-xl border border-purple-900 relative overflow-hidden col-span-2 lg:col-span-1">
-                        <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-arrow-trend-up text-6xl text-purple-400"></i></div>
-                        <p class="text-[10px] text-purple-400 font-bold uppercase tracking-wider">Lucro Líquido Real</p>
-                        <h3 class="text-2xl font-black text-purple-400 mt-1 truncate" id="dash-lucro-real">R$ 0,00</h3>
                     </div>
                     
                     <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700 relative overflow-hidden">
@@ -1310,9 +1322,6 @@
             input.value = !x[2] ? x[1] : x[1] + '.' + x[2] + (x[3] ? '.' + x[3] : '') + (x[4] ? '-' + x[4] : '');
         }
 
-        // Busca o nome do Avalista pelo CPF no Cadastro Manual
-        
-
         async function initApp() {
             if (!token && window.location.hostname !== 'localhost') {
                 return logout();
@@ -1499,7 +1508,6 @@
                 document.getElementById('dash-finalizados').innerText = data.qtdQuitados || 0;
                 document.getElementById('dash-emprestado').innerText = formatMoney(data.totalEmprestado || 0);
                 document.getElementById('dash-retorno').innerText = formatMoney(data.totalRecebido || 0);
-                document.getElementById('dash-lucro-real').innerText = formatMoney(data.lucro || 0);
                 document.getElementById('dash-juros').innerText = formatMoney(data.jurosMensalidade || 0);
                 document.getElementById('dash-multas').innerText = formatMoney(data.jurosAtrasoGerado || 0);
                 document.getElementById('dash-garantias').innerText = formatMoney(data.totalGarantias || 0);
@@ -1859,33 +1867,47 @@
 
                 let tagDinheiro = d.cobrar_so_em_dinheiro ? '<i class="fa-solid fa-money-bill-1 text-emerald-500 ml-2" title="Dinheiro"></i>' : '';
                 
-                let valorExibido = total; 
                 let txtParcelas = ''; 
-                let labelTipo = 'TOTAL DA DÍVIDA';
-                
+                let faltaNestaParcela = total;
+
                 if(d.qtd_parcelas_original > 1) { 
-                    valorExibido = d.valor_parcela;
-                    labelTipo = 'VALOR DA MENSALIDADE';
+                    const parcelaOriginal = d.valor_parcela;
+                    const jaPago = parseFloat(d.total_ja_pego) || 0;
+                    const pagoNaParcelaAtual = jaPago % parcelaOriginal;
+                    faltaNestaParcela = parcelaOriginal - pagoNaParcelaAtual;
+
+                    if (faltaNestaParcela < 0.10 || pagoNaParcelaAtual < 0.10) {
+                        faltaNestaParcela = parcelaOriginal;
+                    }
+                    if (total < faltaNestaParcela) faltaNestaParcela = total;
+
                     txtParcelas = `<br><span class="text-[10px] text-blue-400 font-bold">${d.parcelas_pagas}/${d.qtd_parcelas_original} Pagas</span>`;
                 }
-                
 
+                const dataAgendada = d.data_promessa 
+                    ? `<i class="fa-regular fa-calendar-check mr-1"></i> ${new Date(d.data_promessa + 'T12:00:00Z').toLocaleDateString('pt-BR')}` 
+                    : '-';
+                
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-800/30 border-b border-slate-800/50">
-                        <td class="px-6 py-4">
+                        <td class="px-4 py-4">
                             <p class="font-bold text-white text-xs flex items-center">
                                 ${escapeHTML(d.nome)} ${tagDinheiro}
                             </p>
                             <p class="text-[9px] font-mono text-slate-500">${escapeHTML(d.cpf)} <span class="text-blue-400 font-bold ml-1">| CT: #${d.id}</span></p>
                         </td>
-                        <td class="px-6 py-4 text-xs text-slate-300 font-bold">${dt.toLocaleDateString('pt-BR')}</td>
-                        <td class="px-6 py-4 text-xs text-slate-400">${formatMoney(capital)}</td>
-                        <td class="px-6 py-4 text-sm font-black text-red-400">
-                            <span class="text-[8px] text-slate-500 uppercase block mb-[-2px] tracking-wider">${labelTipo}</span>
-                            ${formatMoney(valorExibido)} ${txtParcelas}
+                        <td class="px-4 py-4 text-xs text-slate-300 font-bold">${dt.toLocaleDateString('pt-BR')}</td>
+                        
+                        <td class="px-4 py-4 text-sm font-black text-orange-400">${formatMoney(faltaNestaParcela)}</td>
+                        
+                        <td class="px-4 py-4 text-[10px] font-bold text-emerald-400 uppercase tracking-widest">${dataAgendada}</td>
+                        
+                        <td class="px-4 py-4 text-sm font-black text-red-400">
+                            ${formatMoney(total)} ${txtParcelas}
                         </td>
-                        <td class="px-6 py-4">${badge}</td>
-                        <td class="px-6 py-4 text-center relative">
+                        
+                        <td class="px-4 py-4">${badge}</td>
+                        <td class="px-4 py-4 text-center relative">
                             <button onclick="enviarCobrancaManual('${d.id}')" class="bg-emerald-600/20 text-emerald-500 hover:bg-emerald-500 hover:text-white px-2 py-1.5 mr-2 rounded">
                                 <i class="fa-solid fa-paper-plane"></i>
                             </button>
@@ -1921,7 +1943,7 @@
             if (lista.length > LIMIT_UI) {
                  tbody.innerHTML += `
                  <tr>
-                    <td colspan="6" class="text-center py-6 text-xs text-slate-500 font-bold bg-slate-800/20">
+                    <td colspan="7" class="text-center py-6 text-xs text-slate-500 font-bold bg-slate-800/20">
                         A mostrar os primeiros ${LIMIT_UI} clientes. Use a pesquisa.
                     </td>
                  </tr>`;
@@ -2355,10 +2377,13 @@
                 document.getElementById('ext_global_emprestado').innerText = formatMoney(somaCapitalOriginal); 
                 document.getElementById('ext_global_pago').innerText = formatMoney(somaPago);
                 
-                // Cálculo de Lucro Corrigido (Amortizado)
-                const capitalAmortizado = somaCapitalOriginal - somaCapitalAtual;
-                const lucroRealDaOperacao = somaPago - capitalAmortizado;
+                // Cálculo de Lucro Líquido Real: (Recebido) - (Emprestado)
+                const lucroRealDaOperacao = somaPago - somaCapitalOriginal;
                 document.getElementById('ext_global_lucro').innerText = formatMoney(lucroRealDaOperacao);
+
+                // Futuro Lucro Projetado: (Recebido + Saldo Devedor Restante) - Capital Emprestado
+                let lucroProjetado = (somaPago + sumAtivoDivida) - somaCapitalOriginal;
+                document.getElementById('ext_global_lucro_projetado').innerText = formatMoney(lucroProjetado);
 
                 logsExtratoGlobal = data.logs || []; 
                 renderizarLogsExtrato(null); 
