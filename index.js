@@ -734,14 +734,21 @@ app.get('/api/estatisticas-pagamento/:id', async (req, res) => {
 
 app.post('/api/baixar-manual', async (req, res) => {
     try {
-        const { id, valorPago, dataRecebimento, formaPagamento, recalculoTratamento, observacoes, recalculoAjuste, recalculoTaxa, recalculoParcelas } = req.body;
+        const { id, valorPago, dataRecebimento, formaPagamento, recalculoTratamento, observacoes, recalculoAjuste, recalculoTaxa, recalculoParcelas, novoVencimento, modoBaixa } = req.body;
         
         const valPago = parseFloat(valorPago) || 0;
         const ajuste = recalculoAjuste ? parseFloat(recalculoAjuste) : null;
         const taxa = recalculoTaxa ? parseFloat(recalculoTaxa) : null;
         const parcelas = recalculoParcelas ? parseInt(recalculoParcelas) : null;
 
-        const edicao = { recalculoAjuste: ajuste, recalculoTaxa: taxa, recalculoParcelas: parcelas, observacoes: observacoes };
+        const edicao = {
+            recalculoAjuste: ajuste,
+            recalculoTaxa: taxa,
+            recalculoParcelas: parcelas,
+            observacoes: observacoes,
+            novoVencimento: novoVencimento,
+            modoBaixa: modoBaixa // <--- ADICIONE ESTA LINHA
+            };
         
         const resultado = await recalcularDivida(parseInt(id), valPago, null, dataRecebimento, formaPagamento, recalculoTratamento, edicao);
         

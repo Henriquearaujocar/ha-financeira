@@ -34,6 +34,9 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
             parcelasAtuais = parseInt(edicaoManual.recalculoParcelas) || 1;
             notasManuais.push(`Novo Prazo: ${parcelasAtuais}x`);
         }
+        if (edicaoManual.novoVencimento) {
+            notasManuais.push(`Prorrogado para: ${new Date(edicaoManual.novoVencimento + 'T12:00:00Z').toLocaleDateString('pt-BR')}`);
+        }
     }
 
     let valorParaAbaterDoSaldo = pago;
@@ -120,7 +123,7 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
         p_evento: '', 
         p_detalhes: '', 
         p_transaction_id: transactionId,
-        p_data_pagamento: dataParaBanco, // Data corrigida injetada aqui
+        p_data_pagamento: dataParaBanco, 
         p_valor_capital: Math.round(capitalAbatido * 100) / 100,
         p_valor_juros: Math.round(jurosAbatido * 100) / 100
     };
@@ -129,8 +132,23 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
         rpcPayload.p_detalhes += `(Edições Manuais: ${notasManuais.join(' | ')}) `;
     }
 
-    // CAPTURADOR DE ERRO SQL (A MÁGICA QUE FALTAVA)
+    // CAPTURADOR DE ERRO SQL E OVERRIDE DE VENCIMENTO
     const executarNoBanco = async (payload) => {
+        // Se foi enviada uma data de prorrogação no frontend, forçamos ela aqui no final
+        if (edicaoManual && edicaoManual.novoVencimento) {
+            payload.p_novo_vencimento = edicaoManual.novoVencimento;
+            payload.p_limpar_atraso = true; // Zera a trava de multa diária
+            
+            // Se a nova data de prorrogação for igual ou maior que hoje, tira o status de ATRASADO
+            const dataNova = new Date(edicaoManual.novoVencimento + 'T12:00:00Z');
+            const dataHojeValida = new Date();
+            dataHojeValida.setHours(0,0,0,0);
+            
+            if (dataNova >= dataHojeValida && payload.p_status !== 'QUITADO') {
+                payload.p_status = 'ABERTO';
+            }
+        }
+
         const { error: errDB } = await supabase.rpc('processar_transacao_financeira', payload);
         if (errDB) {
             console.error("❌ ERRO SQL processar_transacao_financeira:", errDB);
@@ -151,6 +169,20 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
         if (falha) return falha;
         return { sucesso: true, status: 'quitado' };
     }
+
+    if (edicaoManual && edicaoManual.modoBaixa === 'SIMPLES' && novoTotal > 0.05) {
+        rpcPayload.p_evento = "Pagamento Parcial (Abatimento Simples)";
+        rpcPayload.p_detalhes += `${tagPgto} Abateu R$ ${pago.toFixed(2)} direto do saldo. Resta R$ ${novoTotal.toFixed(2)}.`;
+
+        if (vencObjOrig < dataObjOperacao && !rpcPayload.p_limpar_atraso) {
+            rpcPayload.p_status = 'ATRASADO';
+        } else {
+            rpcPayload.p_status = 'ABERTO';
+        }
+        const falha = await executarNoBanco(rpcPayload);
+        if (falha) return falha;
+        return { sucesso: true, status: 'abatimento_simples', novoVencimento: rpcPayload.p_novo_vencimento };
+        }
 
     // B - PARCELADO
     if (parcelasAtuais > 1) {
@@ -218,7 +250,7 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
         
         const falha = await executarNoBanco(rpcPayload);
         if (falha) return falha;
-        return { sucesso: true, status: 'parcial_abatido' };
+        return { sucesso: true, status: 'parcial_abatido', novoVencimento: rpcPayload.p_novo_vencimento };
     }
 };
 

@@ -547,10 +547,10 @@
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-2">WhatsApp</label>
                         <input type="text" id="cad_zap" class="input-dark mt-1" required>
                     </div>
-                    <div>
-                        <label class="text-[10px] font-black uppercase text-purple-400 ml-2">CPF do Avalista (Opcional)</label>
-                        <input type="text" id="cad_avalista_cpf" placeholder="000.000.000-00" class="input-dark mt-1 border-purple-500/30" maxlength="14" oninput="mascaraCPF(this); buscarNomeAvalistaCad(this)">
-                        <p id="cad_avalista_nome_txt" class="text-[10px] text-purple-400 font-bold ml-2 mt-1"></p>
+                    <div class="relative z-[60]">
+                        <label class="text-[10px] font-black uppercase text-purple-400 ml-2">Avalista (Buscar por Nome ou CPF)</label>
+                        <input type="text" id="cad_avalista_busca" placeholder="Digite para buscar..." class="input-dark mt-1 border-purple-500/30 focus:border-purple-500" onkeyup="buscarAvalistaLive()">
+                        <div id="autocomplete_avalista" class="hidden absolute top-full left-0 w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden max-h-40 overflow-y-auto z-[100]"></div>
                         <input type="hidden" id="cad_avalista_hidden">
                     </div>
                 </div>
@@ -699,10 +699,10 @@
                 </div>
 
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700 relative overflow-hidden">
-                        <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-file-contract text-6xl text-white"></i></div>
-                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Empréstimos Realizados</p>
-                        <h3 class="text-3xl font-black text-white mt-1" id="dash-feitos">0</h3>
+                    <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700 relative overflow-hidden col-span-2 lg:col-span-1">
+                        <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-scale-balanced text-6xl text-blue-400"></i></div>
+                        <p class="text-[10px] text-blue-400 font-bold uppercase tracking-wider" title="Recebido - Emprestado">Fluxo de Caixa Mensal</p>
+                        <h3 class="text-2xl font-black mt-1 truncate" id="dash-fluxo-caixa">R$ 0,00</h3>
                     </div>
                     <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700 relative overflow-hidden">
                         <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-check-double text-6xl text-emerald-400"></i></div>
@@ -1148,6 +1148,16 @@
                         </select>
                     </div>
                     
+                    <div class="bg-slate-800/30 border border-slate-700 p-3 rounded-xl mb-4">
+                        <label class="text-[10px] font-black uppercase text-slate-400 ml-2 block mb-1">Modo de Baixa</label>
+                        <select id="pgtoModoBaixa" class="input-dark text-xs font-bold text-white">
+                            <option value="PADRAO">Matemática Padrão (Calcula Juros/Amortização/Rolagem)</option>
+                            <option value="SIMPLES">Abatimento Simples (Apenas subtrai o valor do saldo total)</option>
+                        </select>
+                        <p class="text-[8px] text-slate-400 mt-2 ml-1">Use o Abatimento Simples para pagamentos "por conta" sem alterar a estrutura do contrato.</p>
+
+                    </div>
+                    
                     <div class="bg-blue-900/10 border border-blue-500/20 p-3 rounded-xl">
                         <label class="text-[10px] font-black uppercase text-blue-400 ml-2 block mb-1">Tratamento de Excedente</label>
                         <select id="pgtoTratamento" class="input-dark text-xs font-bold text-white">
@@ -1160,6 +1170,12 @@
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Data do Recebimento</label>
                         <input type="date" id="pgtoDataRecebimento" class="input-dark mt-1 text-sm font-bold text-white">
+                    </div>
+                    <div class="bg-purple-900/10 border border-purple-500/20 p-3 rounded-xl mt-4">
+                        <label class="text-[10px] font-black uppercase text-purple-400 ml-2 block mb-1">Prorrogar Restante Para (Opcional)</label>
+                        <input type="date" id="pgtoNovoVencimento" class="input-dark text-xs" title="Se for um pagamento parcial, defina para quando a dívida restante fica prorrogada, evitando que o sistema gere multas amanhã.">
+                        <p class="text-[8px] text-slate-400 mt-2 ml-1">Use em pagamentos parciais para pausar a multa até esta data.</p>
+                    </div>
                     </div>
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Observações (Opcional)</label>
@@ -1512,6 +1528,12 @@
                 document.getElementById('dash-juros').innerText = formatMoney(data.jurosMensalidade || 0);
                 document.getElementById('dash-multas').innerText = formatMoney(data.jurosAtrasoGerado || 0);
                 document.getElementById('dash-garantias').innerText = formatMoney(data.totalGarantias || 0);
+
+                const fluxoLiquido = (data.totalRecebido || 0) - (data.totalEmprestado || 0);
+                const elFluxo = document.getElementById('dash-fluxo-caixa');
+                elFluxo.innerText = formatMoney(fluxoLiquido);
+                elFluxo.className = `text-2xl font-black mt-1 truncate ${fluxoLiquido >= 0 ? 'text-blue-400' : 'text-red-400'}`;
+                
             } catch (error) {
                 console.error(error);
             }
@@ -2038,6 +2060,45 @@
             } catch(e) {}
         }
 
+
+        async function buscarAvalistaLive() {
+            const busca = document.getElementById('cad_avalista_busca').value.trim();
+            const box = document.getElementById('autocomplete_avalista');
+
+            if(busca.length < 3) {
+                box.classList.add('hidden');
+                return;
+            }
+
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/buscar-cliente-admin/${encodeURIComponent(busca)}`, { headers: headersAuth });
+                if(res.ok) {
+                    const clientes = await res.json();
+                    box.innerHTML = '';
+
+                    if(clientes.length > 0) {
+                        clientes.forEach(c => {
+                            box.innerHTML += `
+                            <div class="p-3 border-b border-slate-700 hover:bg-slate-700 cursor-pointer transition-colors" onclick="selecionarAvalistaCad('${escapeHTML(c.nome)}', '${c.cpf}')">
+                                <p class="font-bold text-white text-xs">${escapeHTML(c.nome)}</p>
+                                <p class="text-[10px] text-slate-400 font-mono mt-1">CPF: ${c.cpf}</p>
+                            </div>`;
+                            });
+                    } else {
+                        box.innerHTML = '<div class="p-3 text-xs text-slate-500 font-bold">Nenhum cliente encontrado.</div>';
+                        }
+                    box.classList.remove('hidden');
+                    }
+            } catch(e) {}
+            }
+
+        function selecionarAvalistaCad(nome, cpf) {
+            document.getElementById('cad_avalista_busca').value = nome;
+            document.getElementById('cad_avalista_hidden').value = `${nome} (CPF: ${cpf})`;
+            document.getElementById('autocomplete_avalista').classList.add('hidden');
+            }
+
+
         async function confirmarPagamento() {
             const id = document.getElementById('pgtoDevedorId').value; 
             const v = parseFloat(document.getElementById('pgtoValor').value); 
@@ -2069,7 +2130,10 @@
                         observacoes: document.getElementById('pgtoObs').value, 
                         recalculoAjuste: document.getElementById('pgtoAjuste').value ? parseFloat(document.getElementById('pgtoAjuste').value) : null, 
                         recalculoTaxa: document.getElementById('pgtoNovaTaxa').value ? parseFloat(document.getElementById('pgtoNovaTaxa').value) : null, 
-                        recalculoParcelas: document.getElementById('pgtoNovoParcelamento').value ? parseInt(document.getElementById('pgtoNovoParcelamento').value) : null 
+                        recalculoParcelas: document.getElementById('pgtoNovoParcelamento').value ? parseInt(document.getElementById('pgtoNovoParcelamento').value) : null,
+                        novoVencimento: document.getElementById('pgtoNovoVencimento').value || null,
+                        modoBaixa: document.getElementById('pgtoModoBaixa').value // <--- ADICIONE ESTA LINHA
+
                     }) 
                 });
                 
