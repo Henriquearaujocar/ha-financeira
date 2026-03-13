@@ -40,63 +40,49 @@ const limparMoeda = (valor) => {
 };
 
 // ==========================================
-// MOTOR DE RECONSTRUÇÃO DE CARNÊ (V2 - Magic Dual Rule)
+// MOTOR DE RECONSTRUÇÃO DE CARNÊ (V3 - Math Precision)
 // ==========================================
 const formatarContratoCarne = (dev) => {
     const totalAtual = parseFloat(dev.valor_total) || 0;
     const jaPago = parseFloat(dev.total_ja_pego) || 0;
+    const capital = parseFloat(dev.valor_emprestado) || 0;
+    const taxa = (parseFloat(dev.taxa_juros) || 0) / 100;
     const qtdDB = parseInt(dev.qtd_parcelas) || 1;
     
-    if (qtdDB > 1) {
-        const globalOriginal = totalAtual + jaPago;
-        
-        // H1: Banco reduziu as parcelas corretamente (qtdDB = parcelas restantes reais)
-        const parcelaH1 = totalAtual / qtdDB;
-        // H2: Banco travou na quantidade original por causa de pagamentos picados
-        const parcelaH2 = globalOriginal / qtdDB;
+    if (qtdDB > 1 || jaPago > 0) {
+        const globalOriginalComMultas = totalAtual + jaPago;
+        let originalQtd = qtdDB;
+        let parcela = globalOriginalComMultas / qtdDB; // Fallback
 
-        const isPerfect = (val, div) => div > 0 && Math.abs((val / div) - Math.round(val / div)) < 0.02;
-
-        const checkH1 = isPerfect(globalOriginal, parcelaH1);
-        const checkH2 = isPerfect(globalOriginal, parcelaH2);
-
-        let parcelaEscolhida = parcelaH1;
-        let origN = qtdDB;
-
-        if (checkH2 && !checkH1) {
-            parcelaEscolhida = parcelaH2;
-            origN = qtdDB;
-        } else if (checkH1 && !checkH2) {
-            parcelaEscolhida = parcelaH1;
-            origN = Math.round(globalOriginal / parcelaH1);
-        } else {
-            // Empate! Desempata usando o resto dos pagamentos já feitos
-            const restoH1 = jaPago % parcelaH1;
-            const restoH2 = jaPago % parcelaH2;
-            
-            if (restoH1 < 1 && restoH2 >= 1) {
-                parcelaEscolhida = parcelaH1;
-                origN = Math.round(globalOriginal / parcelaH1);
-            } else if (restoH2 < 1 && restoH1 >= 1) {
-                parcelaEscolhida = parcelaH2;
-                origN = qtdDB;
+        // 1. Tentativa matemática rigorosa (Descobre a parcela original ignorando multas de atraso)
+        if (capital > 0 && taxa > 0) {
+            const calculatedQtd = Math.round((globalOriginalComMultas / capital - 1) / taxa);
+            if (calculatedQtd > 0 && calculatedQtd >= qtdDB) {
+                originalQtd = calculatedQtd;
+                // Crava o valor EXATO da parcela limpa (capital + juros originais) dividida pelos meses
+                parcela = (capital * (1 + (taxa * originalQtd))) / originalQtd;
             } else {
-                // Se continuar empatado, escolhe a MAIOR parcela (corrige o bug do achatamento)
-                if (parcelaH2 > parcelaH1) {
-                    parcelaEscolhida = parcelaH2;
-                    origN = qtdDB;
-                } else {
-                    parcelaEscolhida = parcelaH1;
-                    origN = Math.round(globalOriginal / parcelaH1);
-                }
+                parcela = globalOriginalComMultas / originalQtd;
+            }
+        } else {
+            // Sem dados precisos, usa heurística para evitar erro
+            const parcelaH1 = totalAtual / qtdDB;
+            const isPerfect = (val, div) => div > 0 && Math.abs((val / div) - Math.round(val / div)) < 0.02;
+            
+            if (isPerfect(globalOriginalComMultas, parcelaH1)) {
+                originalQtd = Math.round(globalOriginalComMultas / parcelaH1);
+                parcela = parcelaH1;
+            } else {
+                parcela = globalOriginalComMultas / originalQtd;
             }
         }
 
-        if (!parcelaEscolhida || parcelaEscolhida === Infinity) parcelaEscolhida = totalAtual;
+        if (originalQtd < 1) originalQtd = 1;
+        if (!parcela || parcela === Infinity) parcela = totalAtual;
 
-        dev.valor_parcela = parcelaEscolhida;
-        dev.parcelas_pagas = Math.floor(jaPago / parcelaEscolhida);
-        dev.qtd_parcelas_original = Math.max(1, origN);
+        dev.valor_parcela = parcela;
+        dev.parcelas_pagas = Math.floor(jaPago / parcela);
+        dev.qtd_parcelas_original = Math.max(1, originalQtd);
     } else {
         dev.valor_parcela = totalAtual;
         dev.parcelas_pagas = jaPago >= totalAtual && totalAtual > 0 ? 1 : 0;
