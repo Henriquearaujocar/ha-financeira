@@ -40,6 +40,50 @@ const limparMoeda = (valor) => {
 };
 
 // ==========================================
+// MOTOR DE RECONSTRUÇÃO DE CARNÊ
+// ==========================================
+const formatarContratoCarne = (dev) => {
+    const totalAtual = parseFloat(dev.valor_total) || 0;
+    const jaPago = parseFloat(dev.total_ja_pego) || 0;
+    const qtdRestante = parseInt(dev.qtd_parcelas) || 1;
+    
+    if (qtdRestante > 1) {
+        const globalOriginal = totalAtual + jaPago;
+        if (jaPago === 0) {
+            dev.valor_parcela = totalAtual / qtdRestante;
+            dev.parcelas_pagas = 0;
+            dev.qtd_parcelas_original = qtdRestante;
+        } else {
+            let melhorN = qtdRestante;
+            let menorResto = Infinity;
+            let melhorParcela = globalOriginal / qtdRestante;
+
+            for (let n = qtdRestante; n <= qtdRestante + 20; n++) {
+                const parcelaT = globalOriginal / n;
+                const pagasT = Math.floor(jaPago / parcelaT);
+                const resto = jaPago % parcelaT;
+                
+                if (Math.abs((n - pagasT) - qtdRestante) <= 1) {
+                    if (resto < menorResto) {
+                        menorResto = resto;
+                        melhorN = n;
+                        melhorParcela = parcelaT;
+                    }
+                }
+            }
+            dev.valor_parcela = melhorParcela;
+            dev.parcelas_pagas = Math.floor(jaPago / melhorParcela);
+            dev.qtd_parcelas_original = melhorN;
+        }
+    } else {
+        dev.valor_parcela = totalAtual;
+        dev.parcelas_pagas = jaPago >= totalAtual && totalAtual > 0 ? 1 : 0;
+        dev.qtd_parcelas_original = 1;
+    }
+    return dev;
+};
+
+// ==========================================
 // MOTOR DE DECISÃO DE PIX INTELIGENTE
 // ==========================================
 const escolherPixInteligente = (configPixString, valorCobranca) => {
@@ -189,9 +233,8 @@ app.post('/validar-extrato', async (req, res) => {
         const { data: dev, error } = await query.single();
         if (error || !dev) return res.status(404).json({ erro: "Extrato não encontrado." }); 
         
-        dev.valor_parcela = (dev.qtd_parcelas > 1) ? (dev.valor_total / dev.qtd_parcelas) : dev.valor_total;
-        dev.parcelas_pagas = (dev.qtd_parcelas > 1 && dev.valor_parcela > 0) ? Math.floor((dev.total_ja_pego || 0) / dev.valor_parcela) : ((dev.total_ja_pego >= dev.valor_total) ? 1 : 0);
-        res.json(dev); 
+        const devFormatado = formatarContratoCarne(dev);
+        res.json(devFormatado); 
     } catch(e) { res.status(500).json({ erro: e.message }); } 
 });
 
@@ -409,11 +452,7 @@ app.get('/api/devedores-ativos', async (req, res) => {
             const { data, error } = await supabase.from('devedores').select('*').in('status', ['ABERTO', 'ATRASADO', 'APROVADO_AGUARDANDO_ACEITE']).order('data_vencimento', { ascending: true }).range(p, p + 999);
             if (error || !data || data.length === 0) break; tds = tds.concat(data); if (data.length < 1000) b = false; p += 1000;
         }
-        tds = tds.map(dev => {
-            dev.valor_parcela = (dev.qtd_parcelas > 1) ? (dev.valor_total / dev.qtd_parcelas) : dev.valor_total;
-            dev.parcelas_pagas = (dev.qtd_parcelas > 1 && dev.valor_parcela > 0) ? Math.floor((dev.total_ja_pego || 0) / dev.valor_parcela) : ((dev.total_ja_pego >= dev.valor_total) ? 1 : 0);
-            return dev;
-        });
+        tds = tds.map(formatarContratoCarne);
         res.json(tds);
     } catch(e) { res.status(500).json({ erro: e.message }); }
 });
@@ -560,8 +599,7 @@ app.get('/api/cliente-extrato/:busca', async (req, res) => {
         let scoreCalculado = 500; 
 
         const tdsComParcelas = (tds || cls).map(dev => {
-            dev.valor_parcela = (dev.qtd_parcelas > 1) ? (dev.valor_total / dev.qtd_parcelas) : dev.valor_total;
-            dev.parcelas_pagas = (dev.qtd_parcelas > 1 && dev.valor_parcela > 0) ? Math.floor((dev.total_ja_pego || 0) / dev.valor_parcela) : ((dev.total_ja_pego >= dev.valor_total) ? 1 : 0);
+            dev = formatarContratoCarne(dev);
             
             if (dev.status === 'QUITADO') scoreCalculado += 150;
             if (dev.status === 'ATRASADO') {

@@ -1863,12 +1863,12 @@
                 let txtParcelas = ''; 
                 let labelTipo = 'TOTAL DA DÍVIDA';
                 
-                if(d.qtd_parcelas > 1) { 
-                    valorExibido = total / d.qtd_parcelas;
+                if(d.qtd_parcelas_original > 1) { 
+                    valorExibido = d.valor_parcela;
                     labelTipo = 'VALOR DA MENSALIDADE';
-                    const totalOriginal = (d.parcelas_pagas || 0) + d.qtd_parcelas;
-                    txtParcelas = `<br><span class="text-[10px] text-blue-400 font-bold">${d.parcelas_pagas || 0}/${totalOriginal} Pagas</span>`;
+                    txtParcelas = `<br><span class="text-[10px] text-blue-400 font-bold">${d.parcelas_pagas}/${d.qtd_parcelas_original} Pagas</span>`;
                 }
+                
 
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-800/30 border-b border-slate-800/50">
@@ -1983,14 +1983,36 @@
             document.getElementById('pgtoDevedorId').value = dev.id; 
             
             const totalDev = parseFloat(dev.valor_total) || 0;
-            const parcelas = parseInt(dev.qtd_parcelas) || 1;
+            const jaPago = parseFloat(dev.total_ja_pego) || 0;
+
+            let parcelaOriginal = totalDev;
+            let faltaNestaParcela = totalDev;
             
-            // Corrige o BUG do NaN (dev.valor_parcela não existe no banco de dados)
-            if (parcelas > 1) {
-                document.getElementById('pgtoValor').value = (totalDev / parcelas).toFixed(2); 
-            } else {
-                document.getElementById('pgtoValor').value = totalDev.toFixed(2);
+            if (dev.qtd_parcelas_original > 1) { 
+                parcelaOriginal = dev.valor_parcela;
+                const pagoNaParcelaAtual = jaPago % parcelaOriginal;
+                faltaNestaParcela = parcelaOriginal - pagoNaParcelaAtual;
+
+                if (faltaNestaParcela < 0.10 || pagoNaParcelaAtual < 0.10) {
+                    faltaNestaParcela = parcelaOriginal;
+                }
+                if (totalDev < faltaNestaParcela) faltaNestaParcela = totalDev;
             }
+            
+            document.getElementById('pgtoValor').value = faltaNestaParcela.toFixed(2);
+
+            setTimeout(() => {
+                if (dev.qtd_parcelas_original > 1) {
+                    document.getElementById('pgtoSaldo').innerHTML = `
+                     R$ ${totalDev.toFixed(2)}<br>
+                     <span class="text-[9px] text-slate-400 font-normal block mt-1 leading-tight">
+                        Parcela Fixa: R$ ${parcelaOriginal.toFixed(2)}<br>
+                        Falta Nesta: <b class="text-orange-400">R$ ${faltaNestaParcela.toFixed(2)}</b>
+                     </span>`;
+                }
+            }, 500);
+
+            
 
             document.getElementById('pgtoObs').value = ''; 
             document.getElementById('pgtoAjuste').value = ''; 
