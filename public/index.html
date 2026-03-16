@@ -140,7 +140,7 @@
                 <i class="fa-solid fa-inbox w-6"></i> Solicitações
             </button>
             
-            <button onclick="mudarAba('aberto')" id="nav-aberto" class="w-full text-left px-6 py-3 text-xs font-bold text-slate-400 hover:text-white transition-all">
+            <button onclick="mudarAba('aberto')" id="nav-aberto" class="w-full text-left px-6 py-3 text-xs font-bold text-emerald-500 hover:text-white transition-all">
                 <i class="fa-solid fa-wallet w-6"></i> Cobrança Ativa
             </button>
             
@@ -280,18 +280,18 @@
 
         <div id="aba-aberto" class="aba-content hidden">
             <div class="flex flex-col xl:flex-row justify-between items-center mb-6 gap-4">
-                <h2 class="text-2xl font-black uppercase tracking-tighter w-full xl:w-auto"><i class="fa-solid fa-wallet text-emerald-500 mr-2"></i> Cobrança Ativa</h2>
+                <h2 class="text-2xl font-black uppercase tracking-tighter w-full xl:w-auto"><i class="fa-solid fa-wallet text-emerald-500 mr-2"></i> Cobrança Ativa (Por Parcela)</h2>
                 
                 <div class="flex gap-2 w-full xl:w-auto overflow-x-auto pb-2 xl:pb-0">
-                    <button onclick="aplicarFiltroAberto('TODOS', this)" class="filtro-aberto-btn px-4 py-2 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap shadow-lg shadow-blue-500/20 transition-all">Todos</button>
-                    <button onclick="aplicarFiltroAberto('EM_DIA', this)" class="filtro-aberto-btn px-4 py-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all">Em Dia</button>
+                    <button onclick="aplicarFiltroAberto('TODOS', this)" class="filtro-aberto-btn px-4 py-2 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap shadow-lg shadow-blue-500/20 transition-all">Todas Pendentes</button>
                     <button onclick="aplicarFiltroAberto('ATRASADO', this)" class="filtro-aberto-btn px-4 py-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all">Em Atraso</button>
-                    <button onclick="aplicarFiltroAberto('PENDENTE', this)" class="filtro-aberto-btn px-4 py-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all">Falta Assinar</button>
+                    <button onclick="aplicarFiltroAberto('EM_DIA', this)" class="filtro-aberto-btn px-4 py-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all">A Vencer</button>
+                    <button onclick="aplicarFiltroAberto('PARCIAL', this)" class="filtro-aberto-btn px-4 py-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all">Pgto Parcial</button>
                 </div>
 
                 <div class="relative w-full xl:w-64">
                     <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-blue-500"></i>
-                    <input type="text" id="busca-aberto" placeholder="Buscar Cliente..." class="input-dark w-full pl-10 text-sm" onkeyup="filtrarAberto()">
+                    <input type="text" id="busca-aberto" placeholder="Buscar Cliente ou CPF..." class="input-dark w-full pl-10 text-sm" onkeyup="filtrarAberto()">
                 </div>
             </div>
             
@@ -299,17 +299,17 @@
                 <table class="w-full text-left text-sm">
                     <thead class="bg-slate-800/50 text-[10px] uppercase font-black text-slate-400 tracking-wider">
                         <tr>
-                            <th class="px-4 py-4">Cliente</th>
+                            <th class="px-4 py-4">Cliente (CT / Parcela)</th>
                             <th class="px-4 py-4">Vencimento</th>
-                            <th class="px-4 py-4">Falta na Parcela</th>
-                            <th class="px-4 py-4 text-emerald-400">Agendamento</th>
-                            <th class="px-4 py-4">Saldo Restante</th>
-                            <th class="px-4 py-4">Status</th>
-                            <th class="px-4 py-4 text-center">Opções</th>
+                            <th class="px-4 py-4 text-emerald-400">Total Já Pago</th>
+                            <th class="px-4 py-4 text-orange-400">Falta Nesta Fatura</th>
+                            <th class="px-4 py-4">Status / Alertas</th>
+                            <th class="px-4 py-4 text-center">Opções de Fatura</th>
                         </tr>
                     </thead>
                     <tbody id="lista-aberto" class="divide-y divide-slate-800">
-                        </tbody>
+                        <!-- Renderizado via JS -->
+                    </tbody>
                 </table>
             </div>
         </div>
@@ -1101,52 +1101,54 @@
         </div>
     </div>
 
+    <!-- MODAL DE PAGAMENTO NOVO (MANTIDO DO TURN ANTERIOR) -->
     <div id="modalPagamento" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-[150] flex items-center justify-center p-4">
         <div class="glass-card w-full max-w-4xl max-h-[95vh] overflow-y-auto rounded-3xl border border-slate-700 p-8 relative">
             <button onclick="fecharModal('modalPagamento')" class="absolute top-6 right-6 text-slate-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
-            <h2 class="text-2xl font-black uppercase text-emerald-500 mb-2"><i class="fa-solid fa-cash-register mr-2"></i> Terminal de Recebimento</h2>
+            <h2 class="text-2xl font-black uppercase text-emerald-500 mb-2"><i class="fa-solid fa-cash-register mr-2"></i> Baixa na Parcela (Terminal)</h2>
             
             <div class="mb-6 pb-4 border-b border-slate-700 flex justify-between items-end">
                 <div>
                     <h3 id="pgtoNome" class="text-xl font-black text-white uppercase tracking-tight">NOME DO CLIENTE</h3>
-                    <p id="pgtoCpf" class="text-xs text-slate-400 font-mono mt-1">CPF: 000</p>
+                    <p id="pgtoIdentificador" class="text-xs text-slate-400 font-mono mt-1">CPF: 000 | Parcela #1</p>
                 </div>
                 <div class="text-right">
-                    <p class="text-[9px] font-black uppercase text-slate-500">Data de Início do Contrato</p>
-                    <p id="pgtoData" class="text-sm font-bold text-white mt-1">--/--/----</p>
+                    <p class="text-[9px] font-black uppercase text-slate-500">Vencimento Original</p>
+                    <p id="pgtoDataVencimentoOrig" class="text-sm font-bold text-white mt-1">--/--/----</p>
                 </div>
             </div>
             
+            <input type="hidden" id="pgtoParcelaId">
             <input type="hidden" id="pgtoDevedorId">
             
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
                     <p class="text-[9px] font-black uppercase text-slate-500">Dias em Atraso</p>
-                    <p id="pgtoAtraso" class="text-sm font-black text-orange-400 mt-1">0</p>
+                    <p id="pgtoAtraso" class="text-sm font-black text-emerald-500 mt-1">Em Dia</p>
                 </div>
                 <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
-                    <p class="text-[9px] font-black uppercase text-slate-500">Capital Original</p>
-                    <p id="pgtoTotalCapital" class="text-sm font-bold text-white mt-1">R$ 0,00</p>
+                    <p class="text-[9px] font-black uppercase text-slate-500">Valor Original Fatura</p>
+                    <p id="pgtoValorOriginal" class="text-sm font-bold text-white mt-1">R$ 0,00</p>
                 </div>
                 <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
-                    <p class="text-[9px] font-black uppercase text-slate-500">Total Já Pago</p>
-                    <p id="pgtoTotalPago" class="text-sm font-bold text-emerald-400 mt-1">R$ 0,00</p>
+                    <p class="text-[9px] font-black uppercase text-emerald-500">Já Recebido Desta</p>
+                    <p id="pgtoJaRecebidoNesta" class="text-sm font-bold text-emerald-400 mt-1">R$ 0,00</p>
                 </div>
-                <div class="bg-slate-900/50 p-4 rounded-xl border border-red-500/20">
-                    <p class="text-[9px] font-black uppercase text-red-400">Dívida Total Atual</p>
-                    <p id="pgtoSaldo" class="text-sm font-black text-red-500 mt-1">R$ 0,00</p>
+                <div class="bg-orange-900/20 p-4 rounded-xl border border-orange-500/30">
+                    <p class="text-[9px] font-black uppercase text-orange-400">Total Faltante Agora</p>
+                    <p id="pgtoFaltanteNesta" class="text-xl font-black text-orange-500 mt-1">R$ 0,00</p>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="space-y-4">
-                    <div class="bg-emerald-900/10 border border-emerald-500/20 p-4 rounded-xl">
-                        <label class="text-[10px] font-black uppercase text-emerald-500 block mb-2">Valor Recebido (R$)</label>
-                        <input type="number" id="pgtoValor" class="input-dark font-black text-emerald-400 text-4xl h-20 w-full text-center shadow-inner" placeholder="0.00" min="0" oninput="if(this.value<0)this.value=0;">
+                    <div class="bg-emerald-900/10 border border-emerald-500/30 p-5 rounded-2xl shadow-inner">
+                        <label class="text-[10px] font-black uppercase text-emerald-500 block mb-2">Valor Recebido do Cliente (R$)</label>
+                        <input type="number" id="pgtoValor" class="input-dark font-black text-emerald-400 text-4xl h-20 w-full text-center" placeholder="0.00" min="0" oninput="if(this.value<0)this.value=0;">
                         
-                        <div class="mt-4 p-3 bg-slate-900 rounded-lg border border-slate-800 text-center">
-                            <p class="text-[10px] text-slate-400 uppercase font-bold">Juros/Multas Atuais (Mínimo para Rolagem)</p>
-                            <p id="pgtoMinimoJuros" class="text-lg text-orange-400 font-black mt-1">R$ 0,00</p>
+                        <div class="mt-4">
+                            <label class="text-[10px] font-black uppercase text-red-400 block mb-1">Conceder Desconto / Isenção (R$)</label>
+                            <input type="number" id="pgtoDesconto" class="input-dark font-bold text-red-400 text-lg w-full text-center border-red-500/30 focus:border-red-500" placeholder="Ex: Tirar R$ 10 de juros" min="0">
                         </div>
                     </div>
                 </div>
@@ -1160,54 +1162,34 @@
                         </select>
                     </div>
                     
-                    <div class="bg-slate-800/30 border border-slate-700 p-3 rounded-xl mb-4">
-                        <label class="text-[10px] font-black uppercase text-slate-400 ml-2 block mb-1">Modo de Baixa</label>
-                        <select id="pgtoModoBaixa" class="input-dark text-xs font-bold text-white">
-                            <option value="PADRAO">Matemática Padrão (Calcula Juros/Amortização/Rolagem)</option>
-                            <option value="SIMPLES">Abatimento Simples (Apenas subtrai o valor do saldo total)</option>
+                    <div class="bg-blue-900/20 border border-blue-500/30 p-4 rounded-xl mb-4">
+                        <label class="text-[10px] font-black uppercase text-blue-400 ml-2 block mb-1"><i class="fa-solid fa-code-branch mr-1"></i> O Que Fazer com o Saldo Restante?</label>
+                        <select id="pgtoTratamentoRestante" class="input-dark text-xs font-bold text-white bg-slate-900 border border-blue-500/50">
+                            <option value="MANTER_PARCIAL">Manter Parcela Aberta (Status: Parcialmente Paga)</option>
+                            <option value="JOGAR_PROXIMA">Dar Quitação e Jogar Diferença para a Próxima Fatura</option>
+                            <option value="PERDOAR_RESTANTE">Dar Quitação e Perdoar o Restante (Evapora a dívida)</option>
                         </select>
-                        <p class="text-[8px] text-slate-400 mt-2 ml-1">Use o Abatimento Simples para pagamentos "por conta" sem alterar a estrutura do contrato.</p>
-
-                    </div>
-                    
-                    <div class="bg-blue-900/10 border border-blue-500/20 p-3 rounded-xl">
-                        <label class="text-[10px] font-black uppercase text-blue-400 ml-2 block mb-1">Tratamento de Excedente</label>
-                        <select id="pgtoTratamento" class="input-dark text-xs font-bold text-white">
-                            <option value="AMORTIZAR">Padrão (Amortizar no Saldo e Reduzir Próximas)</option>
-                            <option value="JUROS_EXTRA">Reter como Juros Extra (Não abater do saldo base)</option>
-                        </select>
-                        <p class="text-[8px] text-slate-400 mt-2 ml-1">Se o cliente pagar a mais, o sistema retém o extra como lucro.</p>
+                        <p class="text-[8px] text-slate-400 mt-2 ml-1 text-justify">Use esta regra caso o cliente não pague o valor completo. Ela define o futuro imediato do contrato.</p>
                     </div>
 
-                    <div>
-                        <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Data do Recebimento</label>
-                        <input type="date" id="pgtoDataRecebimento" class="input-dark mt-1 text-sm font-bold text-white">
-                    </div>
-                    <div class="bg-purple-900/10 border border-purple-500/20 p-3 rounded-xl mt-4">
-                        <label class="text-[10px] font-black uppercase text-purple-400 ml-2 block mb-1">Prorrogar Restante Para (Opcional)</label>
-                        <input type="date" id="pgtoNovoVencimento" class="input-dark text-xs" title="Se for um pagamento parcial, defina para quando a dívida restante fica prorrogada, evitando que o sistema gere multas amanhã.">
-                        <p class="text-[8px] text-slate-400 mt-2 ml-1">Use em pagamentos parciais para pausar a multa até esta data.</p>
-                    </div>
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Observações (Opcional)</label>
-                        <input type="text" id="pgtoObs" class="input-dark mt-1 text-sm" placeholder="Ex: Deu desconto de R$ 50 no capital...">
-                    </div>
-                    
-                    <div class="pt-2 border-t border-slate-700">
-                        <p class="text-[9px] font-black uppercase text-blue-400 mb-2">Recálculo Manual de Estrutura</p>
-                        <div class="grid grid-cols-2 gap-2">
-                            <input type="number" id="pgtoNovaTaxa" class="input-dark text-xs" placeholder="Nova Taxa (%)">
-                            <input type="number" id="pgtoNovoParcelamento" class="input-dark text-xs" placeholder="Novo nº Parcelas">
-                            <input type="number" id="pgtoAjuste" class="input-dark text-xs col-span-2" placeholder="Ajustar Saldo Restante (+ ou - R$)">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Data do Pagamento</label>
+                            <input type="date" id="pgtoDataRecebimento" class="input-dark mt-1 text-sm font-bold text-white">
                         </div>
+                    </div>
+
+                    <div>
+                        <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Observações na Baixa</label>
+                        <input type="text" id="pgtoObs" class="input-dark mt-1 text-sm" placeholder="Ex: Deu R$ 50 no PIX e R$ 100 em Dinheiro">
                     </div>
                 </div>
             </div>
 
-            <button onclick="confirmarPagamento()" id="btnConfirmarBaixa" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-5 rounded-xl font-black uppercase text-sm shadow-lg shadow-emerald-500/20 mt-8 transition-all"><i class="fa-solid fa-check-double mr-2"></i> Confirmar Baixa e Recalcular Contrato</button>
+            <button onclick="confirmarPagamento()" id="btnConfirmarBaixa" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-5 rounded-xl font-black uppercase text-sm shadow-lg shadow-emerald-500/20 mt-8 transition-all hover:scale-[1.01]"><i class="fa-solid fa-check-double mr-2"></i> Confirmar Baixa Desta Fatura</button>
         </div>
     </div>
+
 
     <div id="modalEditarContrato" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
         <div class="glass-card w-full max-w-lg rounded-3xl border border-slate-700 p-8 relative">
@@ -1281,7 +1263,8 @@
         const API_BASE = window.location.origin; 
         
         let solicitacaoAtualId = null;
-        let listaDevedoresAtuais = [];
+        let listaDevedoresAtuais = []; // Usado para ações globais (Edição de Contrato, Calote, etc)
+        let listaParcelasAtivas = [];  // Usado para exibir a Aba Cobrança Ativa 
         let listaSolicitacoesAtuais = [];
         let chartInstanceDash = null;
         let logsExtratoGlobal = [];
@@ -1795,25 +1778,31 @@
         }
 
         // =====================================
-        // COBRANÇA ATIVA
+        // NOVA LÓGICA DE COBRANÇA ATIVA (PARCELAS)
         // =====================================
         async function carregarAberto() { 
             try { 
-                const res = await fetchSeguro(`${API_BASE}/api/devedores-ativos`, { headers: headersAuth }); 
-                listaDevedoresAtuais = await res.json(); 
+                // 1. Carrega as parcelas fatiadas para desenhar a tabela 
+                const resParc = await fetchSeguro(`${API_BASE}/api/cobrancas-ativas`, { headers: headersAuth }); 
+                listaParcelasAtivas = await resParc.json(); 
+                
+                // 2. Carrega a lista global de contratos para as funções de Edição e Cancelamento
+                const resDev = await fetchSeguro(`${API_BASE}/api/devedores-ativos`, { headers: headersAuth }); 
+                listaDevedoresAtuais = await resDev.json();
+
                 filtrarAberto(); 
-            } catch(e) {} 
+            } catch(e) {
+                console.error("Erro ao carregar faturas:", e);
+            } 
         }
 
         let filtroStatusAberto = 'TODOS';
         
         function aplicarFiltroAberto(status, btnElement) {
             filtroStatusAberto = status; 
-            
             document.querySelectorAll('.filtro-aberto-btn').forEach(b => {
                 b.className = "filtro-aberto-btn px-4 py-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all";
             });
-            
             btnElement.className = "filtro-aberto-btn px-4 py-2 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap shadow-lg shadow-blue-500/20 transition-all"; 
             filtrarAberto();
         }
@@ -1823,20 +1812,22 @@
             const hoje = new Date(); 
             hoje.setHours(0,0,0,0);
             
-            const filtrados = listaDevedoresAtuais.filter(d => {
-                const matchTexto = d.nome.toLowerCase().includes(t) || d.cpf.includes(t); 
-                let matchStatus = true; 
-                let dt = new Date(d.data_vencimento + 'T12:00:00Z');
+            const filtrados = listaParcelasAtivas.filter(p => {
+                const dev = p.devedores || {};
+                const matchTexto = (dev.nome || '').toLowerCase().includes(t) || (dev.cpf || '').includes(t); 
                 
-                if (filtroStatusAberto === 'PENDENTE') {
-                    matchStatus = d.status === 'APROVADO_AGUARDANDO_ACEITE'; 
-                } else if (filtroStatusAberto === 'ATRASADO') {
-                    matchStatus = (dt < hoje) && d.status !== 'APROVADO_AGUARDANDO_ACEITE'; 
+                let matchStatus = true; 
+                let dt = new Date(p.data_vencimento + 'T12:00:00Z');
+                
+                if (filtroStatusAberto === 'ATRASADO') {
+                    matchStatus = p.status === 'ATRASADO' || (dt < hoje);
                 } else if (filtroStatusAberto === 'EM_DIA') {
-                    matchStatus = (dt >= hoje) && d.status !== 'APROVADO_AGUARDANDO_ACEITE';
+                    matchStatus = (dt >= hoje) && p.status === 'PENDENTE';
+                } else if (filtroStatusAberto === 'PARCIAL') {
+                    matchStatus = p.status === 'PARCIAL';
                 }
                 
-                return matchTexto && matchStatus && d.status !== 'PRE_CADASTRO';
+                return matchTexto && matchStatus;
             });
             
             renderizarAberto(filtrados);
@@ -1849,91 +1840,73 @@
             const LIMIT_UI = 150; 
             const listaVisual = lista.slice(0, LIMIT_UI);
             
-            listaVisual.forEach(d => {
-                const capital = parseFloat(d.valor_emprestado) || 0; 
-                const total = parseFloat(d.valor_total) || 0; 
-                let dt = new Date(d.data_vencimento + 'T12:00:00Z'); 
+            listaVisual.forEach(p => {
+                const dev = p.devedores || {};
+                const valorAtual = parseFloat(p.valor_atual) || 0; 
+                const valorPago = parseFloat(p.valor_pago) || 0;
+                const faltaPagar = valorAtual - valorPago;
+
+                let dt = new Date(p.data_vencimento + 'T12:00:00Z'); 
                 let hoje = new Date(); 
                 hoje.setHours(0,0,0,0);
                 
                 let badge = "";
-                if (d.status === 'APROVADO_AGUARDANDO_ACEITE') {
-                    badge = '<span class="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-[9px] font-black">PENDENTE</span>';
-                } else if (dt < hoje) {
-                    badge = '<span class="bg-red-500/20 text-red-500 px-2 py-1 rounded text-[9px] font-black">ATRASADO</span>';
-                } else {
-                    badge = '<span class="bg-emerald-500/20 text-emerald-500 px-2 py-1 rounded text-[9px] font-black">EM DIA</span>';
-                }
-
-                let tagDinheiro = d.cobrar_so_em_dinheiro ? '<i class="fa-solid fa-money-bill-1 text-emerald-500 ml-2" title="Dinheiro"></i>' : '';
+                let alertIcon = "";
                 
-                let txtParcelas = ''; 
-                let faltaNestaParcela = total;
-
-                if(d.qtd_parcelas_original > 1) { 
-                    const parcelaOriginal = d.valor_parcela;
-                    const jaPago = parseFloat(d.total_ja_pego) || 0;
-                    const pagoNaParcelaAtual = jaPago % parcelaOriginal;
-                    faltaNestaParcela = parcelaOriginal - pagoNaParcelaAtual;
-
-                    if (faltaNestaParcela < 0.10 || pagoNaParcelaAtual < 0.10) {
-                        faltaNestaParcela = parcelaOriginal;
-                    }
-                    if (total < faltaNestaParcela) faltaNestaParcela = total;
-
-                    txtParcelas = `<br><span class="text-[9px] text-blue-400 font-bold">${d.parcelas_pagas}/${d.qtd_parcelas_original} Pagas</span>`;
+                if (p.status === 'PARCIAL') {
+                    badge = '<span class="bg-orange-500/20 border border-orange-500/50 text-orange-400 px-2 py-1 rounded text-[9px] font-black tracking-widest">PGTO PARCIAL</span>';
+                    alertIcon = (dt < hoje) ? '<i class="fa-solid fa-triangle-exclamation text-red-500 ml-2 animate-pulse" title="Atrasado!"></i>' : '';
+                } else if (p.status === 'ATRASADO' || dt < hoje) {
+                    const diasOff = Math.floor((hoje - dt) / (1000 * 60 * 60 * 24));
+                    badge = `<span class="bg-red-500/20 border border-red-500/50 text-red-500 px-2 py-1 rounded text-[9px] font-black tracking-widest">ATRASADO (${diasOff}d)</span>`;
+                    alertIcon = '<i class="fa-solid fa-triangle-exclamation text-red-500 ml-2 animate-pulse" title="Multas aplicadas!"></i>';
+                } else {
+                    badge = '<span class="bg-emerald-500/20 border border-emerald-500/30 text-emerald-500 px-2 py-1 rounded text-[9px] font-black tracking-widest">A VENCER</span>';
                 }
 
-                const dataAgendada = d.data_promessa 
-                    ? `<span class="bg-emerald-900/30 border border-emerald-500/30 text-emerald-400 px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest whitespace-nowrap shadow-sm"><i class="fa-regular fa-calendar-check mr-1"></i> ${new Date(d.data_promessa + 'T12:00:00Z').toLocaleDateString('pt-BR')}</span>` 
-                    : `<span class="text-slate-600 text-[10px] font-bold italic">Sem data</span>`;
+                let tagDinheiro = dev.cobrar_so_em_dinheiro ? '<i class="fa-solid fa-money-bill-1 text-emerald-500 ml-2" title="Dinheiro Físico Apenas"></i>' : '';
                 
                 tbody.innerHTML += `
-                    <tr class="hover:bg-slate-800/30 border-b border-slate-800/50">
+                    <tr class="hover:bg-slate-800/40 border-b border-slate-800/50 transition-colors">
                         <td class="px-4 py-4">
                             <p class="font-bold text-white text-xs flex items-center">
-                                ${escapeHTML(d.nome)} ${tagDinheiro}
+                                ${escapeHTML(dev.nome)} ${alertIcon} ${tagDinheiro}
                             </p>
-                            <p class="text-[9px] font-mono text-slate-500">${escapeHTML(d.cpf)} <span class="text-blue-400 font-bold ml-1">| CT: #${d.id}</span></p>
+                            <p class="text-[9px] font-mono text-slate-500 mt-1">${escapeHTML(dev.cpf)} <span class="text-blue-400 font-bold ml-1">| CT #${p.devedor_id} - Parcela ${p.numero_parcela}</span></p>
                         </td>
-                        <td class="px-4 py-4 text-xs text-slate-300 font-bold">${dt.toLocaleDateString('pt-BR')}</td>
+                        <td class="px-4 py-4 text-xs text-slate-300 font-bold"><i class="fa-regular fa-calendar text-slate-500 mr-1"></i> ${dt.toLocaleDateString('pt-BR')}</td>
                         
-                        <td class="px-4 py-4 text-sm font-black text-orange-400">${formatMoney(faltaNestaParcela)}</td>
+                        <td class="px-4 py-4 text-sm font-black text-emerald-400">${formatMoney(valorPago)}</td>
                         
-                        <td class="px-4 py-4">${dataAgendada}</td>
-                        
-                        <td class="px-4 py-4 text-sm font-black text-red-400">
-                            ${d.qtd_parcelas_original > 1 ? `<span class="text-[8px] text-slate-500 uppercase tracking-wider block mb-[-2px]">Parcela Fixa</span>` : `<span class="text-[8px] text-slate-500 uppercase tracking-wider block mb-[-2px]">Dívida Total</span>`}
-                            ${formatMoney(d.qtd_parcelas_original > 1 ? d.valor_parcela : total)} ${txtParcelas}
-                            ${d.qtd_parcelas_original > 1 ? `<span class="text-[9px] text-red-500/70 font-bold block mt-1">Dívida Restante: ${formatMoney(total)}</span>` : ''}
+                        <td class="px-4 py-4 text-lg font-black text-orange-500">
+                            ${formatMoney(faltaPagar)}
+                            <span class="text-[8px] font-bold text-slate-500 block uppercase tracking-wider mt-1">Orig. Fatura: ${formatMoney(valorAtual)}</span>
                         </td>
                         
                         <td class="px-4 py-4">${badge}</td>
+                        
                         <td class="px-4 py-4 text-center relative">
-                            <button onclick="enviarCobrancaManual('${d.id}')" class="bg-emerald-600/20 text-emerald-500 hover:bg-emerald-500 hover:text-white px-2 py-1.5 mr-2 rounded">
-                                <i class="fa-solid fa-paper-plane"></i>
+                            <button onclick="prepararPagamento(${p.id})" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] px-3 py-2 rounded-lg uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all mr-2">
+                                <i class="fa-solid fa-money-bill-wave"></i> Baixar
                             </button>
-                            <button onclick="toggleDropdown('menu-${d.id}', this)" class="text-slate-400 hover:text-white p-2 rounded">
+                            <button onclick="toggleDropdown('menu-parc-${p.id}', this)" class="text-slate-400 hover:text-white p-2 rounded">
                                 <i class="fa-solid fa-ellipsis-vertical"></i>
                             </button>
                             
-                            <div id="menu-${d.id}" class="dropdown-menu absolute right-8 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-[60]">
-                                <button onclick="prepararPagamento('${d.id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-emerald-400">
-                                    <i class="fa-solid fa-money-bill-wave mr-2"></i> Receber Pgto
+                            <div id="menu-parc-${p.id}" class="dropdown-menu absolute right-8 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-[60]">
+                                <button onclick="enviarCobrancaFatura(${p.id})" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-green-400">
+                                    <i class="fa-brands fa-whatsapp mr-2"></i> Avisar no Zap
                                 </button>
-                                <button onclick="enviarCobrancaManual('${d.id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-green-400">
-                                    <i class="fa-solid fa-paper-plane mr-2"></i> Enviar Cobrança
-                                </button>
-                                <button onclick="abrirEdicaoContrato('${d.id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-orange-400">
+                                <button onclick="abrirEdicaoContrato('${p.devedor_id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-orange-400">
                                     <i class="fa-solid fa-pen-to-square mr-2"></i> Editar Contrato
                                 </button>
-                                <button onclick="cancelarContratoAtivo('${d.id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-red-400">
-                                    <i class="fa-solid fa-ban mr-2"></i> Cancelar / Estornar
+                                <button onclick="cancelarContratoAtivo('${p.devedor_id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-red-400">
+                                    <i class="fa-solid fa-ban mr-2"></i> Cancelar Contrato
                                 </button>
-                                <button onclick="abrirExtratoListagem('${d.cpf}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-blue-400">
-                                    <i class="fa-solid fa-file-invoice mr-2"></i> Ver Extrato
+                                <button onclick="abrirExtratoListagem('${dev.cpf}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-blue-400">
+                                    <i class="fa-solid fa-file-invoice mr-2"></i> Ver Extrato Global
                                 </button>
-                                <button onclick="marcarComoCalote('${d.id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-red-500">
+                                <button onclick="marcarComoCalote('${p.devedor_id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-red-500">
                                     <i class="fa-solid fa-skull mr-2"></i> Declarar Calote
                                 </button>
                             </div>
@@ -1945,8 +1918,8 @@
             if (lista.length > LIMIT_UI) {
                  tbody.innerHTML += `
                  <tr>
-                    <td colspan="7" class="text-center py-6 text-xs text-slate-500 font-bold bg-slate-800/20">
-                        A mostrar os primeiros ${LIMIT_UI} clientes. Use a pesquisa.
+                    <td colspan="6" class="text-center py-6 text-xs text-slate-500 font-bold bg-slate-800/20">
+                        A mostrar os primeiros ${LIMIT_UI} registos. Use a pesquisa.
                     </td>
                  </tr>`;
             }
@@ -1975,7 +1948,139 @@
         }
 
         // =====================================
-        // TERMINAL E EDIÇÃO
+        // TERMINAL E BAIXA DE PARCELA
+        // =====================================
+        async function prepararPagamento(parcelaId) {
+            const p = listaParcelasAtivas.find(x => x.id === parcelaId); 
+            if (!p) return;
+
+            const dev = p.devedores || {};
+            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show')); 
+
+            document.getElementById('pgtoParcelaId').value = p.id; 
+            document.getElementById('pgtoDevedorId').value = p.devedor_id; 
+            
+            const valorAtual = parseFloat(p.valor_atual) || 0;
+            const jaPago = parseFloat(p.valor_pago) || 0;
+            const faltaNestaParcela = valorAtual - jaPago;
+
+            document.getElementById('pgtoValor').value = faltaNestaParcela.toFixed(2);
+            document.getElementById('pgtoDesconto').value = '';
+            document.getElementById('pgtoObs').value = ''; 
+            document.getElementById('pgtoTratamentoRestante').value = 'MANTER_PARCIAL';
+
+            document.getElementById('pgtoNome').innerText = `${dev.nome || 'Cliente'}`; 
+            document.getElementById('pgtoIdentificador').innerHTML = `CPF: ${dev.cpf || ''} | <span class="text-orange-400 font-bold">Fatura/Parcela #${p.numero_parcela}</span>`; 
+            document.getElementById('pgtoDataRecebimento').value = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+
+            const vencObj = new Date(p.data_vencimento + 'T12:00:00Z');
+            document.getElementById('pgtoDataVencimentoOrig').innerText = vencObj.toLocaleDateString('pt-BR'); 
+
+            // Calcula dias de atraso para o UI
+            const hoje = new Date(); hoje.setHours(0,0,0,0);
+            vencObj.setHours(0,0,0,0);
+            if (vencObj < hoje) {
+                const diasOff = Math.floor((hoje - vencObj) / (1000 * 60 * 60 * 24));
+                document.getElementById('pgtoAtraso').innerText = `${diasOff} Dias Atraso`;
+                document.getElementById('pgtoAtraso').className = "text-sm font-black text-red-500 mt-1";
+            } else {
+                document.getElementById('pgtoAtraso').innerText = 'Fatura em Dia';
+                document.getElementById('pgtoAtraso').className = "text-sm font-black text-emerald-500 mt-1";
+            }
+
+            document.getElementById('pgtoValorOriginal').innerText = formatMoney(valorAtual);
+            document.getElementById('pgtoJaRecebidoNesta').innerText = formatMoney(jaPago);
+            document.getElementById('pgtoFaltanteNesta').innerText = formatMoney(faltaNestaParcela);
+
+            document.getElementById('modalPagamento').classList.remove('hidden');
+        }
+
+        async function confirmarPagamento() {
+            const pid = document.getElementById('pgtoParcelaId').value; 
+            const did = document.getElementById('pgtoDevedorId').value; 
+            const v = parseFloat(document.getElementById('pgtoValor').value); 
+            const desc = parseFloat(document.getElementById('pgtoDesconto').value) || 0;
+            
+            if (isNaN(v)) return alert("Preencha um valor válido.");
+
+            const btn = document.getElementById('btnConfirmarBaixa'); 
+            const oldText = btn.innerHTML; 
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processando Baixa...`; 
+            btn.disabled = true;
+            
+            const inputDataStr = document.getElementById('pgtoDataRecebimento').value;
+            const dataHojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+            const dataEnvioFinal = (inputDataStr === dataHojeStr) ? new Date().toISOString() : `${inputDataStr}T12:00:00-03:00`;
+            
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/baixar-parcela`, { 
+                    method: 'POST', 
+                    headers: headersAuth, 
+                    body: JSON.stringify({ 
+                        parcelaId: parseInt(pid), 
+                        devedorId: parseInt(did),
+                        valorPago: v, 
+                        descontoAplicado: desc,
+                        dataRecebimento: dataEnvioFinal,
+                        formaPagamento: document.getElementById('pgtoForma').value,
+                        tratamentoRestante: document.getElementById('pgtoTratamentoRestante').value,
+                        observacoes: document.getElementById('pgtoObs').value 
+                    }) 
+                });
+                
+                if(res.ok) { 
+                    showToast("Baixa Processada!"); 
+                    fecharModal('modalPagamento'); 
+                    carregarAberto(); 
+                    carregarDash();
+                } else { 
+                    const eBody = await res.json().catch(() => ({}));
+                    throw new Error(eBody.erro || "Erro interno ao processar a parcela."); 
+                }
+            } catch(e) { 
+                showToast(e.message, "error"); 
+            } finally { 
+                btn.innerHTML = oldText; 
+                btn.disabled = false; 
+            }
+        }
+
+        async function enviarCobrancaFatura(parcelaId) {
+            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show')); 
+            showToast("A enviar mensagem no WhatsApp...");
+            
+            try { 
+                const res = await fetchSeguro(`${API_BASE}/api/enviar-cobranca-manual`, { 
+                    method: 'POST', 
+                    headers: headersAuth, 
+                    body: JSON.stringify({ parcelaId: parseInt(parcelaId) }) 
+                }); 
+                
+                if(res.ok) {
+                    showToast("Enviado com sucesso!");
+                }
+            } catch(e) {}
+        }
+        
+        // Mantive a função antiga caso necessite disparar cobrança por contrato
+        async function enviarCobrancaManual(idDevedor) {
+            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show')); 
+            showToast("A enviar mensagem no WhatsApp...");
+            try { 
+                const res = await fetchSeguro(`${API_BASE}/api/enviar-cobranca-manual`, { 
+                    method: 'POST', 
+                    headers: headersAuth, 
+                    body: JSON.stringify({ devedorId: idDevedor }) 
+                }); 
+                
+                if(res.ok) {
+                    showToast("Enviado com sucesso!"); 
+                }
+            } catch(e) {}
+        }
+
+        // =====================================
+        // EDIÇÃO E CANCELAMENTO
         // =====================================
         async function cancelarContratoAtivo(id) {
             document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show')); 
@@ -1998,186 +2103,9 @@
             }
         }
 
-        async function prepararPagamento(idDevedor) {
-            const dev = listaDevedoresAtuais.find(x => String(x.id) === String(idDevedor)); 
-            if (!dev) return;
-
-            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show')); 
-            
-            document.getElementById('pgtoDevedorId').value = dev.id; 
-            
-            const totalDev = parseFloat(dev.valor_total) || 0;
-            const jaPago = parseFloat(dev.total_ja_pego) || 0;
-
-            let parcelaOriginal = totalDev;
-            let faltaNestaParcela = totalDev;
-            
-            if (dev.qtd_parcelas_original > 1) { 
-                parcelaOriginal = dev.valor_parcela;
-                const pagoNaParcelaAtual = jaPago % parcelaOriginal;
-                faltaNestaParcela = parcelaOriginal - pagoNaParcelaAtual;
-
-                if (faltaNestaParcela < 0.10 || pagoNaParcelaAtual < 0.10) {
-                    faltaNestaParcela = parcelaOriginal;
-                }
-                if (totalDev < faltaNestaParcela) faltaNestaParcela = totalDev;
-            }
-            
-            document.getElementById('pgtoValor').value = faltaNestaParcela.toFixed(2);
-
-            setTimeout(() => {
-                if (dev.qtd_parcelas_original > 1) {
-                    document.getElementById('pgtoSaldo').innerHTML = `
-                     R$ ${totalDev.toFixed(2)}<br>
-                     <span class="text-[9px] text-slate-400 font-normal block mt-1 leading-tight">
-                        Parcela Fixa: R$ ${parcelaOriginal.toFixed(2)}<br>
-                        Falta Nesta: <b class="text-orange-400">R$ ${faltaNestaParcela.toFixed(2)}</b>
-                     </span>`;
-                }
-            }, 500);
-
-            
-
-            document.getElementById('pgtoObs').value = ''; 
-            document.getElementById('pgtoAjuste').value = ''; 
-            document.getElementById('pgtoNovaTaxa').value = ''; 
-            document.getElementById('pgtoNovoParcelamento').value = '';
-            document.getElementById('pgtoTratamento').value = 'AMORTIZAR';
-
-            document.getElementById('pgtoNome').innerText = `${dev.nome} (CT #${dev.id})`; 
-            document.getElementById('pgtoCpf').innerText = dev.cpf; 
-            document.getElementById('pgtoDataRecebimento').value = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
-
-            document.getElementById('pgtoData').innerText = "A carregar..."; 
-            document.getElementById('pgtoAtraso').innerText = "..."; 
-            document.getElementById('pgtoTotalPago').innerText = "..."; 
-            document.getElementById('pgtoSaldo').innerText = "...";
-
-            document.getElementById('modalPagamento').classList.remove('hidden');
-
-            try {
-                const res = await fetchSeguro(`${API_BASE}/api/estatisticas-pagamento/${dev.id}`, { headers: headersAuth });
-                
-                if(res.ok) { 
-                    const data = await res.json(); 
-                    document.getElementById('pgtoData').innerText = new Date(data.data_emprestimo).toLocaleDateString('pt-BR'); 
-                    
-                    if (data.dias_atraso > 0) {
-                        document.getElementById('pgtoAtraso').innerText = `${data.dias_atraso} Dias`; 
-                        document.getElementById('pgtoAtraso').className = "text-sm font-black text-red-500 mt-1";
-                    } else {
-                        document.getElementById('pgtoAtraso').innerText = 'Em Dia'; 
-                        document.getElementById('pgtoAtraso').className = "text-sm font-black text-emerald-500 mt-1";
-                    }
-                    
-                    const capitalOri = parseFloat(data.capital_original) || 0; 
-                    const saldoAtual = parseFloat(data.saldo_atual) || 0;
-                    
-                    document.getElementById('pgtoTotalCapital').innerText = formatMoney(capitalOri); 
-                    document.getElementById('pgtoTotalPago').innerText = formatMoney(data.total_pago); 
-                    document.getElementById('pgtoSaldo').innerText = formatMoney(saldoAtual); 
-                    document.getElementById('pgtoMinimoJuros').innerText = formatMoney(Math.max(0, saldoAtual - capitalOri)); 
-                }
-            } catch(e) {}
-        }
-
-
-        async function buscarAvalistaLive() {
-            const busca = document.getElementById('cad_avalista_busca').value.trim();
-            const box = document.getElementById('autocomplete_avalista');
-
-            if(busca.length < 3) {
-                box.classList.add('hidden');
-                return;
-            }
-
-            try {
-                const res = await fetchSeguro(`${API_BASE}/api/buscar-cliente-admin/${encodeURIComponent(busca)}`, { headers: headersAuth });
-                if(res.ok) {
-                    const clientes = await res.json();
-                    box.innerHTML = '';
-
-                    if(clientes.length > 0) {
-                        clientes.forEach(c => {
-                            box.innerHTML += `
-                            <div class="p-3 border-b border-slate-700 hover:bg-slate-700 cursor-pointer transition-colors" onclick="selecionarAvalistaCad('${escapeHTML(c.nome)}', '${c.cpf}')">
-                                <p class="font-bold text-white text-xs">${escapeHTML(c.nome)}</p>
-                                <p class="text-[10px] text-slate-400 font-mono mt-1">CPF: ${c.cpf}</p>
-                            </div>`;
-                            });
-                    } else {
-                        box.innerHTML = '<div class="p-3 text-xs text-slate-500 font-bold">Nenhum cliente encontrado.</div>';
-                        }
-                    box.classList.remove('hidden');
-                    }
-            } catch(e) {}
-            }
-
-        function selecionarAvalistaCad(nome, cpf) {
-            document.getElementById('cad_avalista_busca').value = nome;
-            document.getElementById('cad_avalista_hidden').value = `${nome} (CPF: ${cpf})`;
-            document.getElementById('autocomplete_avalista').classList.add('hidden');
-            }
-
-
-        async function confirmarPagamento() {
-            const id = document.getElementById('pgtoDevedorId').value; 
-            const v = parseFloat(document.getElementById('pgtoValor').value); 
-            
-            if (!v && v !== 0 && !document.getElementById('pgtoAjuste').value && !document.getElementById('pgtoNovaTaxa').value) {
-                return showToast("Preencha um valor recebido ou um ajuste de estrutura.", "error");
-            }
-
-            const btn = document.getElementById('btnConfirmarBaixa'); 
-            const oldText = btn.innerHTML; 
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processando...`; 
-            btn.disabled = true;
-            
-            const inputDataStr = document.getElementById('pgtoDataRecebimento').value;
-            const dataHojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
-
-            const dataEnvioFinal = (inputDataStr === dataHojeStr) ? new Date().toISOString() : `${inputDataStr}T12:00:00-03:00`;
-            
-            try {
-                const res = await fetchSeguro(`${API_BASE}/api/baixar-manual`, { 
-                    method: 'POST', 
-                    headers: headersAuth, 
-                    body: JSON.stringify({ 
-                        id: parseInt(id), 
-                        valorPago: v || 0, 
-                        dataRecebimento: dataEnvioFinal, // Usando a nova data corrigida aqui! 
-                        formaPagamento: document.getElementById('pgtoForma').value,
-                        recalculoTratamento: document.getElementById('pgtoTratamento').value,
-                        observacoes: document.getElementById('pgtoObs').value, 
-                        recalculoAjuste: document.getElementById('pgtoAjuste').value ? parseFloat(document.getElementById('pgtoAjuste').value) : null, 
-                        recalculoTaxa: document.getElementById('pgtoNovaTaxa').value ? parseFloat(document.getElementById('pgtoNovaTaxa').value) : null, 
-                        recalculoParcelas: document.getElementById('pgtoNovoParcelamento').value ? parseInt(document.getElementById('pgtoNovoParcelamento').value) : null,
-                        novoVencimento: document.getElementById('pgtoNovoVencimento').value || null,
-                        modoBaixa: document.getElementById('pgtoModoBaixa').value // <--- ADICIONE ESTA LINHA
-
-                    }) 
-                });
-                
-                if(res.ok) { 
-                    showToast("Baixa Registrada!"); 
-                    fecharModal('modalPagamento'); 
-                    carregarAberto(); 
-                    carregarDash();
-                } else { 
-                    const eBody = await res.json().catch(() => ({}));
-                    throw new Error(eBody.erro || eBody.details || eBody.message || "Erro interno no servidor ao registar a baixa."); 
-                }
-            } catch(e) { 
-                showToast(e.message, "error"); 
-            } finally { 
-                btn.innerHTML = oldText; 
-                btn.disabled = false; 
-            }
-        }
-
         function abrirEdicaoContrato(idDevedor) {
             const dev = listaDevedoresAtuais.find(x => String(x.id) === String(idDevedor)); 
-            if (!dev) return;
+            if (!dev) return showToast("Contrato não encontrado para edição.", "error");
             
             document.getElementById('editDevedorId').value = dev.id; 
             document.getElementById('editCtLabel').innerText = `(CT #${dev.id})`;
@@ -2236,22 +2164,6 @@
             } catch(e) { 
                 showToast(e.message, "error"); 
             }
-        }
-
-        async function enviarCobrancaManual(idDevedor) {
-            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show')); 
-            showToast("A enviar mensagem...");
-            try { 
-                const res = await fetchSeguro(`${API_BASE}/api/enviar-cobranca-manual`, { 
-                    method: 'POST', 
-                    headers: headersAuth, 
-                    body: JSON.stringify({ id: idDevedor }) 
-                }); 
-                
-                if(res.ok) {
-                    showToast("Enviado com sucesso!"); 
-                }
-            } catch(e) {}
         }
 
         // =====================================

@@ -1,297 +1,204 @@
 const { supabase } = require('../database');
 
 /**
- * Recalcula a dívida (Amortização Real) e processa edições manuais garantindo o princípio ACID.
+ * Recalcula a dívida baseada no modelo de Parcelas Individuais.
+ * Processa baixas parciais, totais, perdões e rolagem para faturas seguintes.
  */
-const recalcularDivida = async (devedorId, valorPago, transactionId = null, dataRecebimento = null, formaPagamento = 'CONTA', tratamento = 'AMORTIZAR', edicaoManual = null) => {
-    
-    const { data: dev, error } = await supabase.from('devedores').select('*').eq('id', devedorId).single();
-    
-    if (error || !dev) return { erro: "Devedor não encontrado na base de dados." };
-    if (dev.status === 'QUITADO' || dev.pago === true) return { erro: "Operação Bloqueada: Contrato já quitado." };
+const recalcularDivida = async (params) => {
+    const { 
+        parcelaId, 
+        devedorId, 
+        valorPago, 
+        dataRecebimento, 
+        formaPagamento = 'CONTA', 
+        tratamentoRestante = 'MANTER_PARCIAL', 
+        observacoes = '',
+        descontoAplicado = 0
+    } = params;
 
-    // BLINDAGEM ANTI-NaN: Força rigorosamente tudo a ser Número
-    let totalAnterior = Math.round(parseFloat(dev.valor_total || 0) * 100) / 100;
-    let capitalAtual = Math.round(parseFloat(dev.valor_emprestado || 0) * 100) / 100;
-    let parcelasAtuais = parseInt(dev.qtd_parcelas) || 1;
-    let taxaAtualDec = parseFloat(dev.taxa_juros || 30) / 100;
-    
-    let pago = Math.round(parseFloat(valorPago || 0) * 100) / 100;
-    let notasManuais = [];
+    // 1. Busca os dados da Parcela e do Contrato Pai (Devedor)
+    const { data: parcela, error: errP } = await supabase.from('parcelas').select('*').eq('id', parcelaId).single();
+    const { data: dev, error: errD } = await supabase.from('devedores').select('*').eq('id', devedorId).single();
 
-    // --- APLICAÇÃO DE EDIÇÃO MANUAL ANTES DO PAGAMENTO ---
-    if (edicaoManual) {
-        if (edicaoManual.recalculoAjuste !== null && edicaoManual.recalculoAjuste !== undefined) {
-            const ajuste = parseFloat(edicaoManual.recalculoAjuste) || 0;
-            totalAnterior += ajuste;
-            notasManuais.push(`Ajuste de Saldo: ${ajuste > 0 ? '+' : ''}${ajuste.toFixed(2)}`);
-        }
-        if (edicaoManual.recalculoTaxa !== null && edicaoManual.recalculoTaxa !== undefined) {
-            taxaAtualDec = parseFloat(edicaoManual.recalculoTaxa) / 100 || 0;
-            notasManuais.push(`Nova Taxa: ${edicaoManual.recalculoTaxa}%`);
-        }
-        if (edicaoManual.recalculoParcelas !== null && edicaoManual.recalculoParcelas !== undefined) {
-            parcelasAtuais = parseInt(edicaoManual.recalculoParcelas) || 1;
-            notasManuais.push(`Novo Prazo: ${parcelasAtuais}x`);
-        }
-        // === ADIÇÃO: VERIFICAR PRORROGAÇÃO MANUAL DE VENCIMENTO ===
-        if (edicaoManual.novoVencimento) {
-            notasManuais.push(`Prorrogado para: ${new Date(edicaoManual.novoVencimento + 'T12:00:00Z').toLocaleDateString('pt-BR')}`);
-        }
+    if (errP || !parcela) return { erro: "Parcela não encontrada no sistema." };
+    if (errD || !dev) return { erro: "Contrato original não encontrado." };
+    if (parcela.status === 'PAGA' || parcela.status === 'CANCELADA') return { erro: "Esta parcela já se encontra Paga ou Cancelada." };
+
+    // 2. Padronização e Blindagem Anti-NaN (Tudo em 2 casas decimais)
+    let pagoAgora = Math.round(parseFloat(valorPago || 0) * 100) / 100;
+    let desconto = Math.round(parseFloat(descontoAplicado || 0) * 100) / 100;
+    
+    let valorAtualParcela = parseFloat(parcela.valor_atual || 0);
+    let jaPagoNaParcela = parseFloat(parcela.valor_pago || 0);
+    
+    let faltaPagarNesta = Math.round((valorAtualParcela - jaPagoNaParcela) * 100) / 100;
+    
+    // 3. Verifica se houve excedente de pagamento (pagou a mais do que a parcela exige)
+    let pagoExcedente = 0;
+    if (pagoAgora > faltaPagarNesta) {
+        pagoExcedente = pagoAgora - faltaPagarNesta;
+        // Limita o valor a ser abatido nesta parcela ao máximo que ela exige
+        pagoAgora = faltaPagarNesta; 
     }
 
-    let valorParaAbaterDoSaldo = pago;
-    let jurosAbatido = 0;
-    let capitalAbatido = 0;
-    let excedenteRetidoComoJuros = 0;
+    let saldoRestante = Math.round((faltaPagarNesta - pagoAgora - desconto) * 100) / 100;
+    
+    let novoStatusParcela = parcela.status;
+    let novoValorAtualParcela = valorAtualParcela;
+    let novoJaPagoNaParcela = jaPagoNaParcela + pagoAgora;
+    let obsParcela = parcela.observacoes ? parcela.observacoes + " | " : "";
 
-    // MOTOR DE RETENÇÃO DE LUCRO
-    if (pago > 0 && tratamento === 'JUROS_EXTRA' && pago < totalAnterior) {
-        if (parcelasAtuais > 1) {
-            const parcelaEstimada = totalAnterior / parcelasAtuais;
-            if (parcelaEstimada > 0 && pago > parcelaEstimada) {
-                let numParcPagas = Math.floor(pago / parcelaEstimada);
-                valorParaAbaterDoSaldo = numParcPagas * parcelaEstimada;
-                excedenteRetidoComoJuros = pago - valorParaAbaterDoSaldo;
+    // 4. MÁQUINA DE ESTADOS DA PARCELA
+    if (saldoRestante <= 0.05) {
+        // A. QUITAÇÃO DA PARCELA
+        novoStatusParcela = 'PAGA';
+        saldoRestante = 0;
+        obsParcela += `[Liquidada] Pgto: R$ ${pagoAgora.toFixed(2)}. `;
+        if (desconto > 0) obsParcela += `Desc: R$ ${desconto.toFixed(2)}. `;
+    } 
+    else {
+        // B. PAGAMENTO PARCIAL E TRATAMENTO DO RESTANTE
+        if (tratamentoRestante === 'JOGAR_PROXIMA') {
+            novoStatusParcela = 'RENEGOCIADA';
+            obsParcela += `[Rolagem] Faltou R$ ${saldoRestante.toFixed(2)}, movido p/ próxima. `;
+            novoValorAtualParcela -= saldoRestante; // Retira a dívida desta parcela
+            
+            // Busca a próxima parcela do cliente
+            const { data: prox } = await supabase.from('parcelas')
+                .select('*')
+                .eq('devedor_id', devedorId)
+                .eq('numero_parcela', parcela.numero_parcela + 1)
+                .single();
+            
+            if (prox) {
+                // Infla a próxima parcela com o valor restante
+                await supabase.from('parcelas').update({
+                    valor_atual: parseFloat(prox.valor_atual) + saldoRestante,
+                    observacoes: (prox.observacoes ? prox.observacoes + " | " : "") + `Adicionado R$ ${saldoRestante.toFixed(2)} da parc. #${parcela.numero_parcela}.`
+                }).eq('id', prox.id);
+            } else {
+                // Fallback: Se for a última parcela e ele pediu para jogar pra próxima, cria uma parcela extra
+                await supabase.from('parcelas').insert([{
+                    devedor_id: devedorId,
+                    numero_parcela: parcela.numero_parcela + 1,
+                    valor_original: saldoRestante,
+                    valor_atual: saldoRestante,
+                    valor_pago: 0,
+                    data_vencimento: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0],
+                    status: 'PENDENTE',
+                    observacoes: `Criada automaticamente por rolagem da parcela #${parcela.numero_parcela}.`
+                }]);
             }
-        } else {
-            const valorJurosAtual = totalAnterior - capitalAtual;
-            if (pago > valorJurosAtual) {
-                valorParaAbaterDoSaldo = valorJurosAtual;
-                excedenteRetidoComoJuros = pago - valorJurosAtual;
+            saldoRestante = 0; 
+        } 
+        else if (tratamentoRestante === 'PERDOAR_RESTANTE') {
+            novoStatusParcela = 'PAGA';
+            obsParcela += `[Perdoado] Restante perdoado (Desc. de R$ ${saldoRestante.toFixed(2)}). `;
+            novoValorAtualParcela -= saldoRestante; // A dívida evapora
+            saldoRestante = 0;
+        } 
+        else {
+            // C. MANTER PARCIAL (Padrão)
+            novoStatusParcela = 'PARCIAL';
+            obsParcela += `[Parcial] Pgto de R$ ${pagoAgora.toFixed(2)}. Resta R$ ${saldoRestante.toFixed(2)}. `;
+        }
+    }
+
+    if (observacoes) obsParcela += `Nota: ${observacoes}`;
+
+    // 5. ATUALIZA A PARCELA ATUAL NA BASE
+    let dtPagamentoLocal = dataRecebimento;
+    if (!dtPagamentoLocal) {
+        dtPagamentoLocal = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"})).toISOString();
+    }
+
+    await supabase.from('parcelas').update({
+        valor_pago: novoJaPagoNaParcela,
+        valor_atual: novoValorAtualParcela,
+        status: novoStatusParcela,
+        observacoes: obsParcela,
+        data_pagamento: novoStatusParcela === 'PAGA' ? dtPagamentoLocal : parcela.data_pagamento
+    }).eq('id', parcelaId);
+
+    // Se houve excedente, registramos um extra (Opcional para negócios onde se retém o lucro a mais)
+    // Para simplificar a matemática do DRE, o excedente será jogado diretamente como Lucro no Log final.
+
+    // 6. SINCRONIZAÇÃO GLOBAL (CONTRATO PAI) & MATEMÁTICA DO DRE
+    const { data: todasParcelas } = await supabase.from('parcelas').select('*').eq('devedor_id', devedorId).not('status', 'in', '("CANCELADA")');
+    
+    let novoTotalGlobal = 0;
+    let qtdPendentes = 0;
+    let possuiAtrasoGlobal = false;
+    let proximoVencimentoGlobal = null;
+
+    const dataHojeArr = new Date().toISOString().split('T')[0];
+
+    todasParcelas.forEach(p => {
+        // Substitui temporariamente os valores se for a parcela que estamos iterando agora, pois o banco pode demorar 1ms para atualizar
+        let valAtual = parseFloat(p.id === parcelaId ? novoValorAtualParcela : p.valor_atual);
+        let valPago = parseFloat(p.id === parcelaId ? novoJaPagoNaParcela : p.valor_pago);
+        let st = p.id === parcelaId ? novoStatusParcela : p.status;
+        let saldoP = Math.round((valAtual - valPago) * 100) / 100;
+
+        novoTotalGlobal += Math.max(0, saldoP);
+
+        if (['PENDENTE', 'ATRASADO', 'PARCIAL', 'RENEGOCIADA'].includes(st)) {
+            if (saldoP > 0) {
+                qtdPendentes++;
+                if (st === 'ATRASADO' || p.data_vencimento < dataHojeArr) possuiAtrasoGlobal = true;
+                
+                // Define o próximo vencimento global para o Dashboard
+                if (!proximoVencimentoGlobal || p.data_vencimento < proximoVencimentoGlobal) {
+                    proximoVencimentoGlobal = p.data_vencimento;
+                }
             }
         }
-    }
+    });
 
-    if (pago >= totalAnterior) {
-        valorParaAbaterDoSaldo = pago;
-        excedenteRetidoComoJuros = 0;
-    }
+    let statusDevGlobal = dev.status;
+    if (qtdPendentes === 0 && novoTotalGlobal <= 0) statusDevGlobal = 'QUITADO';
+    else if (possuiAtrasoGlobal) statusDevGlobal = 'ATRASADO';
+    else statusDevGlobal = 'ABERTO';
 
-    let novoTotal = Math.max(0, Math.round((totalAnterior - valorParaAbaterDoSaldo) * 100) / 100);
-    let totalRestante = novoTotal; // Variável auxiliar para o modo SIMPLES
+    // 7. DIVISÃO PARA O RELATÓRIO DRE (CAPITAL VS JUROS)
+    // Calcula a proporção baseada no total inicial
+    const totalOriginalDB = parseFloat(dev.valor_total) || 1;
+    const capitalOriginalDB = parseFloat(dev.valor_emprestado) || 0;
+    const proporcaoCapital = capitalOriginalDB / totalOriginalDB;
     
-    // MATEMÁTICA DO DRE
-    if (novoTotal <= 0.05) {
-        capitalAbatido = capitalAtual;
-        jurosAbatido = pago - capitalAbatido;
-    } else if (parcelasAtuais > 1) {
-        const proporcaoCapital = totalAnterior > 0 ? (capitalAtual / totalAnterior) : 1;
-        capitalAbatido = valorParaAbaterDoSaldo * proporcaoCapital;
-        jurosAbatido = pago - capitalAbatido;
-    } else { 
-        const valorJurosAtual = totalAnterior - capitalAtual;
-        if (valorParaAbaterDoSaldo >= (valorJurosAtual * 0.95)) {
-            jurosAbatido = valorJurosAtual + excedenteRetidoComoJuros;
-            capitalAbatido = Math.max(0, pago - jurosAbatido);
-        } else {
-            jurosAbatido = pago; 
-            capitalAbatido = 0;
-        }
-    }
+    const valorRealApurado = pagoAgora + pagoExcedente; // Dinheiro real que entrou hoje
+    const capitalAbatido = valorRealApurado * proporcaoCapital;
+    const jurosAbatido = valorRealApurado - capitalAbatido;
 
-    let strVencimento = dev.data_vencimento;
+    let novoCapitalGlobal = Math.max(0, parseFloat(dev.valor_emprestado) - capitalAbatido);
 
-    // === ADIÇÃO: VERIFICAR PRORROGAÇÃO MANUAL DE VENCIMENTO ===
-    if (edicaoManual && edicaoManual.novoVencimento) {
-        strVencimento = edicaoManual.novoVencimento; // Substitui o vencimento se o utilizador escolheu prorrogar
-    }
-    
-    // --- CORREÇÃO DE FUSO HORÁRIO E HORA EXATA ---
-    let dataObjOperacao = new Date();
-    let dataParaBanco = null;
-
-    if (dataRecebimento) {
-        if (dataRecebimento.includes('T')) {
-            // Se já vier com a hora exata do frontend, usa ela mesma
-            dataObjOperacao = new Date(dataRecebimento);
-            dataParaBanco = dataRecebimento;
-        } else {
-            // Se for apenas o dia (pagamento retroativo), crava meio-dia no fuso do Brasil
-            dataObjOperacao = new Date(dataRecebimento + 'T12:00:00-03:00');
-            dataParaBanco = dataRecebimento + 'T12:00:00-03:00';
-        }
-    }
-    const strLogData = dataObjOperacao.toISOString();
-    // ---------------------------------------------
-
-    const vencObjOrig = new Date(strVencimento + 'T12:00:00Z');
-    const statusDefault = vencObjOrig < dataObjOperacao ? 'ATRASADO' : 'ABERTO';
     const tagPgto = formaPagamento === 'DINHEIRO' ? '[💸 ESPÉCIE]' : '[🏦 PIX/CONTA]';
 
+    // 8. CHAMA A TRANSAÇÃO ACID DO BANCO DE DADOS
     let rpcPayload = {
-        p_devedor_id: dev.id, 
-        p_pago: pago, 
-        p_novo_total: novoTotal, 
-        p_capital: Math.max(0, capitalAtual - capitalAbatido),
-        p_status: statusDefault, 
-        p_novo_vencimento: strVencimento, 
-        p_novas_parcelas: parcelasAtuais,
-        p_limpar_atraso: false, 
-        p_evento: '', 
-        p_detalhes: '', 
-        p_transaction_id: transactionId || `PGTO_${Date.now()}`,
-        p_data_pagamento: dataParaBanco, 
+        p_devedor_id: devedorId,
+        p_pago: valorRealApurado,
+        p_novo_total: novoTotalGlobal,
+        p_capital: novoCapitalGlobal,
+        p_status: statusDevGlobal,
+        p_novo_vencimento: proximoVencimentoGlobal || dev.data_vencimento,
+        p_novas_parcelas: Math.max(1, qtdPendentes),
+        p_limpar_atraso: !possuiAtrasoGlobal, 
+        p_evento: valorRealApurado > 0 ? "Recebimento de Parcela" : "Baixa por Desconto",
+        p_detalhes: `${tagPgto} Parcela #${parcela.numero_parcela} atualizada. ${observacoes ? `Obs: ${observacoes}` : ''}`,
+        p_transaction_id: `PGTO_${parcelaId}_${Date.now()}`,
+        p_data_pagamento: dtPagamentoLocal,
         p_valor_capital: Math.round(capitalAbatido * 100) / 100,
         p_valor_juros: Math.round(jurosAbatido * 100) / 100
     };
 
-    if (notasManuais.length > 0) {
-        rpcPayload.p_detalhes += `(Edições Manuais: ${notasManuais.join(' | ')}) `;
+    const { error: errDB } = await supabase.rpc('processar_transacao_financeira', rpcPayload);
+    if (errDB) {
+        console.error("❌ ERRO SQL processar_transacao_financeira:", errDB);
+        return { erro: "Falha de Banco de Dados: " + errDB.message };
     }
 
-    // CAPTURADOR DE ERRO SQL E OVERRIDE DE VENCIMENTO
-    const executarNoBanco = async (payload, edicaoParam = null) => {
-        // Se foi enviada uma data de prorrogação no frontend, forçamos ela aqui no final
-        const edicao = edicaoParam || edicaoManual;
-        if (edicao && edicao.novoVencimento) {
-            payload.p_novo_vencimento = edicao.novoVencimento;
-            payload.p_limpar_atraso = true; // Zera a trava de multa diária
-            
-            // Se a nova data de prorrogação for igual ou maior que hoje, tira o status de ATRASADO
-            const dataNova = new Date(edicao.novoVencimento + 'T12:00:00Z');
-            const dataHojeValida = new Date();
-            dataHojeValida.setHours(0,0,0,0);
-            
-            if (dataNova >= dataHojeValida && payload.p_status !== 'QUITADO') {
-                payload.p_status = 'ABERTO';
-            }
-        }
-
-        const { error: errDB } = await supabase.rpc('processar_transacao_financeira', payload);
-        if (errDB) {
-            console.error("❌ ERRO SQL processar_transacao_financeira:", errDB);
-            return { erro: "Falha de Banco de Dados: " + errDB.message };
-        }
-        return null;
-    };
-
-
-    // === ADIÇÃO: MODO DE ABATIMENTO SIMPLES ===
-    if (edicaoManual && edicaoManual.modoBaixa === 'SIMPLES') {
-        let rpcPayloadSimples = {
-            p_devedor_id: devedorId,
-            p_pago: pago, // CORRIGIDO: Era "p_pago_agora"
-            p_novo_total: totalRestante,
-            p_capital: capitalAtual, 
-            p_status: totalRestante <= 0 ? 'QUITADO' : dev.status,
-            p_novo_vencimento: strVencimento, 
-            p_novas_parcelas: parcelasAtuais, // ADICIONADO: Obrigatório para o banco
-            p_limpar_atraso: false, 
-            p_evento: "Pagamento Parcial (Abatimento Simples)",
-            p_detalhes: `${tagPgto} Abatimento direto. Saldo anterior: R$ ${totalAnterior.toFixed(2)} -> Novo Saldo: R$ ${totalRestante.toFixed(2)}. ${edicaoManual.observacoes ? `Obs: ${edicaoManual.observacoes}` : ''}`,
-            p_transaction_id: transactionId || `SIMPLES_${Date.now()}`,
-            p_data_pagamento: dataParaBanco || strLogData, // CORRIGIDO: Para sincronizar o calendário corretamente
-            p_valor_capital: 0, 
-            p_valor_juros: pago  
-        };
-
-        if (totalRestante <= 0) {
-            rpcPayloadSimples.p_novo_total = 0;
-            rpcPayloadSimples.p_capital = 0;
-            rpcPayloadSimples.p_limpar_atraso = true;
-            rpcPayloadSimples.p_evento = "Liquidação Total";
-            rpcPayloadSimples.p_detalhes = `${tagPgto} Contrato Liquidado.`;
-        }
-
-        // Aplica ajustes manuais se existirem
-        if (edicaoManual.ajusteTotal !== null && edicaoManual.ajusteTotal !== undefined && !isNaN(edicaoManual.ajusteTotal)) {
-            rpcPayloadSimples.p_novo_total = Math.max(0, rpcPayloadSimples.p_novo_total + parseFloat(edicaoManual.ajusteTotal));
-            rpcPayloadSimples.p_detalhes += ` (Ajuste Manual de Saldo: R$ ${parseFloat(edicaoManual.ajusteTotal).toFixed(2)})`;
-        }
-        if (edicaoManual.novaTaxa !== null && edicaoManual.novaTaxa !== undefined && !isNaN(edicaoManual.novaTaxa)) {
-             rpcPayloadSimples.p_detalhes += ` (Taxa alterada para ${edicaoManual.novaTaxa}%)`;
-        }
-
-        const falha = await executarNoBanco(rpcPayloadSimples, edicaoManual);
-        if (falha) return falha;
-        
-        return { sucesso: true, status: rpcPayloadSimples.p_status };
-    }
-    // === FIM DA ADIÇÃO DO MODO SIMPLES ===
-
-
-    // A - QUITAÇÃO TOTAL
-    if (novoTotal <= 0.05) {
-        rpcPayload.p_novo_total = 0;
-        rpcPayload.p_status = 'QUITADO';
-        rpcPayload.p_limpar_atraso = true;
-        rpcPayload.p_evento = "Quitação Total";
-        rpcPayload.p_detalhes += `${tagPgto} Liquidou o contrato. (Cap: R$${rpcPayload.p_valor_capital.toFixed(2)} | Lucro: R$${rpcPayload.p_valor_juros.toFixed(2)})`;
-        
-        const falha = await executarNoBanco(rpcPayload);
-        if (falha) return falha;
-        return { sucesso: true, status: 'quitado' };
-    }
-
-    // B - PARCELADO
-    if (parcelasAtuais > 1) {
-        const parcelaEstimada = totalAnterior / parcelasAtuais;
-        let parcelasPagasInt = 0;
-        if (parcelaEstimada > 0) {
-            parcelasPagasInt = Math.floor(valorParaAbaterDoSaldo / parcelaEstimada);
-            if ((valorParaAbaterDoSaldo - (parcelasPagasInt * parcelaEstimada)) >= (parcelaEstimada * 0.90)) parcelasPagasInt += 1;
-        }
-
-        rpcPayload.p_evento = pago > 0 ? (excedenteRetidoComoJuros > 0 ? "Pagamento + Juros Retidos" : "Pagamento de Parcela") : "Ajuste de Balcão";
-        rpcPayload.p_detalhes += `${tagPgto} Abateu R$ ${pago.toFixed(2)} (Cap: R$${rpcPayload.p_valor_capital.toFixed(2)} | Lucro: R$${rpcPayload.p_valor_juros.toFixed(2)}).`;
-
-        if (parcelasPagasInt > 0) {
-            let dataBaseObj = new Date(strVencimento + 'T12:00:00Z');
-            if (dev.frequencia === 'MENSAL') {
-                const diaOriginal = dataBaseObj.getDate();
-                dataBaseObj.setMonth(dataBaseObj.getMonth() + parcelasPagasInt);
-                if (dataBaseObj.getDate() < diaOriginal && diaOriginal >= 28) dataBaseObj.setDate(0); 
-            } else {
-                dataBaseObj.setDate(dataBaseObj.getDate() + (7 * parcelasPagasInt));
-            }
-            rpcPayload.p_novo_vencimento = dataBaseObj.toISOString().split('T')[0];
-            rpcPayload.p_novas_parcelas = Math.max(1, parcelasAtuais - parcelasPagasInt);
-            
-            if (dataBaseObj <= dataObjOperacao) {
-                rpcPayload.p_status = 'ATRASADO'; 
-                rpcPayload.p_detalhes += ` Ainda em ATRASO. Restam ${rpcPayload.p_novas_parcelas} parc.`;
-            } else {
-                rpcPayload.p_limpar_atraso = true; 
-                rpcPayload.p_status = 'ABERTO';
-                rpcPayload.p_detalhes += ` Ficou em dia. Restam ${rpcPayload.p_novas_parcelas} parc.`;
-            }
-        }
-        const falha = await executarNoBanco(rpcPayload);
-        if (falha) return falha;
-        return { sucesso: true, status: 'parcela_abatida', novoVencimento: rpcPayload.p_novo_vencimento };
-    }
-
-    // C - ROLAGEM 30 DIAS
-    const valorJurosAtual = totalAnterior - capitalAtual;
-    if (valorParaAbaterDoSaldo >= (valorJurosAtual * 0.95)) {
-        const multiplicadorJuros = 1 + taxaAtualDec;
-        let saldoDevedorDosJuros = Math.max(0, valorJurosAtual - valorParaAbaterDoSaldo);
-        
-        rpcPayload.p_capital = Math.max(0, rpcPayload.p_capital + saldoDevedorDosJuros);
-        rpcPayload.p_novo_total = rpcPayload.p_capital * multiplicadorJuros; 
-        
-        let dataReferencia = new Date(strVencimento + 'T12:00:00Z');
-        if (dataReferencia < dataObjOperacao) dataReferencia = new Date(dataObjOperacao.getTime()); 
-        dataReferencia.setDate(dataReferencia.getDate() + (dev.frequencia === 'SEMANAL' ? 7 : 30));
-        
-        rpcPayload.p_novo_vencimento = dataReferencia.toISOString().split('T')[0];
-        rpcPayload.p_status = 'ABERTO';
-        rpcPayload.p_limpar_atraso = true;
-        rpcPayload.p_evento = "Rolagem de Contrato";
-        rpcPayload.p_detalhes += `${tagPgto} Rolou com R$ ${pago.toFixed(2)} (Lucro Base: R$${rpcPayload.p_valor_juros.toFixed(2)}). Novo Venc: ${rpcPayload.p_novo_vencimento}.`;
-
-        const falha = await executarNoBanco(rpcPayload);
-        if (falha) return falha;
-        return { sucesso: true, status: 'rolado', novoVencimento: rpcPayload.p_novo_vencimento };
-    } else {
-        rpcPayload.p_evento = "Pagamento Incompleto";
-        rpcPayload.p_detalhes += `${tagPgto} R$ ${pago.toFixed(2)} não cobriu juros mínimos. Lucro extraído: R$${rpcPayload.p_valor_juros.toFixed(2)}.`;
-        
-        const falha = await executarNoBanco(rpcPayload);
-        if (falha) return falha;
-        return { sucesso: true, status: 'parcial_abatido', novoVencimento: rpcPayload.p_novo_vencimento };
-    }
+    return { sucesso: true, status: statusDevGlobal, valorAbatido: valorRealApurado };
 };
 
 module.exports = { recalcularDivida };
