@@ -373,10 +373,20 @@ app.get(['/api/dashboard', '/api/dashboard-master'], async (req, res) => {
         
         const resumoSeguro = dbResumo || {};
 
-        // 🚨 NOVO: CÁLCULO FINANCEIRO DO ROMBO (INADIMPLÊNCIA)
-        const { data: atrasadosData } = await supabase.from('devedores').select('valor_total').eq('status', 'ATRASADO');
-        let valorInadimplencia = 0;
-        atrasadosData?.forEach(d => valorInadimplencia += parseFloat(d.valor_total) || 0);
+        // 🚨 CORREÇÃO DO ROMBO: Soma apenas as parcelas REALMENTE vencidas
+        const hojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+        
+        const { data: parcelasVencidas } = await supabase
+            .from('vw_cobranca_ativa_parcelas')
+            .select('valor_atual, valor_pago')
+            .lt('vencimento_parcela', hojeStr); // Menor que hoje = Atrasado
+
+        let valorInadimplenciaReal = 0;
+        let qtdContratosAtrasados = new Set(); // Para contar clientes únicos em atraso
+
+        parcelasVencidas?.forEach(p => {
+            valorInadimplenciaReal += (parseFloat(p.valor_atual) - parseFloat(p.valor_pago || 0));
+        });
 
         res.json({ 
             totalAReceber: resumoSeguro.totalAReceber || 0, 
@@ -385,14 +395,10 @@ app.get(['/api/dashboard', '/api/dashboard-master'], async (req, res) => {
             lucroEstimado: (parseFloat(resumoSeguro.totalAReceber) || 0) - (parseFloat(resumoSeguro.capitalNaRua) || 0), 
             capitalNaRua: resumoSeguro.capitalNaRua || 0, 
             caixaDisponivel: caixaGeral + (parseFloat(resumoSeguro.fluxoLiquidoTotal) || 0),
-            valor_inadimplencia: valorInadimplencia, // <-- VARIÁVEL ENVIADA AQUI
-            total_a_receber: resumoSeguro.totalAReceber || 0,
-            recebido_hoje: resumoSeguro.recebidoHoje || 0,
-            capital_na_rua: resumoSeguro.capitalNaRua || 0,
-            caixa_disponivel: caixaGeral + (parseFloat(resumoSeguro.fluxoLiquidoTotal) || 0)
+            valor_inadimplencia: valorInadimplenciaReal // <-- Valor corrigido enviado aqui
         });
     } catch (err) {
-        res.json({ totalAReceber: 0, recebidoHoje: 0, pendencias: 0, lucroEstimado: 0, capitalNaRua: 0, caixaDisponivel: 0 }); 
+        res.status(500).json({ erro: "Erro ao processar dashboard" }); 
     }
 });
 
@@ -712,23 +718,27 @@ app.get('/api/buscar-cliente-admin/:busca', async (req, res) => {
 // ==========================================
 app.get('/api/crm', async (req, res) => {
     try {
-        // 🚨 CORREÇÃO: Puxa da View de parcelas para mostrar o valor exato da fatura atrasada no card
+        // 🚨 CORREÇÃO DO CRM: Filtra apenas o que já venceu
+        const hojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+
         const { data, error } = await supabase
             .from('vw_cobranca_ativa_parcelas')
             .select('devedor_id, uuid, nome, telefone, valor_atual, valor_pago, vencimento_parcela, status_contrato, cpf, data_promessa')
+            .lt('vencimento_parcela', hojeStr) // 🚨 Filtro essencial para não poluir o Kanban
             .order('vencimento_parcela', { ascending: true });
 
         if (error) throw error;
         
-        // Formata os dados para o Kanban esperar os nomes de campos corretos
-        const formatados = data.map(d => ({
+        const formatados = (data || []).map(d => ({
             ...d,
             id: d.devedor_id,
-            valor_total: parseFloat(d.valor_atual) - parseFloat(d.valor_pago || 0) // Exibe apenas o que falta da parcela
+            valor_total: parseFloat(d.valor_atual) - parseFloat(d.valor_pago || 0)
         }));
 
         res.json(formatados || []);
-    } catch(e) { res.status(500).json({ erro: e.message }); }
+    } catch(e) { 
+        res.status(500).json({ erro: e.message }); 
+    }
 });
 
 app.put('/api/crm/:id', async (req, res) => {
@@ -1172,7 +1182,6 @@ app.post('/api/relatorio-periodo', async (req, res) => {
         const inicio = dtInicio.includes('T') ? new Date(dtInicio).toISOString() : new Date(`${dtInicio}T00:00:00-03:00`).toISOString(); 
         const fim = dtFim.includes('T') ? new Date(dtFim).toISOString() : new Date(`${dtFim}T23:59:59-03:00`).toISOString();
 
-        // 🚨 CORREÇÃO: Traz o status do contrato da base de dados
         const { data: logs, error } = await supabase.from('logs')
             .select('id, valor_fluxo, valor_capital, valor_juros, evento, detalhes, created_at, devedor_id, devedores(nome, status)')
             .gte('created_at', inicio)
@@ -1190,7 +1199,6 @@ app.post('/api/relatorio-periodo', async (req, res) => {
         let qtdQuitados = 0;
 
         (logs || []).forEach(log => {
-            // 🚨 MÁGICA: Ignora 100% da matemática de qualquer registo que tenha sido cancelado
             if (log.devedores && log.devedores.status === 'CANCELADO') return;
 
             const v = Number(log.valor_fluxo) || 0; 
@@ -1206,23 +1214,20 @@ app.post('/api/relatorio-periodo', async (req, res) => {
                 jurosMensalidadeFix += Number(log.valor_juros) || 0;
                 if (ev === 'Quitação Total') qtdQuitados++;
             }
-            
-            if (ev.includes('Juros de Atraso')) {
-                const match = (log.detalhes || "").match(/R\$ ([\d.,]+)/);
-                if (match) jurosAtrasoGerado += limparMoeda(match[1]);
-            }
         });
 
-        const { data: devedoresAtrasados } = await supabase.from('devedores').select('data_vencimento, valor_total').eq('status', 'ATRASADO');
-        let diasAtrasados = 0; 
-        let valorTotalAtrasado = 0; // <-- NOVA VARIÁVEL
-        const hojeObj = new Date(); hojeObj.setHours(0,0,0,0);
+        // 🚨 CORREÇÃO DO ROMBO ANALÍTICO:
+        // Soma apenas as parcelas vencidas que ainda não foram pagas
+        const hojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
         
-        (devedoresAtrasados || []).forEach(d => {
-            const dt = new Date(d.data_vencimento + 'T12:00:00Z');
-            if (dt < hojeObj) diasAtrasados += Math.floor((hojeObj - dt) / (1000 * 60 * 60 * 24));
-            
-            valorTotalAtrasado += parseFloat(d.valor_total) || 0; // <-- SOMA O ROMBO
+        const { data: parcelasNoGargalo } = await supabase
+            .from('vw_cobranca_ativa_parcelas')
+            .select('valor_atual, valor_pago')
+            .lt('vencimento_parcela', hojeStr); // Apenas o que já venceu
+
+        let valorTotalAtrasadoReal = 0;
+        parcelasNoGargalo?.forEach(p => {
+            valorTotalAtrasadoReal += (parseFloat(p.valor_atual) - parseFloat(p.valor_pago || 0));
         });
 
         const lucroLiquidoReal = jurosMensalidadeFix + jurosAtrasoGerado - totalDespesas;
@@ -1234,8 +1239,8 @@ app.post('/api/relatorio-periodo', async (req, res) => {
         res.json({ 
             totalEmprestado, totalRecebido, totalDespesas,
             lucro: lucroLiquidoReal, jurosAtrasoGerado, jurosMensalidade: jurosMensalidadeFix,
-            qtdCadastros, qtdQuitados, diasAtrasados, totalGarantias,
-            valor_inadimplencia: valorTotalAtrasado, // <-- ENVIADO AQUI
+            qtdCadastros, qtdQuitados, totalGarantias,
+            valor_inadimplencia: valorTotalAtrasadoReal, // <-- Agora envia o valor real das parcelas vencidas
             movimentacoes: movimentacoesVisiveis
         });
     } catch (e) { 
@@ -1249,107 +1254,46 @@ app.post('/api/relatorio-periodo', async (req, res) => {
 let cronAtrasosRodando = false; 
 
 const rodarRoboCobranca = async () => {
-    if (cronAtrasosRodando) return { status: 'Robô de Atrasos já está em execução.' };
+    if (cronAtrasosRodando) return { status: 'Robô já em execução.' };
     cronAtrasosRodando = true;
-    let relatorioEnvio = []; 
-
     try {
-        // 1. Busca as configurações globais (Multa e PIX)
         const { data: configs } = await supabase.from('config').select('*');
-        let taxaDiariaPercentual = 3.0; // Padrão 3% se não achar na tabela
-        let configPixString = null;
-        
-        configs?.forEach(c => {
-            if (c.chave === 'multa_diaria' && c.valor) taxaDiariaPercentual = parseFloat(c.valor);
-            if (c.chave === 'pix_avancado' && c.valor) configPixString = c.valor;
-        });
-        
-        const taxaMultaDec = taxaDiariaPercentual / 100;
+        let taxaMulta = 3.0; // Pega os 3% do seu painel
+        configs?.forEach(c => { if (c.chave === 'multa_diaria') taxaMulta = parseFloat(c.valor); });
 
-        // 2. Define a data de hoje no fuso de Brasília corretamente
-        const dataHojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
-        const momentoBRT = new Date(dataHojeStr + 'T00:00:00-03:00');
+        const hojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+        const { data: faturas } = await supabase.from('vw_cobranca_ativa_parcelas')
+            .select('*').in('status_parcela', ['PENDENTE', 'ATRASADO', 'PARCIAL']).lt('vencimento_parcela', hojeStr);
 
-        // 3. Busca as parcelas que venceram ANTES de hoje e não estão pagas
-        // Usamos a View inteligente que já filtra contratos ativos
-        const { data: parcelasEmAtraso, error } = await supabase
-            .from('vw_cobranca_ativa_parcelas')
-            .select('*')
-            .in('status_parcela', ['PENDENTE', 'ATRASADO', 'PARCIAL'])
-            .lt('vencimento_parcela', dataHojeStr);
+        for (const parc of (faturas || [])) {
+            const { data: dev } = await supabase.from('devedores').select('ultima_cobranca_atraso, isento_multa').eq('id', parc.devedor_id).single();
+            if (dev?.ultima_cobranca_atraso === hojeStr || dev?.isento_multa) continue;
 
-        if (error || !parcelasEmAtraso || parcelasEmAtraso.length === 0) {
-            cronAtrasosRodando = false;
-            return { status: 'Nenhum atraso pendente.' };
+            const valorMulta = (parseFloat(parc.valor_emprestado) || 0) * (taxaMulta / 100);
+            const chaveTransacao = `ATRASO_PARC_${parc.parcela_id}_${hojeStr}`;
+
+            // Processa a transação usando a RPC que você já tem no banco
+            await supabase.rpc('processar_transacao_financeira', {
+                p_devedor_id: parc.devedor_id, 
+                p_pago: 0, 
+                p_novo_total: parseFloat(parc.valor_total) + valorMulta,
+                p_capital: parseFloat(parc.valor_emprestado), 
+                p_status: 'ATRASADO', 
+                p_novo_vencimento: parc.data_vencimento,
+                p_limpar_atraso: false, 
+                p_carimbar_atraso: true, 
+                p_evento: `Juros de Atraso (${taxaMulta}%)`,
+                p_detalhes: `Automático: Parc #${parc.numero_parcela}`, 
+                p_transaction_id: chaveTransacao, 
+                p_data_pagamento: new Date().toISOString(),
+                p_parcela_id: parc.parcela_id, 
+                p_parcela_status: 'ATRASADO', 
+                p_parcela_valor_atual: parseFloat(parc.valor_atual) + valorMulta
+            });
+            await sleep(3500); // Evita ban no WhatsApp
         }
-
-        // 4. Loop de processamento de multas
-        for (const parc of parcelasEmAtraso) {
-            try {
-                // Verifica se já foi cobrado hoje ou se é isento (Trava de Segurança)
-                const { data: devCheck } = await supabase.from('devedores').select('ultima_cobranca_atraso, isento_multa').eq('id', parc.devedor_id).single();
-                if (!devCheck || devCheck.ultima_cobranca_atraso === dataHojeStr || devCheck.isento_multa) continue;
-
-                // Calcula quantos dias de atraso real
-                const dtVenc = new Date(parc.vencimento_parcela + 'T12:00:00Z');
-                const totalDiasAtraso = Math.floor((momentoBRT - dtVenc) / (1000 * 60 * 60 * 24));
-                if (totalDiasAtraso <= 0) continue; 
-
-                // Matemática da Multa: Aplicada sobre o Capital Original do contrato
-                const capitalRaiz = parseFloat(parc.valor_emprestado) || 0;
-                const valorMultaDeHoje = capitalRaiz * taxaMultaDec;
-
-                const novoValorTotalGlobal = (parseFloat(parc.valor_total) || 0) + valorMultaDeHoje;
-                const novoValorParcela = (parseFloat(parc.valor_atual) || 0) + valorMultaDeHoje;
-
-                // ID Único para evitar que o banco processe a mesma multa 2x se você clicar no botão manual
-                const chaveTransacaoUnica = `ATRASO_PARC_${parc.parcela_id}_${dataHojeStr}`;
-
-                // Chama o Banco de Dados para atualizar tudo em uma transação segura (ACID)
-                const { error: rpcErr } = await supabase.rpc('processar_transacao_financeira', {
-                    p_devedor_id: parc.devedor_id, 
-                    p_pago: 0, 
-                    p_novo_total: novoValorTotalGlobal, 
-                    p_capital: capitalRaiz,
-                    p_status: 'ATRASADO', 
-                    p_novo_vencimento: parc.data_vencimento, // Mantém o vencimento global
-                    p_novas_parcelas: parc.qtd_parcelas,
-                    p_limpar_atraso: false, 
-                    p_carimbar_atraso: true, // Registra que a multa de hoje foi aplicada
-                    p_evento: `Juros de Atraso (${taxaDiariaPercentual.toFixed(1)}%/dia)`,
-                    p_detalhes: `Atraso Parc #${parc.numero_parcela}. Multa: R$ ${valorMultaDeHoje.toFixed(2)}`,
-                    p_transaction_id: chaveTransacaoUnica,
-                    p_data_pagamento: new Date().toISOString(), 
-                    p_valor_capital: 0, 
-                    p_valor_juros: 0,
-                    p_parcela_id: parc.parcela_id,
-                    p_parcela_pago: 0,
-                    p_parcela_status: 'ATRASADO',
-                    p_parcela_valor_atual: novoValorParcela
-                });
-
-                if (rpcErr) continue; // Pula se der erro de duplicidade
-
-                // 5. Envia o WhatsApp via Z-API
-                const valorAEnviarNoZap = novoValorParcela - parseFloat(parc.valor_pago || 0);
-                const pixDaVezAtraso = escolherPixInteligente(configPixString, valorAEnviarNoZap);
-                
-                await enviarAvisoAtraso(parc.telefone, parc.nome, valorAEnviarNoZap, totalDiasAtraso, pixDaVezAtraso); 
-                
-                relatorioEnvio.push(parc.nome);
-                await sleep(3500); // Pausa anti-bloqueio do WhatsApp
-
-            } catch (errLoop) { 
-                console.error("Erro no processamento individual:", errLoop.message); 
-            }
-        }
-        return { status: 'Atrasos Processados', total: relatorioEnvio.length };
-
-    } catch (errGeral) { 
-        return { erro: errGeral.message }; 
-    } finally { 
-        cronAtrasosRodando = false; 
-    }
+        return { status: 'Sucesso' };
+    } finally { cronAtrasosRodando = false; }
 };
 // ==========================================
 // 2. FUNÇÃO: ROBÔ DE LEMBRETES (Amanhã e Hoje)
@@ -1416,7 +1360,30 @@ const rodarRoboLembretes = async () => {
 // 3. AGENDAMENTOS (BRASÍLIA) E ROTAS
 // ==========================================
 // Multas e Atrasos: 08:00 e 14:00
-cron.schedule('0 8,14 * * *', rodarRoboCobranca, { scheduled: true, timezone: "America/Sao_Paulo" });
+cron.schedule('0 8,14 * * *', async () => {
+    const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+
+    try {
+        // 1. Busca apenas clientes ATRASADOS que ainda não foram processados HOJE
+        const { data: devedores, error } = await supabase
+            .from('devedores')
+            .select('*')
+            .eq('status', 'ATRASADO')
+            .or(`ultima_cobranca_atraso.lt.${hoje},ultima_cobranca_atraso.is.null`);
+
+        if (error) throw error;
+
+        for (const dev of devedores) {
+            // Chamada para o seu financeService processar a multa
+            // É CRUCIAL que o processar_transacao_financeira atualize a 'ultima_cobranca_atraso'
+            await financeService.aplicarMultaDiaria(dev, hoje);
+        }
+        
+        console.log(`[ROBÔ] Multas processadas em ${hoje}.`);
+    } catch (err) {
+        console.error("Erro no robô de multas:", err.message);
+    }
+}, { timezone: "America/Sao_Paulo" });;
 
 // Lembretes: 09:00
 cron.schedule('0 9 * * *', rodarRoboLembretes, { scheduled: true, timezone: "America/Sao_Paulo" });
