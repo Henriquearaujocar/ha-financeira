@@ -1239,111 +1239,87 @@ app.post('/api/relatorio-periodo', async (req, res) => {
 // ==========================================
 // 🚨 CRON JOB DE AUTOMAÇÃO E COBRANÇA (ACID)
 // ==========================================
-let cronAtrasosRodando = false; 
+// ==========================================
+// 🚨 CRON JOB DE AUTOMAÇÃO E COBRANÇA (ACID)
+// ==========================================
+let cronLembretesRodando = false;
 
-const rodarRoboCobranca = async () => {
-    if (cronAtrasosRodando) return { status: 'Robô já está em execução. Aguarde.' };
-    cronAtrasosRodando = true;
-    let relatorioEnvio = []; // Para vermos quem foi cobrado
+const rodarRoboLembretes = async () => {
+    if (cronLembretesRodando) return { status: 'Robô já está em execução.' };
+    cronLembretesRodando = true;
+    let relatorioEnvio = [];
 
     try {
-        const { data: configMulta } = await supabase.from('config').select('valor').eq('chave', 'multa_diaria').maybeSingle();
-        const taxaDiariaPercentual = configMulta?.valor ? parseFloat(configMulta.valor) : 2.0;
-        const taxaMultaDec = taxaDiariaPercentual / 100;
+        const { data: configs } = await supabase.from('config').select('*');
+        let configPixString = null;
+        configs?.forEach(c => { if (c.chave === 'pix_avancado' && c.valor) configPixString = c.valor; });
 
-        const momentoBRT = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
-        momentoBRT.setHours(0,0,0,0);
-        const dataHojeStr = momentoBRT.toISOString().split('T')[0];
+        // Cálculo das datas (Brasil) de forma segura
+        const dataHojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+        const hojeObj = new Date(dataHojeStr + 'T12:00:00Z');
+        
+        const amanhaObj = new Date(hojeObj);
+        amanhaObj.setDate(hojeObj.getDate() + 1);
+        const dataAmanhaStr = amanhaObj.toISOString().split('T')[0];
 
-        const { data: configPixData } = await supabase.from('config').select('valor').eq('chave', 'pix_avancado').maybeSingle();
-        const configPixString = configPixData ? configPixData.valor : null;
-
-        // CORREÇÃO 1: Lê as PARCELAS em atraso usando a View inteligente, e não o devedor macro
-        const { data: parcelasEmAtraso, error } = await supabase
+        // 1. Busca parcelas que vencem HOJE ou AMANHÃ que não estejam pagas
+        const { data: parcelasLembrete, error } = await supabase
             .from('vw_cobranca_ativa_parcelas')
             .select('*')
-            .in('status_parcela', ['PENDENTE', 'ATRASADO', 'PARCIAL'])
-            .lt('vencimento_parcela', dataHojeStr);
+            .in('status_parcela', ['PENDENTE', 'PARCIAL'])
+            .in('vencimento_parcela', [dataHojeStr, dataAmanhaStr]);
 
-        if (error || !parcelasEmAtraso || parcelasEmAtraso.length === 0) {
-            cronAtrasosRodando = false;
-            return { status: 'Nenhum atraso pendente de cobrança.' };
+        if (error || !parcelasLembrete || parcelasLembrete.length === 0) {
+            cronLembretesRodando = false;
+            return { status: 'Nenhum lembrete para hoje ou amanhã.' };
         }
 
-        for (const parc of parcelasEmAtraso) {
+        for (const parc of parcelasLembrete) {
             try {
-                // Previne cobrar o mesmo cliente 2x no mesmo dia (Lê a trava global do devedor)
-                const { data: devCheck } = await supabase.from('devedores').select('ultima_cobranca_atraso, isento_multa').eq('id', parc.devedor_id).single();
-                if (!devCheck || devCheck.ultima_cobranca_atraso === dataHojeStr || devCheck.isento_multa) continue;
-
-                const dtVenc = new Date(parc.vencimento_parcela + 'T12:00:00Z');
-                dtVenc.setHours(0,0,0,0);
-                const totalDiasAtraso = Math.floor((momentoBRT - dtVenc) / (1000 * 60 * 60 * 24));
-                if (totalDiasAtraso <= 0 || totalDiasAtraso > 365) continue; 
-
-                // Calcula os novos saldos
-                let novoValorTotalGlobal = parseFloat(parc.valor_total) || 0;
-                let novoValorParcela = parseFloat(parc.valor_atual) || 0;
+                const ehAmanha = parc.vencimento_parcela === dataAmanhaStr;
+                const sufixoTipo = ehAmanha ? 'ANTECIPADO' : 'HOJE';
                 
-                const capitalRaiz = parseFloat(parc.valor_emprestado) || parseFloat(parc.valor_total);
-                const valorMultaDeHoje = capitalRaiz * taxaMultaDec;
-
-                novoValorTotalGlobal += valorMultaDeHoje;
-                novoValorParcela += valorMultaDeHoje;
-
-                // Prepara o Payload para o Banco
-                const rpcPayload = {
-                    p_devedor_id: parc.devedor_id, 
-                    p_pago: 0, 
-                    p_novo_total: novoValorTotalGlobal, 
-                    p_capital: parseFloat(parc.valor_emprestado) || 0,
-                    p_status: 'ATRASADO', 
-                    p_novo_vencimento: parc.data_vencimento, // Mantém o vencimento global original
-                    p_novas_parcelas: parc.qtd_parcelas,
-                    p_limpar_atraso: false, 
-                    p_carimbar_atraso: true, // 🚨 CORREÇÃO 2: Este carimbo impede loop infinito de cobranças
-                    p_evento: `Juros de Atraso (${taxaDiariaPercentual.toFixed(1)}%/dia)`,
-                    p_detalhes: `Atraso Parc #${parc.numero_parcela}. Multa: R$ ${valorMultaDeHoje.toFixed(2)}. Saldo Final: R$ ${novoValorTotalGlobal.toFixed(2)}`,
-                    p_data_pagamento: new Date().toISOString(), 
-                    p_valor_capital: 0, 
-                    p_valor_juros: 0,
-                    // 🚨 CORREÇÃO 3: Injeta o atraso na PARCELA
-                    p_parcela_id: parc.parcela_id,
-                    p_parcela_pago: 0,
-                    p_parcela_status: 'ATRASADO',
-                    p_parcela_valor_atual: novoValorParcela
-                };
-
-                const { error: rpcErr } = await supabase.rpc('processar_transacao_financeira', rpcPayload);
-                if (rpcErr) throw rpcErr;
-
-                // O valor que vai na mensagem do Zap é apenas o que falta da parcela
-                const valorAEnviarNoZap = novoValorParcela - parseFloat(parc.valor_pago || 0);
-                const pixDaVezAtraso = escolherPixInteligente(configPixString, valorAEnviarNoZap);
+                // Trava de Idempotência: permite enviar o de amanha e DEPOIS o de hoje (em dias diferentes)
+                const chaveLembrete = `LEMBRETE_${sufixoTipo}_PARC_${parc.parcela_id}_${parc.vencimento_parcela}`;
                 
-                try { 
-                    await enviarAvisoAtraso(parc.telefone, parc.nome, valorAEnviarNoZap, totalDiasAtraso, pixDaVezAtraso); 
-                    relatorioEnvio.push(`Cobrado: ${parc.nome} | Parcela ${parc.numero_parcela}`);
-                } catch (zapErr) {
-                    console.error("Erro no Zap para", parc.nome);
+                const { data: jaEnviou } = await supabase.from('webhook_logs').select('transaction_id').eq('transaction_id', chaveLembrete).maybeSingle();
+                if (jaEnviou) continue;
+
+                const valorAEnviar = parseFloat(parc.valor_atual) - parseFloat(parc.valor_pago || 0);
+                const pixDaVez = escolherPixInteligente(configPixString, valorAEnviar);
+
+                // Personaliza o texto para o cliente saber se a conta é para amanhã ou para hoje
+                let textoContexto = ehAmanha 
+                    ? `Passando para lembrar que sua parcela vence *amanhã* (${parc.vencimento_parcela.split('-').reverse().join('/')}).` 
+                    : `Lembrete: Sua parcela vence *hoje*!`;
+
+                // 2. Dispara o Zap (Passando a saudação nova)
+                const sucesso = await enviarLembreteVencimento(parc.telefone, parc.nome, valorAEnviar, parc.vencimento_parcela, pixDaVez, textoContexto);
+                
+                if (sucesso) {
+                    await supabase.from('webhook_logs').insert([{ transaction_id: chaveLembrete }]);
+                    relatorioEnvio.push(`${sufixoTipo}: ${parc.nome}`);
                 }
                 
-                await sleep(3000); // Pausa de 3 segundos entre mensagens para não ser banido pelo WhatsApp
+                await sleep(3500); // Segurança contra bloqueio
 
-            } catch (errLoop) { 
-                console.error(`Falha isolada na cobrança do CT ${parc.devedor_id}:`, errLoop.message);
+            } catch (errLoop) {
+                console.error(`Erro no lembrete:`, errLoop.message);
             }
         }
-        
-        return { status: 'Finalizado', total_cobrados: relatorioEnvio.length, clientes: relatorioEnvio };
-
+        return { status: 'Lembretes Finalizados', enviados: relatorioEnvio };
     } catch (errGeral) {
         return { erro: errGeral.message };
     } finally {
-        cronAtrasosRodando = false; 
+        cronLembretesRodando = false;
     }
 };
 
+// Agendamento diário às 09:00
+cron.schedule('0 9 * * *', rodarRoboLembretes, {
+    scheduled: true,
+    timezone: "America/Sao_Paulo"
+});
 // O agendamento normal de hora em hora mantém-se
 cron.schedule('0 * * * *', rodarRoboCobranca);
 

@@ -6,8 +6,16 @@ const axios = require('axios');
 const formatarNumero = (num) => {
     if (!num) return "";
     let limpo = num.replace(/\D/g, ''); 
+    if (limpo.startsWith('0')) limpo = limpo.substring(1); // Remove o zero extra do DDD
     if (limpo.length === 10 || limpo.length === 11) limpo = `55${limpo}`;
     return limpo;
+};
+
+/**
+ * Formata moeda para o padrão brasileiro no WhatsApp
+ */
+const formatarMoedaZap = (valor) => {
+    return Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 /**
@@ -63,22 +71,25 @@ const enviarAprovacaoComTermos = async (numero, nome, valor, parcelas, frequenci
 /**
  * Lembrete de Cobrança com PIX direto na mensagem
  */
-const enviarLembreteVencimento = async (numero, nome, valor, dataVenc, pixDados) => {
+const enviarLembreteVencimento = async (numero, nome, valor, dataVenc, pixDados, saudacaoExtra = null) => {
     const dataFormatada = new Date(dataVenc + 'T12:00:00Z').toLocaleDateString('pt-BR');
+    const nomeCurto = nome.split(' ')[0];
+    const valorTexto = Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     
-    let msg = `⏰ *CMS VENTURES - LEMBRETE DE VENCIMENTO*\n\nOlá ${nome.split(' ')[0]}, a sua fatura de *R$ ${Number(valor).toFixed(2)}* tem vencimento em *${dataFormatada}*.\n\n`;
+    // Se não for enviada uma saudação específica, usa a padrão
+    let introducao = saudacaoExtra || `Lembramos que sua fatura de *R$ ${valorTexto}* vence em *${dataFormatada}*.`;
+
+    let msg = `⏰ *CMS VENTURES - LEMBRETE*\n\nOlá ${nomeCurto}, tudo bem?\n\n${introducao}\n\n`;
 
     if (pixDados && pixDados.chave) {
         msg += `🏦 *DADOS PARA PAGAMENTO (PIX)*\n`;
-        msg += `Para sua comodidade, realize a transferência para a conta oficial:\n\n`;
         msg += `Favorecido: *${pixDados.nome}*\n`;
         msg += `Instituição: *${pixDados.banco}*\n\n`;
-        msg += `Copie a chave PIX abaixo:\n`;
-        msg += `${pixDados.chave}\n\n`;
-        msg += `⚠️ _Assim que realizar o pagamento, por favor, envie o comprovante aqui nesta conversa para darmos baixa no sistema._\n\n`;
+        msg += `Chave PIX:\n*${pixDados.chave}*\n\n`;
+        msg += `⚠️ _Após o pagamento, envie o comprovante aqui para darmos baixa._\n\n`;
     }
 
-    msg += `🤖 _Esta é uma mensagem automática. Qualquer dúvida ou se precisar de ajuda, basta responder aqui mesmo!_`;
+    msg += `🤖 _Mensagem automática. Se precisar de ajuda, responda aqui._`;
 
     return await enviarZap(numero, msg);
 };
