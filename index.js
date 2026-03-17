@@ -1234,18 +1234,102 @@ app.post('/api/relatorio-periodo', async (req, res) => {
 });
 
 // ==========================================
-// 🚨 CRON JOB DE AUTOMAÇÃO E COBRANÇA (ACID)
+// 1. FUNÇÃO: ROBÔ DE ATRASOS (Multas e Cobrança Diária)
 // ==========================================
+let cronAtrasosRodando = false; 
+
+const rodarRoboCobranca = async () => {
+    if (cronAtrasosRodando) return { status: 'Robô de Atrasos já está em execução.' };
+    cronAtrasosRodando = true;
+    let relatorioEnvio = []; 
+
+    try {
+        const { data: configs } = await supabase.from('config').select('*');
+        let taxaDiariaPercentual = 3.0; 
+        let configPixString = null;
+        
+        configs?.forEach(c => {
+            if (c.chave === 'multa_diaria' && c.valor) taxaDiariaPercentual = parseFloat(c.valor);
+            if (c.chave === 'pix_avancado' && c.valor) configPixString = c.valor;
+        });
+        
+        const taxaMultaDec = taxaDiariaPercentual / 100;
+        const dataHojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+        const momentoBRT = new Date(dataHojeStr + 'T00:00:00-03:00');
+
+        const { data: parcelasEmAtraso, error } = await supabase
+            .from('vw_cobranca_ativa_parcelas')
+            .select('*')
+            .in('status_parcela', ['PENDENTE', 'ATRASADO', 'PARCIAL'])
+            .lt('vencimento_parcela', dataHojeStr);
+
+        if (error || !parcelasEmAtraso || parcelasEmAtraso.length === 0) {
+            cronAtrasosRodando = false;
+            return { status: 'Nenhum atraso pendente.' };
+        }
+
+        for (const parc of parcelasEmAtraso) {
+            try {
+                const { data: devCheck } = await supabase.from('devedores').select('ultima_cobranca_atraso, isento_multa').eq('id', parc.devedor_id).single();
+                if (!devCheck || devCheck.ultima_cobranca_atraso === dataHojeStr || devCheck.isento_multa) continue;
+
+                const dtVenc = new Date(parc.vencimento_parcela + 'T12:00:00Z');
+                const totalDiasAtraso = Math.floor((momentoBRT - dtVenc) / (1000 * 60 * 60 * 24));
+                if (totalDiasAtraso <= 0) continue; 
+
+                let novoValorTotalGlobal = parseFloat(parc.valor_total) || 0;
+                let novoValorParcela = parseFloat(parc.valor_atual) || 0;
+                const capitalRaiz = parseFloat(parc.valor_emprestado) || 0;
+                const valorMultaDeHoje = capitalRaiz * taxaMultaDec;
+
+                novoValorTotalGlobal += valorMultaDeHoje;
+                novoValorParcela += valorMultaDeHoje;
+
+                const chaveTransacaoUnica = `ATRASO_PARC_${parc.parcela_id}_${dataHojeStr}`;
+
+                const { error: rpcErr } = await supabase.rpc('processar_transacao_financeira', {
+                    p_devedor_id: parc.devedor_id, 
+                    p_pago: 0, 
+                    p_novo_total: novoValorTotalGlobal, 
+                    p_capital: capitalRaiz,
+                    p_status: 'ATRASADO', 
+                    p_novo_vencimento: parc.data_vencimento, 
+                    p_novas_parcelas: parc.qtd_parcelas,
+                    p_limpar_atraso: false, 
+                    p_carimbar_atraso: true, 
+                    p_evento: `Juros de Atraso (${taxaDiariaPercentual.toFixed(1)}%/dia)`,
+                    p_detalhes: `Atraso Parc #${parc.numero_parcela}. Multa: R$ ${valorMultaDeHoje.toFixed(2)}`,
+                    p_transaction_id: chaveTransacaoUnica,
+                    p_data_pagamento: new Date().toISOString(), 
+                    p_valor_capital: 0, p_valor_juros: 0,
+                    p_parcela_id: parc.parcela_id,
+                    p_parcela_pago: 0,
+                    p_parcela_status: 'ATRASADO',
+                    p_parcela_valor_atual: novoValorParcela
+                });
+
+                if (rpcErr) continue; 
+
+                const valorAEnviarNoZap = novoValorParcela - parseFloat(parc.valor_pago || 0);
+                const pixDaVezAtraso = escolherPixInteligente(configPixString, valorAEnviarNoZap);
+                
+                await enviarAvisoAtraso(parc.telefone, parc.nome, valorAEnviarNoZap, totalDiasAtraso, pixDaVezAtraso); 
+                relatorioEnvio.push(parc.nome);
+                await sleep(3500); 
+
+            } catch (errLoop) { console.error("Erro loop atraso:", errLoop.message); }
+        }
+        return { status: 'Atrasos Processados', total: relatorioEnvio.length };
+    } catch (errGeral) { return { erro: errGeral.message }; } finally { cronAtrasosRodando = false; }
+};
+
 // ==========================================
-// 🚨 CRON JOB DE AUTOMAÇÃO E COBRANÇA (ACID)
-// ==========================================
-// ==========================================
-// 🚨 CRON JOB DE AUTOMAÇÃO E COBRANÇA (ACID)
+// 2. FUNÇÃO: ROBÔ DE LEMBRETES (Amanhã e Hoje)
 // ==========================================
 let cronLembretesRodando = false;
 
 const rodarRoboLembretes = async () => {
-    if (cronLembretesRodando) return { status: 'Robô já está em execução.' };
+    if (cronLembretesRodando) return { status: 'Robô de Lembretes já está em execução.' };
     cronLembretesRodando = true;
     let relatorioEnvio = [];
 
@@ -1254,15 +1338,12 @@ const rodarRoboLembretes = async () => {
         let configPixString = null;
         configs?.forEach(c => { if (c.chave === 'pix_avancado' && c.valor) configPixString = c.valor; });
 
-        // Cálculo das datas (Brasil) de forma segura
         const dataHojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
         const hojeObj = new Date(dataHojeStr + 'T12:00:00Z');
-        
         const amanhaObj = new Date(hojeObj);
         amanhaObj.setDate(hojeObj.getDate() + 1);
         const dataAmanhaStr = amanhaObj.toISOString().split('T')[0];
 
-        // 1. Busca parcelas que vencem HOJE ou AMANHÃ que não estejam pagas
         const { data: parcelasLembrete, error } = await supabase
             .from('vw_cobranca_ativa_parcelas')
             .select('*')
@@ -1271,15 +1352,13 @@ const rodarRoboLembretes = async () => {
 
         if (error || !parcelasLembrete || parcelasLembrete.length === 0) {
             cronLembretesRodando = false;
-            return { status: 'Nenhum lembrete para hoje ou amanhã.' };
+            return { status: 'Nenhum lembrete pendente.' };
         }
 
         for (const parc of parcelasLembrete) {
             try {
                 const ehAmanha = parc.vencimento_parcela === dataAmanhaStr;
                 const sufixoTipo = ehAmanha ? 'ANTECIPADO' : 'HOJE';
-                
-                // Trava de Idempotência: permite enviar o de amanha e DEPOIS o de hoje (em dias diferentes)
                 const chaveLembrete = `LEMBRETE_${sufixoTipo}_PARC_${parc.parcela_id}_${parc.vencimento_parcela}`;
                 
                 const { data: jaEnviou } = await supabase.from('webhook_logs').select('transaction_id').eq('transaction_id', chaveLembrete).maybeSingle();
@@ -1288,46 +1367,34 @@ const rodarRoboLembretes = async () => {
                 const valorAEnviar = parseFloat(parc.valor_atual) - parseFloat(parc.valor_pago || 0);
                 const pixDaVez = escolherPixInteligente(configPixString, valorAEnviar);
 
-                // Personaliza o texto para o cliente saber se a conta é para amanhã ou para hoje
                 let textoContexto = ehAmanha 
-                    ? `Passando para lembrar que sua parcela vence *amanhã* (${parc.vencimento_parcela.split('-').reverse().join('/')}).` 
-                    : `Lembrete: Sua parcela vence *hoje*!`;
+                    ? `Sua parcela vence *amanhã* (${parc.vencimento_parcela.split('-').reverse().join('/')}).` 
+                    : `Sua parcela vence *hoje*!`;
 
-                // 2. Dispara o Zap (Passando a saudação nova)
                 const sucesso = await enviarLembreteVencimento(parc.telefone, parc.nome, valorAEnviar, parc.vencimento_parcela, pixDaVez, textoContexto);
                 
                 if (sucesso) {
                     await supabase.from('webhook_logs').insert([{ transaction_id: chaveLembrete }]);
-                    relatorioEnvio.push(`${sufixoTipo}: ${parc.nome}`);
+                    relatorioEnvio.push(parc.nome);
                 }
-                
-                await sleep(3500); // Segurança contra bloqueio
-
-            } catch (errLoop) {
-                console.error(`Erro no lembrete:`, errLoop.message);
-            }
+                await sleep(3500); 
+            } catch (errLoop) { console.error("Erro loop lembrete:", errLoop.message); }
         }
-        return { status: 'Lembretes Finalizados', enviados: relatorioEnvio };
-    } catch (errGeral) {
-        return { erro: errGeral.message };
-    } finally {
-        cronLembretesRodando = false;
-    }
+        return { status: 'Lembretes Processados', total: relatorioEnvio.length };
+    } catch (errGeral) { return { erro: errGeral.message }; } finally { cronLembretesRodando = false; }
 };
 
-// Agendamento diário às 09:00
-cron.schedule('0 9 * * *', rodarRoboLembretes, {
-    scheduled: true,
-    timezone: "America/Sao_Paulo"
-});
-// O agendamento normal de hora em hora mantém-se
-cron.schedule('0 * * * *', rodarRoboCobranca);
+// ==========================================
+// 3. AGENDAMENTOS (BRASÍLIA) E ROTAS
+// ==========================================
+// Multas e Atrasos: 08:00 e 14:00
+cron.schedule('0 8,14 * * *', rodarRoboCobranca, { scheduled: true, timezone: "America/Sao_Paulo" });
 
-// 🚀 ROTA SECRETA: GATILHO MANUAL DO ROBÔ
-app.get('/api/forcar-robo', async (req, res) => {
-    const resultado = await rodarRoboCobranca();
-    res.json(resultado);
-});
+// Lembretes: 09:00
+cron.schedule('0 9 * * *', rodarRoboLembretes, { scheduled: true, timezone: "America/Sao_Paulo" });
+
+app.get('/api/forcar-robo', async (req, res) => res.json(await rodarRoboCobranca()));
+app.get('/api/forcar-lembretes', async (req, res) => res.json(await rodarRoboLembretes()));
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`🚀 Plataforma CMS Ventures operando na porta ${PORT}`));
