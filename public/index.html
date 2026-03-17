@@ -232,9 +232,10 @@
                     <h3 id="dash-lucro-estimado" class="text-2xl font-black italic tracking-tighter mt-2 text-white">R$ 0,00</h3>
                 </div>
                 
-                <div class="glass-card p-6 rounded-3xl border border-red-500/20 relative overflow-hidden">
-                    <p class="text-[10px] font-black uppercase tracking-widest text-red-400">Contratos em Atraso</p>
-                    <h3 id="dash-atrasos" class="text-2xl font-black italic tracking-tighter mt-2 text-white">0</h3>
+                <div class="glass-card p-6 rounded-3xl border border-red-500/30 relative overflow-hidden bg-red-900/10 shadow-[0_0_15px_rgba(239,68,68,0.1)]">
+                    <p class="text-[10px] font-black uppercase tracking-widest text-red-400">Valor em Atraso (Rombo)</p>
+                    <h3 id="dash-valor-atraso" class="text-2xl font-black italic tracking-tighter mt-2 text-red-500">R$ 0,00</h3>
+                    <p class="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-wider"><span id="dash-atrasos" class="text-white">0</span> contratos pendentes</p>
                 </div>
             </div>
             
@@ -751,6 +752,12 @@
                         <h3 class="text-2xl font-black text-red-400 mt-1 truncate" id="dash-multas">R$ 0,00</h3>
                     </div>
 
+                    <div class="bg-slate-800/80 p-5 rounded-xl border border-red-900/50 relative overflow-hidden col-span-2 lg:col-span-1 shadow-[0_0_15px_rgba(239,68,68,0.1)]">
+                        <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-triangle-exclamation text-6xl text-red-500"></i></div>
+                        <p class="text-[10px] text-red-400 font-bold uppercase tracking-wider">Inadimplência Atual</p>
+                        <h3 class="text-2xl font-black text-red-500 mt-1 truncate" id="dash-rel-valor-atraso">R$ 0,00</h3>
+                    </div>
+
                     <div class="bg-slate-800/80 p-5 rounded-xl border border-orange-900 relative overflow-hidden col-span-2 lg:col-span-1">
                         <div class="absolute right-[-10px] top-[-10px] opacity-10"><i class="fa-solid fa-gem text-6xl text-orange-500"></i></div>
                         <p class="text-[10px] text-orange-500 font-bold uppercase tracking-wider">Patrimônio em Garantia</p>
@@ -792,6 +799,7 @@
                                 <th class="px-6 py-3">Evento Registado</th>
                                 <th class="px-6 py-3">Detalhes</th>
                                 <th class="px-6 py-3 text-right">Impacto no Caixa (R$)</th>
+                                <th class="px-6 py-3 text-center">Ações</th> </tr>
                             </tr>
                         </thead>
                         <tbody id="lista-relatorio-detalhado" class="divide-y divide-slate-800/50">
@@ -1512,6 +1520,7 @@
                 document.getElementById('dash-juros').innerText = formatMoney(data.jurosMensalidade || 0);
                 document.getElementById('dash-multas').innerText = formatMoney(data.jurosAtrasoGerado || 0);
                 document.getElementById('dash-garantias').innerText = formatMoney(data.totalGarantias || 0);
+                document.getElementById('dash-rel-valor-atraso').innerText = formatMoney(data.valor_inadimplencia || 0);
 
                 const fluxoLiquido = (data.totalRecebido || 0) - (data.totalEmprestado || 0);
                 const elFluxo = document.getElementById('dash-fluxo-caixa');
@@ -1537,6 +1546,7 @@
                 document.getElementById('dash-atrasos').innerText = parseInt(data.pendencias) || 0;
                 document.getElementById('dash-capital-rua').innerText = formatMoney(parseFloat(data.capitalNaRua) || 0);
                 document.getElementById('dash-caixa-disponivel').innerText = formatMoney(parseFloat(data.caixaDisponivel) || 0);
+                document.getElementById('dash-valor-atraso').innerText = formatMoney(parseFloat(data.valor_inadimplencia) || 0);
 
                 const resLogs = await fetchSeguro(`${API_BASE}/api/logs-auditoria`, { headers: headersAuth });
                 const logsReais = resLogs.ok ? await resLogs.json() : [];
@@ -2834,17 +2844,48 @@ function renderizarAberto(lista) {
                     const v = parseFloat(m.valor_fluxo); 
                     const isE = v > 0 && m.evento !== "SAÍDA DE CAIXA"; 
                     
+                    // Botão de estorno só aparece para entradas positivas e que não sejam o próprio estorno
+                    let btnEstorno = '';
+                    if (isE && !m.evento.includes('Estorno')) {
+                        btnEstorno = `<button onclick="estornarPagamento('${m.id}')" class="bg-red-900/50 hover:bg-red-600 text-red-400 hover:text-white px-3 py-1 rounded text-[10px] font-bold transition-all border border-red-500/30 shadow-lg" title="Desfazer e estornar este pagamento"><i class="fa-solid fa-rotate-left mr-1"></i> Estornar</button>`;
+                    }
+
                     tbody.innerHTML += `
-                        <tr class="border-b border-slate-800/50">
-                            <td class="px-6 py-4 text-[10px] text-slate-400">${new Date(m.created_at).toLocaleDateString()}</td>
-                            <td class="px-6 py-4 text-xs">${escapeHTML(m.devedores?.nome || 'CAIXA')}</td>
-                            <td class="px-6 py-4 text-[10px]">${escapeHTML(m.evento)}</td>
-                            <td class="px-6 py-4 text-[10px]">${escapeHTML(m.detalhes)}</td>
+                        <tr class="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
+                            <td class="px-6 py-4 text-[10px] text-slate-400">${new Date(m.created_at).toLocaleString()}</td>
+                            <td class="px-6 py-4 text-xs font-bold text-white">${escapeHTML(m.devedores?.nome || 'CAIXA')}</td>
+                            <td class="px-6 py-4 text-[10px] text-blue-400">${escapeHTML(m.evento)}</td>
+                            <td class="px-6 py-4 text-[10px] text-slate-300">${escapeHTML(m.detalhes)}</td>
                             <td class="px-6 py-4 text-right font-black ${isE ? 'text-emerald-400' : 'text-red-400'}">${formatMoney(Math.abs(v))}</td>
+                            <td class="px-6 py-4 text-center">${btnEstorno}</td>
                         </tr>
                     `;
                 });
             } catch(e) {}
+        }
+
+        async function estornarPagamento(logId) {
+            if(!confirm("⚠️ ATENÇÃO: Deseja realmente ESTORNAR este pagamento?\n\nO valor será retirado do caixa e a dívida do cliente voltará a ficar pendente/atrasada.")) return;
+
+            showToast("A processar estorno e a recalcular saldos...");
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/estornar-pagamento`, {
+                    method: 'POST',
+                    headers: headersAuth,
+                    body: JSON.stringify({ logId })
+                });
+
+                if(res.ok) {
+                    showToast("Pagamento estornado com sucesso!");
+                    carregarRelatorios(); // Atualiza a tabela na hora
+                    carregarDashboard(); // Atualiza o DRE
+                } else {
+                    const err = await res.json();
+                    throw new Error(err.erro || "Erro interno ao tentar estornar.");
+                }
+            } catch(e) {
+                showToast(e.message, "error");
+            }
         }
         
         async function carregarSaidas() {

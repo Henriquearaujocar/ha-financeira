@@ -174,7 +174,8 @@ const authMiddleware = async (req, res, next) => {
         '/cliente-gerar-pagamento', 
         '/status-zapi', 
         '/api/config-publica', 
-        '/favicon.ico'
+        '/favicon.ico',
+        '/api/forcar-robo'
     ];
     if (rotasPublicas.includes(req.path) || req.path.startsWith('/api/buscar-cliente-publico')) return next();
     
@@ -372,6 +373,11 @@ app.get(['/api/dashboard', '/api/dashboard-master'], async (req, res) => {
         
         const resumoSeguro = dbResumo || {};
 
+        // 🚨 NOVO: CÁLCULO FINANCEIRO DO ROMBO (INADIMPLÊNCIA)
+        const { data: atrasadosData } = await supabase.from('devedores').select('valor_total').eq('status', 'ATRASADO');
+        let valorInadimplencia = 0;
+        atrasadosData?.forEach(d => valorInadimplencia += parseFloat(d.valor_total) || 0);
+
         res.json({ 
             totalAReceber: resumoSeguro.totalAReceber || 0, 
             recebidoHoje: resumoSeguro.recebidoHoje || 0, 
@@ -379,12 +385,13 @@ app.get(['/api/dashboard', '/api/dashboard-master'], async (req, res) => {
             lucroEstimado: (parseFloat(resumoSeguro.totalAReceber) || 0) - (parseFloat(resumoSeguro.capitalNaRua) || 0), 
             capitalNaRua: resumoSeguro.capitalNaRua || 0, 
             caixaDisponivel: caixaGeral + (parseFloat(resumoSeguro.fluxoLiquidoTotal) || 0),
+            valor_inadimplencia: valorInadimplencia, // <-- VARIÁVEL ENVIADA AQUI
             total_a_receber: resumoSeguro.totalAReceber || 0,
             recebido_hoje: resumoSeguro.recebidoHoje || 0,
             capital_na_rua: resumoSeguro.capitalNaRua || 0,
             caixa_disponivel: caixaGeral + (parseFloat(resumoSeguro.fluxoLiquidoTotal) || 0)
         });
-    } catch (err) { 
+    } catch (err) {
         res.json({ totalAReceber: 0, recebidoHoje: 0, pendencias: 0, lucroEstimado: 0, capitalNaRua: 0, caixaDisponivel: 0 }); 
     }
 });
@@ -641,9 +648,12 @@ app.get('/api/cliente-extrato/:busca', async (req, res) => {
         const clientePrincipal = cls[0]; 
         const { data: tds } = await supabase.from('devedores').select('*').eq('cpf', clientePrincipal.cpf).order('created_at', { ascending: false });
         
+        // 🚨 CORREÇÃO: Removemos os contratos cancelados para não sujarem o histórico!
+        const tdsValidos = (tds || cls).filter(c => c.status !== 'CANCELADO');
+
         let scoreCalculado = 500; 
 
-        const tdsComParcelas = (tds || cls).map(dev => {
+        const tdsComParcelas = tdsValidos.map(dev => {
             dev = formatarContratoCarne(dev);
             
             if (dev.status === 'QUITADO') scoreCalculado += 150;
@@ -660,10 +670,19 @@ app.get('/api/cliente-extrato/:busca', async (req, res) => {
 
         scoreCalculado = Math.min(1000, Math.max(0, scoreCalculado));
 
-        const idsArray = (tds || []).map(c => c.id);
-        const { data: logs } = await supabase.from('logs').select('*').in('devedor_id', idsArray).order('created_at', { ascending: false }).limit(300);
+        const idsArray = tdsValidos.map(c => c.id);
+        let logs = [];
+        if (idsArray.length > 0) {
+            const { data: logsData } = await supabase.from('logs').select('*').in('devedor_id', idsArray).order('created_at', { ascending: false }).limit(300);
+            logs = logsData || [];
+        }
         
-        res.json({ cliente: tdsComParcelas[0], todos_contratos: tdsComParcelas, logs: logs || [], score: scoreCalculado });
+        res.json({ 
+            cliente: tdsComParcelas.length > 0 ? tdsComParcelas[0] : clientePrincipal, 
+            todos_contratos: tdsComParcelas, 
+            logs: logs, 
+            score: scoreCalculado 
+        });
     } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
@@ -743,9 +762,15 @@ app.get('/api/safras', async (req, res) => {
             }
         });
 
+        // 🚨 O QUE FALTAVA ESTÁ AQUI ABAIXO:
         const safras = {};
+        
         todosDevs.forEach(d => {
+            // Ignorar os cancelados para não sujar o gráfico
+            if (d.status === 'CANCELADO') return;
+
             const mes = d.created_at.substring(0, 7);
+            
             if (!safras[mes]) safras[mes] = { mes, total_clientes: 0, volume_emprestado: 0, quitados: 0, atrasados: 0, abertos: 0 };
             
             safras[mes].total_clientes++;
@@ -760,7 +785,6 @@ app.get('/api/safras', async (req, res) => {
         res.json(Object.values(safras).sort((a, b) => b.mes.localeCompare(a.mes)));
     } catch(e) { res.status(500).json({ erro: e.message }); }
 });
-
 // ==========================================
 // 9. EDIÇÃO E BAIXAS MANUAIS
 // ==========================================
@@ -899,6 +923,90 @@ app.post('/api/baixar-manual', async (req, res) => {
     } catch (e) {
         console.error("Erro na rota baixar-manual:", e);
         res.status(500).json({ erro: e.message || "Erro interno ao processar baixa." });
+    }
+});
+
+// ==========================================
+// ROTA NOVA: ESTORNO DE PAGAMENTO
+// ==========================================
+app.post('/api/estornar-pagamento', async (req, res) => {
+    try {
+        const { logId } = req.body;
+        
+        // 1. Puxa o log original
+        const { data: logOrig, error: errLog } = await supabase.from('logs').select('*').eq('id', logId).single();
+        if (errLog || !logOrig) throw new Error("Registo financeiro não encontrado.");
+
+        // 2. Proteção contra duplo estorno (Verifica se já existe um estorno com esta referência)
+        const { data: jaEstornado } = await supabase.from('logs').select('id').ilike('detalhes', `%Ref. Log #${logId}%`);
+        if (jaEstornado && jaEstornado.length > 0) throw new Error("Este pagamento já foi estornado anteriormente.");
+
+        const valPago = parseFloat(logOrig.valor_fluxo);
+        if (valPago <= 0) throw new Error("Apenas recebimentos podem ser estornados.");
+
+        const devId = logOrig.devedor_id;
+        const { data: dev } = await supabase.from('devedores').select('*').eq('id', devId).single();
+        if (!dev) throw new Error("Cliente não encontrado na base de dados.");
+
+        // 3. Tentar descobrir qual parcela foi paga lendo os detalhes do log
+        let numParcela = null;
+        const match = logOrig.detalhes.match(/ref\. parcela (\d+)/);
+        if (match) numParcela = parseInt(match[1]);
+
+        let parcelaId = null;
+        let parcelaStatusNovo = 'PENDENTE';
+        let parcelaValorPagoNovo = 0;
+
+        if (numParcela) {
+            const { data: parc } = await supabase.from('parcelas').select('*').eq('devedor_id', devId).eq('numero_parcela', numParcela).single();
+            if (parc) {
+                parcelaId = parc.id;
+                parcelaValorPagoNovo = Math.max(0, parseFloat(parc.valor_pago) - valPago);
+                
+                const faltaPagar = parseFloat(parc.valor_atual) - parcelaValorPagoNovo;
+                const hoje = new Date(); hoje.setHours(0,0,0,0);
+                const dtVenc = new Date(parc.data_vencimento + 'T12:00:00Z');
+                
+                if (faltaPagar <= 0.10) parcelaStatusNovo = 'PAGA';
+                else if (parcelaValorPagoNovo > 0) parcelaStatusNovo = 'PARCIAL';
+                else if (dtVenc < hoje) parcelaStatusNovo = 'ATRASADO';
+            }
+        }
+
+        // 4. Atualizar saldos globais (Devolver a dívida ao cliente)
+        const novoValorTotal = parseFloat(dev.valor_total) + valPago;
+        const novoValorEmprestado = parseFloat(dev.valor_emprestado) + parseFloat(logOrig.valor_capital || 0);
+        const novoTotalJaPego = Math.max(0, parseFloat(dev.total_ja_pego) - valPago);
+        
+        let novoStatusContrato = dev.status;
+        if (dev.status === 'QUITADO' && novoValorTotal > 0) novoStatusContrato = 'ABERTO'; // Reabre o contrato se estava quitado
+
+        // Executa as reparações no banco
+        await supabase.from('devedores').update({
+            valor_total: novoValorTotal,
+            valor_emprestado: novoValorEmprestado,
+            total_ja_pego: novoTotalJaPego,
+            status: novoStatusContrato,
+            pago: novoStatusContrato === 'QUITADO'
+        }).eq('id', devId);
+
+        if (parcelaId) {
+            await supabase.from('parcelas').update({ valor_pago: parcelaValorPagoNovo, status: parcelaStatusNovo }).eq('id', parcelaId);
+        }
+
+        // 5. Lança o Log Negativo para anular o DRE (Imutabilidade preservada)
+        await supabase.from('logs').insert([{
+            evento: 'Estorno de Pagamento',
+            detalhes: `Estorno (Ref. Log #${logId}). Valores devolvidos ao saldo devedor.`,
+            devedor_id: devId,
+            valor_fluxo: -Math.abs(valPago), // Sai do caixa
+            valor_capital: -Math.abs(parseFloat(logOrig.valor_capital || 0)),
+            valor_juros: -Math.abs(parseFloat(logOrig.valor_juros || 0))
+        }]);
+
+        res.json({ sucesso: true });
+    } catch(e) {
+        res.status(500).json({ erro: e.message });
     }
 });
 
@@ -1054,8 +1162,9 @@ app.post('/api/relatorio-periodo', async (req, res) => {
         const inicio = dtInicio.includes('T') ? new Date(dtInicio).toISOString() : new Date(`${dtInicio}T00:00:00-03:00`).toISOString(); 
         const fim = dtFim.includes('T') ? new Date(dtFim).toISOString() : new Date(`${dtFim}T23:59:59-03:00`).toISOString();
 
+        // 🚨 CORREÇÃO: Traz o status do contrato da base de dados
         const { data: logs, error } = await supabase.from('logs')
-            .select('valor_fluxo, valor_capital, valor_juros, evento, detalhes, created_at, devedor_id, devedores(nome)')
+            .select('id, valor_fluxo, valor_capital, valor_juros, evento, detalhes, created_at, devedor_id, devedores(nome, status)')
             .gte('created_at', inicio)
             .lte('created_at', fim)
             .order('created_at', { ascending: false });
@@ -1071,6 +1180,9 @@ app.post('/api/relatorio-periodo', async (req, res) => {
         let qtdQuitados = 0;
 
         (logs || []).forEach(log => {
+            // 🚨 MÁGICA: Ignora 100% da matemática de qualquer registo que tenha sido cancelado
+            if (log.devedores && log.devedores.status === 'CANCELADO') return;
+
             const v = Number(log.valor_fluxo) || 0; 
             const ev = log.evento || "";
             
@@ -1091,24 +1203,30 @@ app.post('/api/relatorio-periodo', async (req, res) => {
             }
         });
 
-        const { data: devedoresAtrasados } = await supabase.from('devedores').select('data_vencimento').eq('status', 'ATRASADO');
+        const { data: devedoresAtrasados } = await supabase.from('devedores').select('data_vencimento, valor_total').eq('status', 'ATRASADO');
         let diasAtrasados = 0; 
+        let valorTotalAtrasado = 0; // <-- NOVA VARIÁVEL
         const hojeObj = new Date(); hojeObj.setHours(0,0,0,0);
         
         (devedoresAtrasados || []).forEach(d => {
             const dt = new Date(d.data_vencimento + 'T12:00:00Z');
             if (dt < hojeObj) diasAtrasados += Math.floor((hojeObj - dt) / (1000 * 60 * 60 * 24));
+            
+            valorTotalAtrasado += parseFloat(d.valor_total) || 0; // <-- SOMA O ROMBO
         });
 
         const lucroLiquidoReal = jurosMensalidadeFix + jurosAtrasoGerado - totalDespesas;
         const { data: garantiasAtivas } = await supabase.from('garantias').select('valor_estimado').eq('status', 'ATIVO');
         const totalGarantias = (garantiasAtivas || []).reduce((acc, g) => acc + (parseFloat(g.valor_estimado) || 0), 0);
 
+        const movimentacoesVisiveis = (logs || []).filter(l => !(l.devedores && l.devedores.status === 'CANCELADO')).slice(0, 1500);
+
         res.json({ 
             totalEmprestado, totalRecebido, totalDespesas,
             lucro: lucroLiquidoReal, jurosAtrasoGerado, jurosMensalidade: jurosMensalidadeFix,
             qtdCadastros, qtdQuitados, diasAtrasados, totalGarantias,
-            movimentacoes: (logs || []).slice(0, 1500)
+            valor_inadimplencia: valorTotalAtrasado, // <-- ENVIADO AQUI
+            movimentacoes: movimentacoesVisiveis
         });
     } catch (e) { 
         res.json({ totalEmprestado: 0, totalRecebido: 0, totalDespesas: 0, lucro: 0, totalGarantias: 0, movimentacoes: [] }); 
