@@ -712,12 +712,22 @@ app.get('/api/buscar-cliente-admin/:busca', async (req, res) => {
 // ==========================================
 app.get('/api/crm', async (req, res) => {
     try {
-        const { data, error } = await supabase.from('devedores')
-            .select('id, uuid, nome, telefone, valor_total, qtd_parcelas, total_ja_pego, data_vencimento, crm_status, cpf, data_promessa')
-            .eq('status', 'ATRASADO')
-            .order('data_vencimento', { ascending: true });
+        // 🚨 CORREÇÃO: Puxa da View de parcelas para mostrar o valor exato da fatura atrasada no card
+        const { data, error } = await supabase
+            .from('vw_cobranca_ativa_parcelas')
+            .select('devedor_id, uuid, nome, telefone, valor_atual, valor_pago, vencimento_parcela, status_contrato, cpf, data_promessa')
+            .order('vencimento_parcela', { ascending: true });
+
         if (error) throw error;
-        res.json(data || []);
+        
+        // Formata os dados para o Kanban esperar os nomes de campos corretos
+        const formatados = data.map(d => ({
+            ...d,
+            id: d.devedor_id,
+            valor_total: parseFloat(d.valor_atual) - parseFloat(d.valor_pago || 0) // Exibe apenas o que falta da parcela
+        }));
+
+        res.json(formatados || []);
     } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
@@ -1244,8 +1254,9 @@ const rodarRoboCobranca = async () => {
     let relatorioEnvio = []; 
 
     try {
+        // 1. Busca as configurações globais (Multa e PIX)
         const { data: configs } = await supabase.from('config').select('*');
-        let taxaDiariaPercentual = 3.0; 
+        let taxaDiariaPercentual = 3.0; // Padrão 3% se não achar na tabela
         let configPixString = null;
         
         configs?.forEach(c => {
@@ -1254,9 +1265,13 @@ const rodarRoboCobranca = async () => {
         });
         
         const taxaMultaDec = taxaDiariaPercentual / 100;
+
+        // 2. Define a data de hoje no fuso de Brasília corretamente
         const dataHojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
         const momentoBRT = new Date(dataHojeStr + 'T00:00:00-03:00');
 
+        // 3. Busca as parcelas que venceram ANTES de hoje e não estão pagas
+        // Usamos a View inteligente que já filtra contratos ativos
         const { data: parcelasEmAtraso, error } = await supabase
             .from('vw_cobranca_ativa_parcelas')
             .select('*')
@@ -1268,61 +1283,74 @@ const rodarRoboCobranca = async () => {
             return { status: 'Nenhum atraso pendente.' };
         }
 
+        // 4. Loop de processamento de multas
         for (const parc of parcelasEmAtraso) {
             try {
+                // Verifica se já foi cobrado hoje ou se é isento (Trava de Segurança)
                 const { data: devCheck } = await supabase.from('devedores').select('ultima_cobranca_atraso, isento_multa').eq('id', parc.devedor_id).single();
                 if (!devCheck || devCheck.ultima_cobranca_atraso === dataHojeStr || devCheck.isento_multa) continue;
 
+                // Calcula quantos dias de atraso real
                 const dtVenc = new Date(parc.vencimento_parcela + 'T12:00:00Z');
                 const totalDiasAtraso = Math.floor((momentoBRT - dtVenc) / (1000 * 60 * 60 * 24));
                 if (totalDiasAtraso <= 0) continue; 
 
-                let novoValorTotalGlobal = parseFloat(parc.valor_total) || 0;
-                let novoValorParcela = parseFloat(parc.valor_atual) || 0;
+                // Matemática da Multa: Aplicada sobre o Capital Original do contrato
                 const capitalRaiz = parseFloat(parc.valor_emprestado) || 0;
                 const valorMultaDeHoje = capitalRaiz * taxaMultaDec;
 
-                novoValorTotalGlobal += valorMultaDeHoje;
-                novoValorParcela += valorMultaDeHoje;
+                const novoValorTotalGlobal = (parseFloat(parc.valor_total) || 0) + valorMultaDeHoje;
+                const novoValorParcela = (parseFloat(parc.valor_atual) || 0) + valorMultaDeHoje;
 
+                // ID Único para evitar que o banco processe a mesma multa 2x se você clicar no botão manual
                 const chaveTransacaoUnica = `ATRASO_PARC_${parc.parcela_id}_${dataHojeStr}`;
 
+                // Chama o Banco de Dados para atualizar tudo em uma transação segura (ACID)
                 const { error: rpcErr } = await supabase.rpc('processar_transacao_financeira', {
                     p_devedor_id: parc.devedor_id, 
                     p_pago: 0, 
                     p_novo_total: novoValorTotalGlobal, 
                     p_capital: capitalRaiz,
                     p_status: 'ATRASADO', 
-                    p_novo_vencimento: parc.data_vencimento, 
+                    p_novo_vencimento: parc.data_vencimento, // Mantém o vencimento global
                     p_novas_parcelas: parc.qtd_parcelas,
                     p_limpar_atraso: false, 
-                    p_carimbar_atraso: true, 
+                    p_carimbar_atraso: true, // Registra que a multa de hoje foi aplicada
                     p_evento: `Juros de Atraso (${taxaDiariaPercentual.toFixed(1)}%/dia)`,
                     p_detalhes: `Atraso Parc #${parc.numero_parcela}. Multa: R$ ${valorMultaDeHoje.toFixed(2)}`,
                     p_transaction_id: chaveTransacaoUnica,
                     p_data_pagamento: new Date().toISOString(), 
-                    p_valor_capital: 0, p_valor_juros: 0,
+                    p_valor_capital: 0, 
+                    p_valor_juros: 0,
                     p_parcela_id: parc.parcela_id,
                     p_parcela_pago: 0,
                     p_parcela_status: 'ATRASADO',
                     p_parcela_valor_atual: novoValorParcela
                 });
 
-                if (rpcErr) continue; 
+                if (rpcErr) continue; // Pula se der erro de duplicidade
 
+                // 5. Envia o WhatsApp via Z-API
                 const valorAEnviarNoZap = novoValorParcela - parseFloat(parc.valor_pago || 0);
                 const pixDaVezAtraso = escolherPixInteligente(configPixString, valorAEnviarNoZap);
                 
                 await enviarAvisoAtraso(parc.telefone, parc.nome, valorAEnviarNoZap, totalDiasAtraso, pixDaVezAtraso); 
+                
                 relatorioEnvio.push(parc.nome);
-                await sleep(3500); 
+                await sleep(3500); // Pausa anti-bloqueio do WhatsApp
 
-            } catch (errLoop) { console.error("Erro loop atraso:", errLoop.message); }
+            } catch (errLoop) { 
+                console.error("Erro no processamento individual:", errLoop.message); 
+            }
         }
         return { status: 'Atrasos Processados', total: relatorioEnvio.length };
-    } catch (errGeral) { return { erro: errGeral.message }; } finally { cronAtrasosRodando = false; }
-};
 
+    } catch (errGeral) { 
+        return { erro: errGeral.message }; 
+    } finally { 
+        cronAtrasosRodando = false; 
+    }
+};
 // ==========================================
 // 2. FUNÇÃO: ROBÔ DE LEMBRETES (Amanhã e Hoje)
 // ==========================================
