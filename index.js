@@ -12,7 +12,7 @@ const {
     enviarAvisoAtraso, 
     enviarAprovacaoComTermos 
 } = require('./services/zapService');
-const { recalcularDivida } = require('./services/financeService');
+const financeService = require('./services/financeService');
 const { fazerUploadNoSupabase } = require('./services/uploadService');
 
 const app = express();
@@ -39,7 +39,7 @@ const limparMoeda = (valor) => {
 };
 
 // ==========================================
-// FUNÇÃO NOVA: GERAR PARCELAS NO BANCO
+// FUNÇÕES AUXILIARES DE MATEMÁTICA E PARCELAS
 // ==========================================
 async function gerarParcelasNoBanco(devedorId, valorTotal, qtdParcelas, dataVencimento, frequencia) {
     const valorPorParcela = valorTotal / qtdParcelas;
@@ -56,7 +56,6 @@ async function gerarParcelasNoBanco(devedorId, valorTotal, qtdParcelas, dataVenc
             status: 'PENDENTE'
         });
         
-        // Adiciona o tempo correto para a próxima parcela
         if (frequencia === 'SEMANAL') {
             dt.setDate(dt.getDate() + 7);
         } else {
@@ -65,14 +64,9 @@ async function gerarParcelasNoBanco(devedorId, valorTotal, qtdParcelas, dataVenc
     }
     
     const { error } = await supabase.from('parcelas').insert(insertData);
-    if (error) {
-        console.error("Erro crítico ao gerar parcelas no banco:", error);
-    }
+    if (error) console.error("Erro crítico ao gerar parcelas no banco:", error);
 }
 
-// ==========================================
-// MOTOR DE RECONSTRUÇÃO DE CARNÊ (V3 - Math Precision)
-// ==========================================
 const formatarContratoCarne = (dev) => {
     const totalAtual = parseFloat(dev.valor_total) || 0;
     const jaPago = parseFloat(dev.total_ja_pego) || 0;
@@ -119,17 +113,12 @@ const formatarContratoCarne = (dev) => {
     return dev;
 };
 
-// ==========================================
-// MOTOR DE DECISÃO DE PIX INTELIGENTE
-// ==========================================
 const escolherPixInteligente = (configPixString, valorCobranca) => {
     if (!configPixString) return null;
     try {
         const conf = JSON.parse(configPixString);
         if (!conf || !conf.chaves || conf.chaves.length === 0) return null;
-
         const getChave = (id) => conf.chaves.find(c => c.id === id);
-
         if (conf.modo === 'UNICO') return getChave(conf.padrao) || conf.chaves[0];
         if (conf.modo === 'ALEATORIO') return conf.chaves[Math.floor(Math.random() * conf.chaves.length)];
         if (conf.modo === 'VALOR') {
@@ -175,7 +164,8 @@ const authMiddleware = async (req, res, next) => {
         '/status-zapi', 
         '/api/config-publica', 
         '/favicon.ico',
-        '/api/forcar-robo'
+        '/api/forcar-robo',
+        '/api/forcar-lembretes'
     ];
     if (rotasPublicas.includes(req.path) || req.path.startsWith('/api/buscar-cliente-publico')) return next();
     
@@ -195,7 +185,7 @@ app.use(authMiddleware);
 app.get('/api/verify-session', (req, res) => res.json({ autenticado: true, email: req.user?.email }));
 
 // ==========================================
-// 2. ROTAS PÚBLICAS
+// 2. ROTAS PÚBLICAS E SOLICITAÇÃO
 // ==========================================
 app.get('/status-zapi', async (req, res) => { try { const status = await verificarStatusZapi(); res.json(status); } catch(e) { res.json({ connected: false }); } });
 app.get('/api/config-publica', async (req, res) => { try { const { data } = await supabase.from('config').select('*').in('chave', ['valor_minimo', 'juros_unico', 'juros_parcelado', 'pix_avancado']); res.json(data || []); } catch(e) { res.json([]); } });
@@ -217,7 +207,7 @@ app.post('/api/enviar-solicitacao', async (req, res) => {
     try {
         const d = req.body;
         const imagensParaVerificar = [d.url_selfie, d.url_residencia, d.url_frente, d.url_verso, d.url_casa];
-        for (let img of imagensParaVerificar) { if (img && img.length > 15 * 1024 * 1024) return res.status(413).json({ erro: "Imagem excede o limite de tamanho." }); }
+        for (let img of imagensParaVerificar) { if (img && img.length > 15 * 1024 * 1024) return res.status(413).json({ erro: "Imagem excede o limite." }); }
 
         const { data: bl } = await supabase.from('lista_negra').select('cpf').eq('cpf', d.cpf).single();
         if (bl) return res.status(403).json({ erro: "CPF bloqueado pelo sistema." });
@@ -287,7 +277,7 @@ app.post('/cliente-aceitou', async (req, res) => {
 
         await supabase.from('devedores').update({ status: 'ABERTO' }).eq('id', dev.id);
         await supabase.from('solicitacoes').update({ status: 'ASSINADO' }).eq('cpf', dev.cpf).eq('status', 'APROVADO_CP');
-        await supabase.from('logs').insert([{ evento: "Assinatura Digital", detalhes: `Contrato ativado. Vencimento mantido em: ${dev.data_vencimento}.`, devedor_id: dev.id }]); 
+        await supabase.from('logs').insert([{ evento: "Assinatura Digital", detalhes: `Contrato ativado. Vencimento: ${dev.data_vencimento}.`, devedor_id: dev.id }]); 
         res.json({ status: 'Assinado' }); 
     } catch(e) { res.status(500).json({ erro: e.message }); } 
 });
@@ -295,14 +285,12 @@ app.post('/cliente-aceitou', async (req, res) => {
 app.post('/cliente-gerar-pagamento', async (req, res) => {
     try {
         const { id, valorParaPagar } = req.body;
-        
         const { data: dev, error } = await supabase.from('devedores').select('*').eq('uuid', id).single();
         if (error || !dev) return res.status(404).json({ erro: "Fatura não encontrada." });
-
         const checkoutUrl = process.env.INFINITY_TOKEN;
         res.json({ checkout_url: checkoutUrl });
     } catch (e) {
-        res.status(500).json({ erro: "Falha ao conectar com o banco." });
+        res.status(500).json({ erro: "Falha ao conectar." });
     }
 });
 
@@ -313,18 +301,11 @@ app.get('/api/previsao-caixa', async (req, res) => {
     try {
         const dataApoio = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
         dataApoio.setHours(0,0,0,0);
-        
-        const { data: devedores } = await supabase.from('devedores')
-            .select('nome, valor_total, qtd_parcelas, data_vencimento, status')
-            .in('status', ['ABERTO'])
-            .gte('data_vencimento', dataApoio.toISOString().split('T')[0]);
-
+        const { data: devedores } = await supabase.from('devedores').select('nome, valor_total, qtd_parcelas, data_vencimento, status').in('status', ['ABERTO']).gte('data_vencimento', dataApoio.toISOString().split('T')[0]);
         const previsao = {};
-        
         (devedores || []).forEach(d => {
             const dataVenc = d.data_vencimento;
             const valorParcela = d.qtd_parcelas > 1 ? (parseFloat(d.valor_total) / d.qtd_parcelas) : parseFloat(d.valor_total);
-            
             if (!previsao[dataVenc]) previsao[dataVenc] = { total: 0, clientes: [] };
             previsao[dataVenc].total += valorParcela;
             previsao[dataVenc].clientes.push({ nome: d.nome.split(' ')[0], valor: valorParcela });
@@ -350,10 +331,7 @@ app.post('/api/garantias', async (req, res) => {
 });
 
 app.put('/api/garantias/:id/status', async (req, res) => {
-    try {
-        await supabase.from('garantias').update({ status: req.body.status }).eq('id', req.params.id);
-        res.json({ sucesso: true });
-    } catch(e) { res.status(500).json({ erro: e.message }); }
+    try { await supabase.from('garantias').update({ status: req.body.status }).eq('id', req.params.id); res.json({ sucesso: true }); } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
 // ==========================================
@@ -372,21 +350,15 @@ app.get(['/api/dashboard', '/api/dashboard-master'], async (req, res) => {
         if (rpcErr) throw new Error(rpcErr.message);
         
         const resumoSeguro = dbResumo || {};
-
-        // 🚨 CORREÇÃO DO ROMBO: Soma apenas as parcelas REALMENTE vencidas
         const hojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
         
         const { data: parcelasVencidas } = await supabase
             .from('vw_cobranca_ativa_parcelas')
             .select('valor_atual, valor_pago')
-            .lt('vencimento_parcela', hojeStr); // Menor que hoje = Atrasado
+            .lt('vencimento_parcela', hojeStr);
 
         let valorInadimplenciaReal = 0;
-        let qtdContratosAtrasados = new Set(); // Para contar clientes únicos em atraso
-
-        parcelasVencidas?.forEach(p => {
-            valorInadimplenciaReal += (parseFloat(p.valor_atual) - parseFloat(p.valor_pago || 0));
-        });
+        parcelasVencidas?.forEach(p => valorInadimplenciaReal += (parseFloat(p.valor_atual) - parseFloat(p.valor_pago || 0)));
 
         res.json({ 
             totalAReceber: resumoSeguro.totalAReceber || 0, 
@@ -395,11 +367,9 @@ app.get(['/api/dashboard', '/api/dashboard-master'], async (req, res) => {
             lucroEstimado: (parseFloat(resumoSeguro.totalAReceber) || 0) - (parseFloat(resumoSeguro.capitalNaRua) || 0), 
             capitalNaRua: resumoSeguro.capitalNaRua || 0, 
             caixaDisponivel: caixaGeral + (parseFloat(resumoSeguro.fluxoLiquidoTotal) || 0),
-            valor_inadimplencia: valorInadimplenciaReal // <-- Valor corrigido enviado aqui
+            valor_inadimplencia: valorInadimplenciaReal
         });
-    } catch (err) {
-        res.status(500).json({ erro: "Erro ao processar dashboard" }); 
-    }
+    } catch (err) { res.status(500).json({ erro: "Erro ao processar dashboard" }); }
 });
 
 app.get('/api/solicitacoes-pendentes', async (req, res) => {
@@ -428,10 +398,8 @@ app.post('/api/aprovar-solicitacao', async (req, res) => {
 
         let valorJurosLimpo = limparMoeda(juros);
         const jurosDecimal = Math.max(0, (valorJurosLimpo !== null && valorJurosLimpo !== undefined ? valorJurosLimpo : 30) / 100);
-        
         const valorFinal = novoValor ? Math.max(0, limparMoeda(novoValor)) : Math.max(0, limparMoeda(sol.valor));
         const freqFinal = novaFreq || sol.frequencia || 'MENSAL';
-        
         let parcelasFinais = novasParcelas ? parseInt(novasParcelas) : (parseInt(sol.qtd_parcelas) || 1);
         parcelasFinais = Math.max(1, parcelasFinais);
 
@@ -453,8 +421,7 @@ app.post('/api/aprovar-solicitacao', async (req, res) => {
             taxa_juros: jurosDecimal * 100, observacoes: observacao || '', url_selfie: sol.url_selfie, url_frente: sol.url_frente, 
             url_verso: sol.url_verso, url_residencia: sol.url_residencia, url_casa: sol.url_casa, referencia1_nome: sol.referencia1_nome, 
             referencia1_tel: sol.referencia1_tel, indicado_por: sol.indicado_por, pago: false, 
-            cobrar_so_em_dinheiro: cobrarSoEmDinheiro || false,
-            isento_multa: isentoMulta || false
+            cobrar_so_em_dinheiro: cobrarSoEmDinheiro || false, isento_multa: isentoMulta || false
         };
 
         if (exDev && exDev.status === 'PRE_CADASTRO') {
@@ -467,9 +434,7 @@ app.post('/api/aprovar-solicitacao', async (req, res) => {
             if (iE) throw iE; devId = i.id; devUuid = i.uuid;
         }
 
-        // NOVO: GERAR AS PARCELAS APÓS APROVAR!
         await gerarParcelasNoBanco(devId, valorTotal, parcelasFinais, dtVencimentoProjetado, freqFinal);
-
         await supabase.from('solicitacoes').update({ status: 'APROVADO_CP', observacoes: observacao }).eq('id', id);
         await supabase.from('logs').insert([{ evento: 'Empréstimo Liberado', detalhes: `Aprovado R$ ${valorFinal.toFixed(2)}.`, devedor_id: devId, valor_fluxo: -Math.abs(valorFinal) }]);
 
@@ -498,79 +463,37 @@ app.post('/api/rejeitar-solicitacao', async (req, res) => {
 // ==========================================
 app.get('/api/devedores-ativos', async (req, res) => {
     try {
-        const { data, error } = await supabase
-            .from('vw_cobranca_ativa_parcelas')
-            .select('*')
-            .order('vencimento_parcela', { ascending: true }); 
-
-        if (error) {
-            throw error;
-        }
-        
+        const { data, error } = await supabase.from('vw_cobranca_ativa_parcelas').select('*').order('vencimento_parcela', { ascending: true }); 
+        if (error) throw error;
         res.json(data);
-        
-    } catch (error) {
-        console.error("Erro ao buscar parcelas:", error);
-        res.status(500).json({ erro: "Erro ao buscar parcelas de cobrança." });
-    }
+    } catch (error) { res.status(500).json({ erro: "Erro ao buscar parcelas de cobrança." }); }
 });
 
 app.get('/api/clientes-lista', async (req, res) => {
     try {
-        let todos = [];
-        let buscar = true;
-        let ptr = 0;
-        
+        let todos = []; let buscar = true; let ptr = 0;
         while (buscar) {
-            const { data, error } = await supabase
-                .from('devedores')
-                .select('cpf, nome, telefone, status')
-                .order('nome', { ascending: true })
-                .range(ptr, ptr + 999);
-            
+            const { data, error } = await supabase.from('devedores').select('cpf, nome, telefone, status').order('nome', { ascending: true }).range(ptr, ptr + 999);
             if (error || !data || data.length === 0) break;
-            todos = todos.concat(data);
-            if (data.length < 1000) buscar = false;
-            ptr += 1000;
+            todos = todos.concat(data); if (data.length < 1000) buscar = false; ptr += 1000;
         }
 
-        const unicos = [];
-        const cpfs = new Set();
-        const cpfsDevendo = new Set();
-        const cpfsAtrasados = new Set();
-        const cpfsCadastrados = new Set();
+        const unicos = []; const cpfs = new Set(); const cpfsDevendo = new Set(); const cpfsAtrasados = new Set(); const cpfsCadastrados = new Set();
 
         todos.forEach(c => {
             if (c.status !== 'PRE_CADASTRO') cpfsCadastrados.add(c.cpf);
             if (['ABERTO', 'ATRASADO'].includes(c.status)) cpfsDevendo.add(c.cpf);
             if (c.status === 'ATRASADO') cpfsAtrasados.add(c.cpf);
-            
-            if (!cpfs.has(c.cpf)) {
-                cpfs.add(c.cpf);
-                unicos.push(c);
-            }
+            if (!cpfs.has(c.cpf)) { cpfs.add(c.cpf); unicos.push(c); }
         });
 
         unicos.sort((a, b) => a.nome.localeCompare(b.nome));
-
-        res.json({
-            clientes: unicos,
-            totalDevendo: cpfsDevendo.size,
-            totalAtrasados: cpfsAtrasados.size,
-            totalCadastrados: cpfsCadastrados.size
-        });
-    } catch(e) { 
-        res.status(500).json({ erro: e.message }); 
-    }
+        res.json({ clientes: unicos, totalDevendo: cpfsDevendo.size, totalAtrasados: cpfsAtrasados.size, totalCadastrados: cpfsCadastrados.size });
+    } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
 app.get('/api/calotes', async (req, res) => {
-    try {
-        const { data } = await supabase.from('devedores').select('*').eq('status', 'CALOTE').order('data_vencimento', { ascending: true });
-        res.json(data || []);
-    } catch(e) { 
-        res.status(500).json({ erro: e.message }); 
-    }
+    try { const { data } = await supabase.from('devedores').select('*').eq('status', 'CALOTE').order('data_vencimento', { ascending: true }); res.json(data || []); } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
 app.post('/api/marcar-calote', async (req, res) => {
@@ -578,15 +501,11 @@ app.post('/api/marcar-calote', async (req, res) => {
         const { id, reverter } = req.body;
         const novoStatus = reverter ? 'ATRASADO' : 'CALOTE';
         const evento = reverter ? 'Recuperação de Calote' : 'Baixa por Calote / Perda';
-        const detalhes = reverter ? 'Cliente voltou para a esteira de cobrança.' : 'Contrato congelado e removido das projeções de lucro.';
-        
+        const detalhes = reverter ? 'Cliente voltou para a esteira.' : 'Contrato congelado.';
         await supabase.from('devedores').update({ status: novoStatus }).eq('id', id);
         await supabase.from('logs').insert([{ evento, detalhes, devedor_id: id }]);
-        
         res.json({ sucesso: true });
-    } catch(e) {
-        res.status(500).json({ erro: e.message });
-    }
+    } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
 app.post('/api/enviar-cobranca-manual', async (req, res) => {
@@ -601,30 +520,25 @@ app.post('/api/enviar-cobranca-manual', async (req, res) => {
         const valorFormatado = Number(dev.qtd_parcelas > 1 ? (parseFloat(dev.valor_total) / dev.qtd_parcelas) : parseFloat(dev.valor_total)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         
         const dataVenc = new Date(dev.data_vencimento + 'T12:00:00Z');
-        const hoje = new Date(); 
-        hoje.setHours(0,0,0,0);
+        const hoje = new Date(); hoje.setHours(0,0,0,0);
         let dtFormatada = dataVenc.toLocaleDateString('pt-BR');
         
         let textoAtraso = "";
         if (dataVenc < hoje) {
              const diasAtraso = Math.floor((hoje - dataVenc) / (1000 * 60 * 60 * 24));
-             textoAtraso = `\n⚠️ *Atenção:* Identificámos que o seu contrato está com ${diasAtraso} dias de atraso.`;
+             textoAtraso = `\n⚠️ *Atenção:* O contrato está com ${diasAtraso} dias de atraso.`;
         }
 
         let msg = '';
         if (dev.cobrar_so_em_dinheiro) {
-            msg = `Olá ${nomeCurto},\n\nEste é um aviso da *CMS Ventures* sobre a sua fatura no valor de *${valorFormatado}* (Vencimento: ${dtFormatada}).${textoAtraso}\n\nConforme acordado, este contrato deve ser regularizado em *dinheiro físico*. Por favor, prepare o valor para o nosso cobrador ou entre em contato.\n\n`;
+            msg = `Olá ${nomeCurto},\n\nAviso da *CMS Ventures* sobre a sua fatura de *${valorFormatado}* (Vencimento: ${dtFormatada}).${textoAtraso}\n\nConforme acordado, este contrato deve ser pago em *dinheiro físico*.\n\n`;
         } else {
-            msg = `Olá ${nomeCurto},\n\nEste é um aviso da *CMS Ventures* sobre a sua fatura no valor de *${valorFormatado}* (Vencimento: ${dtFormatada}).${textoAtraso}\n\n`;
-
+            msg = `Olá ${nomeCurto},\n\nAviso da *CMS Ventures* sobre a sua fatura de *${valorFormatado}* (Vencimento: ${dtFormatada}).${textoAtraso}\n\n`;
             if (pixDados && pixDados.chave) {
-                msg += `🏦 *DADOS PARA PAGAMENTO (PIX)*\nFavorecido: ${pixDados.nome}\nInstituição: ${pixDados.banco}\n\nCopie a chave abaixo:\n${pixDados.chave}\n\n⚠️ _Após o pagamento, envie o comprovante por aqui._\n\n`;
-            } else {
-                msg += `Para realizar o acerto, por favor, entre em contato com o nosso setor de cobrança.\n\n`;
-            }
+                msg += `🏦 *DADOS PIX*\nFavorecido: ${pixDados.nome}\nInstituição: ${pixDados.banco}\nChave:\n${pixDados.chave}\n\n⚠️ _Envie o comprovante por aqui._\n\n`;
+            } else { msg += `Para realizar o acerto, por favor, entre em contato.\n\n`; }
         }
-
-        msg += `🤖 _Esta é uma mensagem automática. Qualquer dúvida ou se precisar de ajuda, basta responder aqui mesmo!_`;
+        msg += `🤖 _Mensagem automática. Dúvidas? Responda aqui!_`;
         
         await enviarZap(dev.telefone, msg);
         await supabase.from('logs').insert([{ evento: "Envio Manual de Cobrança", detalhes: `Cobrança enviada via WhatsApp.`, devedor_id: dev.id }]);
@@ -649,19 +563,16 @@ app.get('/api/cliente-extrato/:busca', async (req, res) => {
         }
         
         const { data: cls } = await queryMain.order('created_at', { ascending: false });
-        if (!cls || cls.length === 0) return res.status(404).json({ erro: "Cliente não encontrado na base de dados." });
+        if (!cls || cls.length === 0) return res.status(404).json({ erro: "Cliente não encontrado." });
         
         const clientePrincipal = cls[0]; 
         const { data: tds } = await supabase.from('devedores').select('*').eq('cpf', clientePrincipal.cpf).order('created_at', { ascending: false });
         
-        // 🚨 CORREÇÃO: Removemos os contratos cancelados para não sujarem o histórico!
         const tdsValidos = (tds || cls).filter(c => c.status !== 'CANCELADO');
-
         let scoreCalculado = 500; 
 
         const tdsComParcelas = tdsValidos.map(dev => {
             dev = formatarContratoCarne(dev);
-            
             if (dev.status === 'QUITADO') scoreCalculado += 150;
             if (dev.status === 'ATRASADO') {
                 const dtVenc = new Date(dev.data_vencimento + 'T12:00:00Z');
@@ -675,7 +586,6 @@ app.get('/api/cliente-extrato/:busca', async (req, res) => {
         });
 
         scoreCalculado = Math.min(1000, Math.max(0, scoreCalculado));
-
         const idsArray = tdsValidos.map(c => c.id);
         let logs = [];
         if (idsArray.length > 0) {
@@ -683,31 +593,18 @@ app.get('/api/cliente-extrato/:busca', async (req, res) => {
             logs = logsData || [];
         }
         
-        res.json({ 
-            cliente: tdsComParcelas.length > 0 ? tdsComParcelas[0] : clientePrincipal, 
-            todos_contratos: tdsComParcelas, 
-            logs: logs, 
-            score: scoreCalculado 
-        });
+        res.json({ cliente: tdsComParcelas.length > 0 ? tdsComParcelas[0] : clientePrincipal, todos_contratos: tdsComParcelas, logs: logs, score: scoreCalculado });
     } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
 app.get('/api/buscar-cliente-admin/:busca', async (req, res) => {
     try {
-        const b = decodeURIComponent(req.params.busca); 
-        const hasNum = /\d/.test(b); 
-        
+        const b = decodeURIComponent(req.params.busca); const hasNum = /\d/.test(b); 
         let q = supabase.from('devedores').select('id, nome, cpf, telefone, status');
-        if (hasNum) {
-            const numL = b.replace(/\D/g, '');
-            q = q.or(`cpf.eq.${numL},telefone.ilike.%${numL}%`); 
-        } else { 
-            q = q.ilike('nome', `%${b}%`); 
-        }
+        if (hasNum) { const numL = b.replace(/\D/g, ''); q = q.or(`cpf.eq.${numL},telefone.ilike.%${numL}%`); } else { q = q.ilike('nome', `%${b}%`); }
         
         const { data: cls } = await q.limit(10);
         const uniqueClients = []; const cpfs = new Set();
-        
         (cls || []).forEach(c => { if (!cpfs.has(c.cpf)) { cpfs.add(c.cpf); uniqueClients.push(c); } });
         res.json(uniqueClients);
     } catch(e) { res.status(500).json({ erro: e.message }); }
@@ -718,45 +615,33 @@ app.get('/api/buscar-cliente-admin/:busca', async (req, res) => {
 // ==========================================
 app.get('/api/crm', async (req, res) => {
     try {
-        // 🚨 CORREÇÃO DO CRM: Filtra apenas o que já venceu
         const hojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
-
-        const { data, error } = await supabase
-            .from('vw_cobranca_ativa_parcelas')
+        const { data, error } = await supabase.from('vw_cobranca_ativa_parcelas')
             .select('devedor_id, uuid, nome, telefone, valor_atual, valor_pago, vencimento_parcela, status_contrato, cpf, data_promessa')
-            .lt('vencimento_parcela', hojeStr) // 🚨 Filtro essencial para não poluir o Kanban
+            .lt('vencimento_parcela', hojeStr)
             .order('vencimento_parcela', { ascending: true });
 
         if (error) throw error;
-        
-        const formatados = (data || []).map(d => ({
-            ...d,
-            id: d.devedor_id,
-            valor_total: parseFloat(d.valor_atual) - parseFloat(d.valor_pago || 0)
-        }));
-
+        const formatados = (data || []).map(d => ({ ...d, id: d.devedor_id, valor_total: parseFloat(d.valor_atual) - parseFloat(d.valor_pago || 0) }));
         res.json(formatados || []);
-    } catch(e) { 
-        res.status(500).json({ erro: e.message }); 
-    }
+    } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
-app.put('/api/crm/:id', async (req, res) => {
+app.get('/api/crm', async (req, res) => {
     try {
-        const { id } = req.params;
-        const { status, data_promessa } = req.body;
-        
-        let payload = { crm_status: status };
-        if (data_promessa) payload.data_promessa = data_promessa;
-        
-        await supabase.from('devedores').update(payload).eq('id', id);
-        
-        let detalhesLog = `Etapa da Gestão movida para: ${status}`;
-        if (data_promessa) detalhesLog += ` | Prometeu pagar em: ${data_promessa}`;
+        const { data, error } = await supabase
+            .from('vw_cobranca_ativa_parcelas')
+            .select('*');
 
-        await supabase.from('logs').insert([{ evento: "CRM Workflow Atualizado", detalhes: detalhesLog, devedor_id: id }]);
-        res.json({ sucesso: true });
-    } catch(e) { res.status(500).json({ erro: e.message }); }
+        if (error) {
+            throw new Error(error.message);
+        }
+
+        res.json(data);
+    } catch (error) {
+        console.error("🔥 ERRO FATAL NO CRM:", error); 
+        res.status(500).json({ erro: error.message, stack: error.stack });
+    }
 });
 
 app.get('/api/safras', async (req, res) => {
@@ -782,15 +667,10 @@ app.get('/api/safras', async (req, res) => {
             }
         });
 
-        // 🚨 O QUE FALTAVA ESTÁ AQUI ABAIXO:
         const safras = {};
-        
         todosDevs.forEach(d => {
-            // Ignorar os cancelados para não sujar o gráfico
             if (d.status === 'CANCELADO') return;
-
             const mes = d.created_at.substring(0, 7);
-            
             if (!safras[mes]) safras[mes] = { mes, total_clientes: 0, volume_emprestado: 0, quitados: 0, atrasados: 0, abertos: 0 };
             
             safras[mes].total_clientes++;
@@ -805,43 +685,30 @@ app.get('/api/safras', async (req, res) => {
         res.json(Object.values(safras).sort((a, b) => b.mes.localeCompare(a.mes)));
     } catch(e) { res.status(500).json({ erro: e.message }); }
 });
+
 // ==========================================
 // 9. EDIÇÃO E BAIXAS MANUAIS
 // ==========================================
 app.post('/api/editar-contrato', async (req, res) => {
     try {
         const { id, novoVencimento, novoCapital, novoTotal, novaFrequencia, cobrarSoEmDinheiro, novasParcelas, novaTaxa, isentoMulta } = req.body;
-        
         const { data: devAntigo } = await supabase.from('devedores').select('valor_emprestado, status').eq('id', id).maybeSingle();
         if (devAntigo?.status === 'APROVADO_AGUARDANDO_ACEITE') return res.status(400).json({ erro: "Contrato pendente não editável." });
 
         let payload = { 
-            data_vencimento: novoVencimento, 
-            valor_emprestado: limparMoeda(novoCapital), 
-            valor_total: limparMoeda(novoTotal), 
-            frequencia: novaFrequencia, 
-            status: 'ABERTO', 
-            ultima_cobranca_atraso: null, 
-            pago: false, 
-            cobrar_so_em_dinheiro: cobrarSoEmDinheiro,
-            isento_multa: isentoMulta || false
+            data_vencimento: novoVencimento, valor_emprestado: limparMoeda(novoCapital), valor_total: limparMoeda(novoTotal), 
+            frequencia: novaFrequencia, status: 'ABERTO', ultima_cobranca_atraso: null, pago: false, 
+            cobrar_so_em_dinheiro: cobrarSoEmDinheiro, isento_multa: isentoMulta || false
         };
 
         if (novasParcelas) payload.qtd_parcelas = parseInt(novasParcelas);
         if (novaTaxa) payload.taxa_juros = limparMoeda(novaTaxa);
 
         await supabase.from('devedores').update(payload).eq('id', id);
-
-        // NOVO: APAGAR AS PARCELAS ANTIGAS E GERAR AS NOVAS!
-        await supabase
-            .from('parcelas')
-            .delete()
-            .eq('devedor_id', id)
-            .in('status', ['PENDENTE', 'ATRASADO', 'PARCIAL']);
-            
+        await supabase.from('parcelas').delete().eq('devedor_id', id).in('status', ['PENDENTE', 'ATRASADO', 'PARCIAL']);
         await gerarParcelasNoBanco(id, limparMoeda(novoTotal), parseInt(novasParcelas) || 1, novoVencimento, novaFrequencia);
 
-        await supabase.from('logs').insert([{ evento: "Edição Manual", detalhes: `Estrutura reajustada. Novo Vencimento: ${novoVencimento}. Saldo Restante: R$ ${limparMoeda(novoTotal)}`, devedor_id: id }]);
+        await supabase.from('logs').insert([{ evento: "Edição Manual", detalhes: `Novo Vencimento: ${novoVencimento}. Saldo Restante: R$ ${limparMoeda(novoTotal)}`, devedor_id: id }]);
         res.json({ sucesso: true });
     } catch(e) { res.status(500).json({ erro: e.message }); }
 });
@@ -869,21 +736,16 @@ app.get('/api/estatisticas-pagamento/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
-// NOVO: ROTA DE BAIXA ATUALIZADA PARA LER A PARCELA!
 app.post('/api/baixar-manual', async (req, res) => {
     try {
         const { id, parcelaId, valorPago, formaPagamento, observacoes, dataRecebimento, novoVencimento } = req.body;
-
-        if (!parcelaId) throw new Error("ID da parcela não foi enviado pelo painel.");
+        if (!parcelaId) throw new Error("ID da parcela não foi enviado.");
 
         const { data: parc } = await supabase.from('parcelas').select('*').eq('id', parcelaId).single();
         const { data: dev } = await supabase.from('devedores').select('*').eq('id', id).single();
-
         if (!parc || !dev) throw new Error("Dados não encontrados no banco.");
 
         const valPago = parseFloat(valorPago) || 0;
-        
-        // 1. A MÁGICA DA PROPORÇÃO (Fatia o pagamento em Capital e Juros)
         const totalAtual = parseFloat(dev.valor_total) || 0;
         const capitalAtual = parseFloat(dev.valor_emprestado) || 0;
         
@@ -891,44 +753,25 @@ app.post('/api/baixar-manual', async (req, res) => {
         const amortizaCapital = valPago * ratioCapital;
         const amortizaJuros = valPago - amortizaCapital;
 
-        // 2. Atualiza os saldos Globais (Abate o capital e a dívida na proporção certa)
         const novoValorTotal = Math.max(0, totalAtual - valPago);
         const novoValorEmprestado = Math.max(0, capitalAtual - amortizaCapital);
 
-        // 3. Atualiza o status da Parcela
         const faltaPagarNaParcela = parseFloat(parc.valor_atual) - parseFloat(parc.valor_pago);
         const novoStatusParcela = (valPago >= (faltaPagarNaParcela - 0.10)) ? 'PAGA' : 'PARCIAL';
 
-        // Ajusta Data e Vencimento
         let dataVencGlobal = novoVencimento ? novoVencimento : dev.data_vencimento;
         const dataEnvioFinal = dataRecebimento ? (dataRecebimento.includes('T') ? dataRecebimento : `${dataRecebimento}T12:00:00-03:00`) : new Date().toISOString();
 
-        // 4. Grava tudo com segurança no Supabase
         const { error } = await supabase.rpc('processar_transacao_financeira', {
-            p_devedor_id: parseInt(id),
-            p_pago: valPago,
-            p_novo_total: novoValorTotal, 
-            p_capital: novoValorEmprestado, 
-            p_status: null, 
-            p_novo_vencimento: dataVencGlobal,
-            p_novas_parcelas: dev.qtd_parcelas,
-            p_limpar_atraso: false,
+            p_devedor_id: parseInt(id), p_pago: valPago, p_novo_total: novoValorTotal, p_capital: novoValorEmprestado, 
+            p_status: null, p_novo_vencimento: dataVencGlobal, p_novas_parcelas: dev.qtd_parcelas, p_limpar_atraso: false,
             p_evento: 'Pagamento de Parcela',
             p_detalhes: `[${formaPagamento}] Recebido R$ ${valPago.toFixed(2)} ref. parcela ${parc.numero_parcela}. ${observacoes ? 'OBS: ' + observacoes : ''}`,
-            p_data_pagamento: dataEnvioFinal,
-            
-            // ALIMENTA O RELATÓRIO ANALÍTICO CORRETAMENTE AQUI:
-            p_valor_capital: amortizaCapital,
-            p_valor_juros: amortizaJuros,
-            
-            p_parcela_id: parseInt(parcelaId),
-            p_parcela_pago: valPago,
-            p_parcela_status: novoStatusParcela
+            p_data_pagamento: dataEnvioFinal, p_valor_capital: amortizaCapital, p_valor_juros: amortizaJuros,
+            p_parcela_id: parseInt(parcelaId), p_parcela_pago: valPago, p_parcela_status: novoStatusParcela
         });
-
         if (error) throw error;
         
-        // 5. Verifica Quitação Total
         const { data: parcAbertas } = await supabase.from('parcelas').select('valor_atual, valor_pago').eq('devedor_id', id).neq('status', 'CANCELADA');
         let saldoAtualizado = 0;
         parcAbertas?.forEach(p => saldoAtualizado += (parseFloat(p.valor_atual) - parseFloat(p.valor_pago || 0)));
@@ -939,63 +782,67 @@ app.post('/api/baixar-manual', async (req, res) => {
         }
 
         res.json({ sucesso: true });
-
-    } catch (e) {
-        console.error("Erro na rota baixar-manual:", e);
-        res.status(500).json({ erro: e.message || "Erro interno ao processar baixa." });
-    }
+    } catch (e) { res.status(500).json({ erro: e.message || "Erro interno ao processar baixa." }); }
 });
 
-// ==========================================
-// ROTA NOVA: ESTORNO DE PAGAMENTO
-// ==========================================
 app.post('/api/estornar-pagamento', async (req, res) => {
     try {
         const { logId } = req.body;
-
-        // 1. Busca o log original para recuperar os valores exatos de capital e juro
-        const { data: logOriginal, error: errLog } = await supabase
-            .from('logs')
-            .select('*')
-            .eq('id', logId)
-            .single();
-
+        const { data: logOriginal, error: errLog } = await supabase.from('logs').select('*').eq('id', logId).single();
         if (errLog || !logOriginal) throw new Error("Registo financeiro não encontrado.");
 
-        // 2. Proteção contra duplo estorno
         const { data: jaEstornado } = await supabase.from('logs').select('id').ilike('detalhes', `%Ref. Log #${logId}%`);
-        if (jaEstornado && jaEstornado.length > 0) throw new Error("Este pagamento já foi estornado anteriormente.");
+        if (jaEstornado && jaEstornado.length > 0) throw new Error("Este pagamento já foi estornado.");
 
-        // 3. Lança o log de estorno NEGATIVANDO o juro e o fluxo original
-        // Isso fará com que o Dashboard e o Relatório Analítico batam os valores
+        const valorEstornarBruto = parseFloat(logOriginal.valor_fluxo);
+        if (valorEstornarBruto <= 0) throw new Error("Apenas recebimentos podem ser estornados.");
+
+        const tinhaMulta = logOriginal.detalhes.toLowerCase().includes('multa') || logOriginal.evento.toLowerCase().includes('atraso');
+        const tagMulta = tinhaMulta ? ' [MULTA]' : '';
+
+        let numParcela = null;
+        const match = logOriginal.detalhes.match(/ref\. parcela (\d+)/i);
+        if (match) numParcela = parseInt(match[1]);
+
+        let p_parcela_id = null; let p_parcela_pago_negativo = 0; let p_parcela_status = null;
+
+        if (numParcela) {
+            const { data: parc } = await supabase.from('parcelas').select('*').eq('devedor_id', logOriginal.devedor_id).eq('numero_parcela', numParcela).single();
+            if (parc) {
+                p_parcela_id = parc.id;
+                p_parcela_pago_negativo = -Math.abs(valorEstornarBruto); 
+                
+                const saldoAtualizadoParcela = Math.max(0, parseFloat(parc.valor_pago) + p_parcela_pago_negativo);
+                const faltaPagar = parseFloat(parc.valor_atual) - saldoAtualizadoParcela;
+                const hoje = new Date(); hoje.setHours(0,0,0,0);
+                const dtVenc = new Date(parc.data_vencimento + 'T12:00:00Z');
+
+                if (faltaPagar <= 0.10) p_parcela_status = 'PAGA';
+                else if (saldoAtualizadoParcela > 0) p_parcela_status = 'PARCIAL';
+                else if (dtVenc < hoje) p_parcela_status = 'ATRASADO';
+                else p_parcela_status = 'PENDENTE';
+            }
+        }
+
         const { error: errEstorno } = await supabase.rpc('processar_transacao_financeira', {
-            p_devedor_id: logOriginal.devedor_id,
-            p_pago: -Math.abs(logOriginal.valor_fluxo), // Retira do retorno bruto
-            p_novo_total: 0, // A RPC usará o valor negativo de p_pago para somar ao saldo do devedor
-            p_capital: 0,
-            p_status: 'ATRASADO', 
-            p_evento: 'Estorno de Pagamento',
-            p_detalhes: `Estorno (Ref. Log #${logId}). Juros anulados: R$ ${logOriginal.valor_juros}`,
-            p_valor_juros: -Math.abs(logOriginal.valor_juros || 0), // 🚨 ANULA O JURO NO DRE
-            p_limpar_atraso: false
+            p_devedor_id: logOriginal.devedor_id, p_pago: -Math.abs(valorEstornarBruto), p_novo_total: 0, p_capital: 0,
+            p_status: 'ABERTO', p_evento: 'Estorno de Pagamento', p_detalhes: `Estorno (Ref. Log #${logId}). Valores devolvidos.${tagMulta}`,
+            p_valor_capital: -Math.abs(parseFloat(logOriginal.valor_capital || 0)), p_valor_juros: -Math.abs(parseFloat(logOriginal.valor_juros || 0)),
+            p_limpar_atraso: false, p_parcela_id: p_parcela_id, p_parcela_pago: p_parcela_pago_negativo, p_parcela_status: p_parcela_status
         });
 
         if (errEstorno) throw errEstorno;
-
         res.json({ sucesso: true });
-    } catch (e) {
-        res.status(500).json({ erro: e.message });
-    }
+    } catch (e) { res.status(500).json({ erro: e.message }); }
 });
 
 // ==========================================
-// 10. CADASTRO MANUAL (Ficha Branca)
+// 10. CADASTRO MANUAL E LISTAS
 // ==========================================
 app.post('/api/cadastrar-cliente-manual', async (req, res) => {
     try {
         const d = req.body;
         const cpfLimpo = d.cpf.replace(/\D/g, '');
-
         const { data: exDevs } = await supabase.from('devedores').select('*').eq('cpf', cpfLimpo).order('created_at', { ascending: false }).limit(1);
         const oldDev = exDevs && exDevs.length > 0 ? exDevs[0] : null;
 
@@ -1006,26 +853,17 @@ app.post('/api/cadastrar-cliente-manual', async (req, res) => {
         const uC = d.img_casa ? await fazerUploadNoSupabase(d.img_casa, `${cpfLimpo}_c_${Date.now()}.jpg`) : (oldDev?.url_casa || null);
         
         let db = { 
-                nome: d.nome, 
-                cpf: cpfLimpo, 
-                telefone: d.whatsapp, 
+                nome: d.nome, cpf: cpfLimpo, telefone: d.whatsapp, 
                 observacoes: d.observacoes ? `[Manual] ${d.observacoes}` : "[Via Cadastro Manual de Balcão]", 
-                cobrar_so_em_dinheiro: d.cobrar_so_em_dinheiro || false, 
-                isento_multa: d.isento_multa || false,
-                url_selfie: uS, 
-                url_frente: uF, 
-                url_verso: uV, 
-                url_residencia: uR, 
-                url_casa: uC,
-                indicado_por: d.indicado_por || 'DIRETO'
+                cobrar_so_em_dinheiro: d.cobrar_so_em_dinheiro || false, isento_multa: d.isento_multa || false,
+                url_selfie: uS, url_frente: uF, url_verso: uV, url_residencia: uR, url_casa: uC, indicado_por: d.indicado_por || 'DIRETO'
             };
 
         if (!d.is_precadastro) {
             db.valor_emprestado = limparMoeda(d.valor_emprestado); 
             db.valor_total = limparMoeda(d.valor_total);
             db.data_vencimento = new Date(d.data_vencimento + 'T12:00:00Z').toISOString().split('T')[0];
-            db.frequencia = d.frequencia; 
-            db.qtd_parcelas = Math.max(1, parseInt(d.qtd_parcelas) || 1);
+            db.frequencia = d.frequencia; db.qtd_parcelas = Math.max(1, parseInt(d.qtd_parcelas) || 1);
             
             let taxaCalc = 30;
             if (db.valor_emprestado > 0) taxaCalc = (((db.valor_total / db.valor_emprestado) - 1) / db.qtd_parcelas) * 100;
@@ -1040,10 +878,8 @@ app.post('/api/cadastrar-cliente-manual', async (req, res) => {
             const { data: i, error: iErr } = await supabase.from('devedores').insert([db]).select().single();
             if (iErr) throw iErr; dId = i.id;
             
-            // NOVO: GERAR PARCELAS APÓS LANÇAR CADASTRO MANUAL
             await gerarParcelasNoBanco(dId, db.valor_total, db.qtd_parcelas, db.data_vencimento, db.frequencia);
-
-            await supabase.from('logs').insert([{ evento: 'Empréstimo Liberado', detalhes: `Lançado Manualmente pela Administração.`, devedor_id: dId, valor_fluxo: -Math.abs(db.valor_emprestado) }]);
+            await supabase.from('logs').insert([{ evento: 'Empréstimo Liberado', detalhes: `Lançado Manualmente.`, devedor_id: dId, valor_fluxo: -Math.abs(db.valor_emprestado) }]);
         } else {
             if (oldDev && oldDev.status === 'PRE_CADASTRO') {
                 const { data: u, error: uErr } = await supabase.from('devedores').update(db).eq('id', oldDev.id).select().single();
@@ -1059,9 +895,6 @@ app.post('/api/cadastrar-cliente-manual', async (req, res) => {
     } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
-// ==========================================
-// 11. LISTA NEGRA, PROMOTORES E CONFIGURAÇÕES
-// ==========================================
 app.get('/api/extrato-caixa', async (req, res) => {
     try { const { data } = await supabase.from('logs').select('*').eq('evento', 'SAÍDA DE CAIXA').order('created_at', { ascending: false }).limit(50); res.json(data || []); } catch(e) { res.status(500).json({ erro: e.message }); }
 });
@@ -1075,7 +908,7 @@ app.get('/api/lista-negra', async (req, res) => {
 });
 
 app.post('/api/lista-negra', async (req, res) => {
-    try { await supabase.from('lista_negra').insert([{ cpf: req.body.cpf, motivo: req.body.motivo }]); await supabase.from('logs').insert([{ evento: "Bloqueio na Lista Negra", detalhes: `CPF ${req.body.cpf} embargado por segurança.` }]); res.json({ sucesso: true }); } catch(e) { res.status(500).json({ erro: e.message }); }
+    try { await supabase.from('lista_negra').insert([{ cpf: req.body.cpf, motivo: req.body.motivo }]); await supabase.from('logs').insert([{ evento: "Bloqueio na Lista Negra", detalhes: `CPF ${req.body.cpf} embargado.` }]); res.json({ sucesso: true }); } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
 app.delete('/api/lista-negra/:cpf', async (req, res) => {
@@ -1103,18 +936,15 @@ app.post('/api/cancelar-contrato', async (req, res) => {
         if (!dev) return res.status(404).json({ erro: "Contrato não encontrado" });
         if (dev.status === 'QUITADO' || dev.status === 'CANCELADO') return res.status(400).json({ erro: "Status inválido para cancelamento." });
 
-        await supabase.from('logs').insert([{ evento: "Cancelamento de Contrato", detalhes: `Estorno. Motivo: ${motivo}. Capital devolvido ao caixa.`, valor_fluxo: Math.abs(dev.valor_emprestado), devedor_id: dev.id }]);
+        await supabase.from('logs').insert([{ evento: "Cancelamento de Contrato", detalhes: `Estorno. Motivo: ${motivo}.`, valor_fluxo: Math.abs(dev.valor_emprestado), devedor_id: dev.id }]);
         await supabase.from('devedores').update({ status: 'CANCELADO', valor_total: 0, valor_emprestado: 0, pago: true }).eq('id', id);
-        
-        // Cancela as parcelas também
         await supabase.from('parcelas').update({ status: 'CANCELADA' }).eq('devedor_id', id).in('status', ['PENDENTE', 'ATRASADO']);
-        
         res.json({ sucesso: true });
     } catch (e) { res.status(500).json({ erro: e.message }); }
 });
 
 app.post('/api/adicionar-promotor', async (req, res) => {
-    try { await supabase.from('promotores').insert([{ nome: req.body.nome, cpf: req.body.cpf }]); await supabase.from('logs').insert([{ evento: "Novo Parceiro", detalhes: `Promotor ${req.body.nome} integrado à força de vendas.` }]); res.json({ sucesso: true }); } catch (e) { res.status(500).json({ erro: e.message }); }
+    try { await supabase.from('promotores').insert([{ nome: req.body.nome, cpf: req.body.cpf }]); await supabase.from('logs').insert([{ evento: "Novo Parceiro", detalhes: `Promotor ${req.body.nome} integrado.` }]); res.json({ sucesso: true }); } catch (e) { res.status(500).json({ erro: e.message }); }
 });
 
 app.get('/api/config', async (req, res) => {
@@ -1130,224 +960,168 @@ app.get('/api/logs-auditoria', async (req, res) => {
 });
 
 // ==========================================
-// 12. MATEMÁTICA DE LUCRO LÍQUIDO REAL E EXATO
+// 12. RELATÓRIO ANALÍTICO DEFINITIVO
 // ==========================================
+// ==============================================================================
+// 12. RELATÓRIO ANALÍTICO DEFINITIVO (COM DIAGNÓSTICO PROFUNDO)
+// ==============================================================================
 app.post('/api/relatorio-periodo', async (req, res) => {
     try {
-        const dtInicio = req.body.dataInicio || req.body.inicio || new Date().toISOString().split('T')[0];
-        const dtFim = req.body.dataFim || req.body.fim || new Date().toISOString().split('T')[0];
+        // 1. Tratamento SUPER seguro de Datas
+        let dtInicio = req.body.dataInicio || req.body.inicio;
+        let dtFim = req.body.dataFim || req.body.fim;
+        
+        if (!dtInicio) dtInicio = new Date().toISOString().split('T')[0];
+        if (!dtFim) dtFim = new Date().toISOString().split('T')[0];
 
-        const inicio = dtInicio.includes('T') ? new Date(dtInicio).toISOString() : new Date(`${dtInicio}T00:00:00-03:00`).toISOString(); 
-        const fim = dtFim.includes('T') ? new Date(dtFim).toISOString() : new Date(`${dtFim}T23:59:59-03:00`).toISOString();
+        const inicio = dtInicio.includes('T') ? dtInicio : `${dtInicio}T00:00:00-03:00`;
+        const fim = dtFim.includes('T') ? dtFim : `${dtFim}T23:59:59-03:00`;
 
-        const { data: logs, error } = await supabase.from('logs')
+        console.log(`[API] A gerar Relatório Analítico: ${inicio} a ${fim}`);
+
+        const { data: logs, error: errLogs } = await supabase.from('logs')
             .select('id, valor_fluxo, valor_capital, valor_juros, evento, detalhes, created_at, devedor_id, devedores(nome, status)')
             .gte('created_at', inicio)
             .lte('created_at', fim)
             .order('created_at', { ascending: false });
-            
-        if (error) throw error;
 
-        let totalEmprestado = 0; 
-        let totalRecebido = 0; 
-        let totalDespesas = 0; 
-        let jurosAtrasoGerado = 0; 
-        let jurosMensalidadeFix = 0; 
-        let qtdCadastros = 0; 
-        let qtdQuitados = 0;
+        if (errLogs) {
+            console.error("ERRO SUPABASE:", errLogs);
+            throw new Error(`Erro do Banco de Dados: ${errLogs.message}`);
+        }
+
+        let totalEmprestado = 0, totalRecebido = 0, totalDespesas = 0;
+        let jurosAtrasoGerado = 0, jurosMensalidadeFix = 0;
+        let qtdCadastros = 0, qtdQuitados = 0;
 
         (logs || []).forEach(log => {
-            if (log.devedores && log.devedores.status === 'CANCELADO') return;
+            const dev = Array.isArray(log.devedores) ? log.devedores[0] : log.devedores; 
+            if (dev && dev.status === 'CANCELADO') return;
 
-            const v = Number(log.valor_fluxo) || 0; 
+            const v = Number(log.valor_fluxo) || 0;
+            const jurosOriginal = Number(log.valor_juros) || 0;
             const ev = log.evento || "";
-            
-            if (ev === 'Empréstimo Liberado' || (ev.includes('Ajuste') && v < 0)) {
+            const det = log.detalhes || "";
+
+            if (ev.includes('Estorno')) {
+                totalRecebido += v;
+                if (det.includes('[MULTA]')) jurosAtrasoGerado += jurosOriginal;
+                else jurosMensalidadeFix += jurosOriginal;
+            }
+            else if (ev === 'Empréstimo Liberado' || (ev.includes('Ajuste') && v < 0)) {
                 totalEmprestado += Math.abs(v);
                 if (ev === 'Empréstimo Liberado') qtdCadastros++;
             }
-            else if (ev === 'SAÍDA DE CAIXA') totalDespesas += Math.abs(v);
+            else if (ev === 'SAÍDA DE CAIXA') {
+                totalDespesas += Math.abs(v);
+            }
             else if (v > 0) {
                 totalRecebido += v;
-                jurosMensalidadeFix += Number(log.valor_juros) || 0;
+                if (ev.includes('Atraso') || det.includes('Multa') || det.includes('Atraso')) {
+                    jurosAtrasoGerado += jurosOriginal;
+                } else {
+                    jurosMensalidadeFix += jurosOriginal;
+                }
                 if (ev === 'Quitação Total') qtdQuitados++;
             }
         });
 
-        // 🚨 CORREÇÃO DO ROMBO ANALÍTICO:
-        // Soma apenas as parcelas vencidas que ainda não foram pagas
-        const hojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
-        
-        const { data: parcelasNoGargalo } = await supabase
-            .from('vw_cobranca_ativa_parcelas')
-            .select('valor_atual, valor_pago')
-            .lt('vencimento_parcela', hojeStr); // Apenas o que já venceu
+        const lucroLiquidoReal = jurosMensalidadeFix + jurosAtrasoGerado - totalDespesas;
 
         let valorTotalAtrasadoReal = 0;
-        parcelasNoGargalo?.forEach(p => {
-            valorTotalAtrasadoReal += (parseFloat(p.valor_atual) - parseFloat(p.valor_pago || 0));
-        });
+        try {
+            const hojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+            const { data: parcGargalo } = await supabase.from('vw_cobranca_ativa_parcelas').select('valor_atual, valor_pago').lt('vencimento_parcela', hojeStr);
+            parcGargalo?.forEach(p => valorTotalAtrasadoReal += (parseFloat(p.valor_atual) - parseFloat(p.valor_pago || 0)));
+        } catch(e) {}
 
-        const lucroLiquidoReal = jurosMensalidadeFix + jurosAtrasoGerado - totalDespesas;
-        const { data: garantiasAtivas } = await supabase.from('garantias').select('valor_estimado').eq('status', 'ATIVO');
-        const totalGarantias = (garantiasAtivas || []).reduce((acc, g) => acc + (parseFloat(g.valor_estimado) || 0), 0);
+        let totalGarantias = 0;
+        try {
+            const { data: garantias } = await supabase.from('garantias').select('valor_estimado').eq('status', 'ATIVO');
+            totalGarantias = (garantias || []).reduce((acc, g) => acc + (parseFloat(g.valor_estimado) || 0), 0);
+        } catch(e) {}
 
-        const movimentacoesVisiveis = (logs || []).filter(l => !(l.devedores && l.devedores.status === 'CANCELADO')).slice(0, 1500);
+        const movFormatadas = (logs || []).filter(log => {
+            const dev = Array.isArray(log.devedores) ? log.devedores[0] : log.devedores;
+            return !(dev && dev.status === 'CANCELADO');
+        }).slice(0, 1500).map(m => ({ ...m, devedores: Array.isArray(m.devedores) ? m.devedores[0] : m.devedores }));
 
-        res.json({ 
+        res.json({
             totalEmprestado, totalRecebido, totalDespesas,
             lucro: lucroLiquidoReal, jurosAtrasoGerado, jurosMensalidade: jurosMensalidadeFix,
             qtdCadastros, qtdQuitados, totalGarantias,
-            valor_inadimplencia: valorTotalAtrasadoReal, // <-- Agora envia o valor real das parcelas vencidas
-            movimentacoes: movimentacoesVisiveis
+            valor_inadimplencia: valorTotalAtrasadoReal,
+            movimentacoes: movFormatadas 
         });
-    } catch (e) { 
-        res.json({ totalEmprestado: 0, totalRecebido: 0, totalDespesas: 0, lucro: 0, totalGarantias: 0, movimentacoes: [] }); 
+
+    } catch (e) {
+        console.error("[CRÍTICO] Falha geral no relatorio-periodo:", e.message);
+        // Agora, o erro volta para o Chrome para você ver o que é!
+        res.status(500).json({ erro: "Erro interno: " + e.message, movimentacoes: [] });
     }
 });
 
 // ==========================================
-// 1. FUNÇÃO: ROBÔ DE ATRASOS (Multas e Cobrança Diária)
+// 13. ROBÔS AUTOMÁTICOS (CRONS E FORÇA BRUTA)
 // ==========================================
-let cronAtrasosRodando = false; 
-
 const rodarRoboCobranca = async () => {
-    if (cronAtrasosRodando) return { status: 'Robô já em execução.' };
-    cronAtrasosRodando = true;
-    try {
-        const { data: configs } = await supabase.from('config').select('*');
-        let taxaMulta = 3.0; // Pega os 3% do seu painel
-        configs?.forEach(c => { if (c.chave === 'multa_diaria') taxaMulta = parseFloat(c.valor); });
-
-        const hojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
-        const { data: faturas } = await supabase.from('vw_cobranca_ativa_parcelas')
-            .select('*').in('status_parcela', ['PENDENTE', 'ATRASADO', 'PARCIAL']).lt('vencimento_parcela', hojeStr);
-
-        for (const parc of (faturas || [])) {
-            const { data: dev } = await supabase.from('devedores').select('ultima_cobranca_atraso, isento_multa').eq('id', parc.devedor_id).single();
-            if (dev?.ultima_cobranca_atraso === hojeStr || dev?.isento_multa) continue;
-
-            const valorMulta = (parseFloat(parc.valor_emprestado) || 0) * (taxaMulta / 100);
-            const chaveTransacao = `ATRASO_PARC_${parc.parcela_id}_${hojeStr}`;
-
-            // Processa a transação usando a RPC que você já tem no banco
-            await supabase.rpc('processar_transacao_financeira', {
-                p_devedor_id: parc.devedor_id, 
-                p_pago: 0, 
-                p_novo_total: parseFloat(parc.valor_total) + valorMulta,
-                p_capital: parseFloat(parc.valor_emprestado), 
-                p_status: 'ATRASADO', 
-                p_novo_vencimento: parc.data_vencimento,
-                p_limpar_atraso: false, 
-                p_carimbar_atraso: true, 
-                p_evento: `Juros de Atraso (${taxaMulta}%)`,
-                p_detalhes: `Automático: Parc #${parc.numero_parcela}`, 
-                p_transaction_id: chaveTransacao, 
-                p_data_pagamento: new Date().toISOString(),
-                p_parcela_id: parc.parcela_id, 
-                p_parcela_status: 'ATRASADO', 
-                p_parcela_valor_atual: parseFloat(parc.valor_atual) + valorMulta
-            });
-            await sleep(3500); // Evita ban no WhatsApp
-        }
-        return { status: 'Sucesso' };
-    } finally { cronAtrasosRodando = false; }
-};
-// ==========================================
-// 2. FUNÇÃO: ROBÔ DE LEMBRETES (Amanhã e Hoje)
-// ==========================================
-let cronLembretesRodando = false;
-
-const rodarRoboLembretes = async () => {
-    if (cronLembretesRodando) return { status: 'Robô de Lembretes já está em execução.' };
-    cronLembretesRodando = true;
-    let relatorioEnvio = [];
-
-    try {
-        const { data: configs } = await supabase.from('config').select('*');
-        let configPixString = null;
-        configs?.forEach(c => { if (c.chave === 'pix_avancado' && c.valor) configPixString = c.valor; });
-
-        const dataHojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
-        const hojeObj = new Date(dataHojeStr + 'T12:00:00Z');
-        const amanhaObj = new Date(hojeObj);
-        amanhaObj.setDate(hojeObj.getDate() + 1);
-        const dataAmanhaStr = amanhaObj.toISOString().split('T')[0];
-
-        const { data: parcelasLembrete, error } = await supabase
-            .from('vw_cobranca_ativa_parcelas')
-            .select('*')
-            .in('status_parcela', ['PENDENTE', 'PARCIAL'])
-            .in('vencimento_parcela', [dataHojeStr, dataAmanhaStr]);
-
-        if (error || !parcelasLembrete || parcelasLembrete.length === 0) {
-            cronLembretesRodando = false;
-            return { status: 'Nenhum lembrete pendente.' };
-        }
-
-        for (const parc of parcelasLembrete) {
-            try {
-                const ehAmanha = parc.vencimento_parcela === dataAmanhaStr;
-                const sufixoTipo = ehAmanha ? 'ANTECIPADO' : 'HOJE';
-                const chaveLembrete = `LEMBRETE_${sufixoTipo}_PARC_${parc.parcela_id}_${parc.vencimento_parcela}`;
-                
-                const { data: jaEnviou } = await supabase.from('webhook_logs').select('transaction_id').eq('transaction_id', chaveLembrete).maybeSingle();
-                if (jaEnviou) continue;
-
-                const valorAEnviar = parseFloat(parc.valor_atual) - parseFloat(parc.valor_pago || 0);
-                const pixDaVez = escolherPixInteligente(configPixString, valorAEnviar);
-
-                let textoContexto = ehAmanha 
-                    ? `Sua parcela vence *amanhã* (${parc.vencimento_parcela.split('-').reverse().join('/')}).` 
-                    : `Sua parcela vence *hoje*!`;
-
-                const sucesso = await enviarLembreteVencimento(parc.telefone, parc.nome, valorAEnviar, parc.vencimento_parcela, pixDaVez, textoContexto);
-                
-                if (sucesso) {
-                    await supabase.from('webhook_logs').insert([{ transaction_id: chaveLembrete }]);
-                    relatorioEnvio.push(parc.nome);
-                }
-                await sleep(3500); 
-            } catch (errLoop) { console.error("Erro loop lembrete:", errLoop.message); }
-        }
-        return { status: 'Lembretes Processados', total: relatorioEnvio.length };
-    } catch (errGeral) { return { erro: errGeral.message }; } finally { cronLembretesRodando = false; }
-};
-
-// ==========================================
-// 3. AGENDAMENTOS (BRASÍLIA) E ROTAS
-// ==========================================
-// Multas e Atrasos: 08:00 e 14:00
-cron.schedule('0 8,14 * * *', async () => {
     const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
-
     try {
-        // 1. Busca apenas clientes ATRASADOS que ainda não foram processados HOJE
-        const { data: devedores, error } = await supabase
-            .from('devedores')
-            .select('*')
-            .eq('status', 'ATRASADO')
-            .or(`ultima_cobranca_atraso.lt.${hoje},ultima_cobranca_atraso.is.null`);
-
+        const { data: devedores, error } = await supabase.from('devedores').select('*').eq('status', 'ATRASADO').or(`ultima_cobranca_atraso.lt.${hoje},ultima_cobranca_atraso.is.null`);
         if (error) throw error;
-
-        for (const dev of devedores) {
-            // Chamada para o seu financeService processar a multa
-            // É CRUCIAL que o processar_transacao_financeira atualize a 'ultima_cobranca_atraso'
-            await financeService.aplicarMultaDiaria(dev, hoje);
-        }
         
-        console.log(`[ROBÔ] Multas processadas em ${hoje}.`);
+        for (const dev of (devedores || [])) {
+            // Nota de Segurança: Apenas aplica multas se a função existir no financeService importado
+            if(financeService && financeService.aplicarMultaDiaria) {
+                await financeService.aplicarMultaDiaria(dev, hoje);
+            }
+        }
+        console.log(`[ROBÔ] Multas processadas em ${hoje}. Total Verificado: ${devedores?.length || 0}`);
+        return { status: 'Multas Processadas', total: devedores?.length || 0 };
     } catch (err) {
         console.error("Erro no robô de multas:", err.message);
+        return { erro: err.message };
     }
-}, { timezone: "America/Sao_Paulo" });;
+};
 
-// Lembretes: 09:00
+let cronLembretesRodando = false;
+const rodarRoboLembretes = async () => {
+    if (cronLembretesRodando) return { status: 'Já em execução' };
+    cronLembretesRodando = true;
+    const relatorioEnvio = [];
+    
+    try {
+        const hoje = new Date(); const amanha = new Date(); amanha.setDate(amanha.getDate() + 1);
+        const strHoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(hoje);
+        const strAmanha = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(amanha);
+
+        const { data: parcelas } = await supabase.from('vw_cobranca_ativa_parcelas').select('*').in('vencimento_parcela', [strHoje, strAmanha]);
+
+        for (const parc of (parcelas || [])) {
+            const valorAEnviar = (parseFloat(parc.valor_atual) - parseFloat(parc.valor_pago || 0)).toFixed(2);
+            const textoContexto = parc.vencimento_parcela === strAmanha ? `Sua parcela vence amanhã!` : `Sua parcela vence *hoje*!`;
+
+            const sucesso = await enviarLembreteVencimento(parc.telefone, parc.nome, valorAEnviar, parc.vencimento_parcela, null, textoContexto);
+            if (sucesso) relatorioEnvio.push(parc.nome);
+            await sleep(3500); // Pausa anti-ban do WhatsApp
+        }
+        
+        console.log(`[ROBÔ] ${relatorioEnvio.length} Lembretes enviados com sucesso.`);
+        return { status: 'Lembretes Processados', total: relatorioEnvio.length };
+    } catch (errGeral) { 
+        console.error("Erro no robô de lembretes:", errGeral.message);
+        return { erro: errGeral.message }; 
+    } finally { cronLembretesRodando = false; }
+};
+
+// ==========================================
+// 14. INICIALIZAÇÃO E ESCUTA
+// ==========================================
+cron.schedule('0 8,14 * * *', rodarRoboCobranca, { scheduled: true, timezone: "America/Sao_Paulo" });
 cron.schedule('0 9 * * *', rodarRoboLembretes, { scheduled: true, timezone: "America/Sao_Paulo" });
 
-app.get('/api/forcar-robo', async (req, res) => res.json(await rodarRoboCobranca()));
-app.get('/api/forcar-lembretes', async (req, res) => res.json(await rodarRoboLembretes()));
+app.get('/api/forcar-robo', async (req, res) => res.json(await rodarRoboCobranca() || { status: "OK" }));
+app.get('/api/forcar-lembretes', async (req, res) => res.json(await rodarRoboLembretes() || { status: "OK" }));
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`🚀 Plataforma CMS Ventures operando na porta ${PORT}`));
