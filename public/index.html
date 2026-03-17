@@ -2109,61 +2109,69 @@ function renderizarAberto(lista) {
 
 
         async function confirmarPagamento() {
-            const id = document.getElementById('pgtoDevedorId').value; 
-            const v = parseFloat(document.getElementById('pgtoValor').value); 
-            
-            if (!v && v !== 0 && !document.getElementById('pgtoAjuste').value && !document.getElementById('pgtoNovaTaxa').value) {
-                return showToast("Preencha um valor recebido ou um ajuste de estrutura.", "error");
-            }
+    const btn = document.getElementById('btnConfirmarBaixa');
+    
+    // 🛡️ TRAVA DE SEGURANÇA: Se o botão já estiver desativado, ignora o clique
+    if (btn.disabled) return;
 
-            const btn = document.getElementById('btnConfirmarBaixa'); 
-            const oldText = btn.innerHTML; 
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processando...`; 
-            btn.disabled = true;
-            
-            const inputDataStr = document.getElementById('pgtoDataRecebimento').value;
-            const dataHojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+    const id = document.getElementById('pgtoDevedorId').value; 
+    const v = parseFloat(document.getElementById('pgtoValor').value); 
+    
+    if (!v && v !== 0 && !document.getElementById('pgtoAjuste').value && !document.getElementById('pgtoNovaTaxa').value) {
+        return showToast("Preencha um valor recebido ou um ajuste de estrutura.", "error");
+    }
 
-            const dataEnvioFinal = (inputDataStr === dataHojeStr) ? new Date().toISOString() : `${inputDataStr}T12:00:00-03:00`;
-            
-            try {
-                const res = await fetchSeguro(`${API_BASE}/api/baixar-manual`, { 
-                    method: 'POST', 
-                    headers: headersAuth, 
-                    body: JSON.stringify({ 
-                        id: parseInt(id), 
-                        valorPago: v || 0, 
-                        dataRecebimento: dataEnvioFinal, // Usando a nova data corrigida aqui! 
-                        formaPagamento: document.getElementById('pgtoForma').value,
-                        recalculoTratamento: document.getElementById('pgtoTratamento').value,
-                        observacoes: document.getElementById('pgtoObs').value, 
-                        recalculoAjuste: document.getElementById('pgtoAjuste').value ? parseFloat(document.getElementById('pgtoAjuste').value) : null, 
-                        recalculoTaxa: document.getElementById('pgtoNovaTaxa').value ? parseFloat(document.getElementById('pgtoNovaTaxa').value) : null, 
-                        recalculoParcelas: document.getElementById('pgtoNovoParcelamento').value ? parseInt(document.getElementById('pgtoNovoParcelamento').value) : null,
-                        novoVencimento: document.getElementById('pgtoNovoVencimento').value || null,
-                        modoBaixa: document.getElementById('pgtoModoBaixa').value, // <--- ADICIONE ESTA LINHA
-                        parcelaId: document.getElementById('pgtoParcelaId').value // <--- NOVA LINHA
+    // Bloqueia o botão imediatamente
+    const oldText = btn.innerHTML; 
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processando...`; 
+    btn.disabled = true;
 
-                    }) 
-                });
-                
-                if(res.ok) { 
-                    showToast("Baixa Registrada!"); 
-                    fecharModal('modalPagamento'); 
-                    carregarAberto(); 
-                    carregarDash();
-                } else { 
-                    const eBody = await res.json().catch(() => ({}));
-                    throw new Error(eBody.erro || eBody.details || eBody.message || "Erro interno no servidor ao registar a baixa."); 
-                }
-            } catch(e) { 
-                showToast(e.message, "error"); 
-            } finally { 
-                btn.innerHTML = oldText; 
-                btn.disabled = false; 
-            }
+    const inputDataStr = document.getElementById('pgtoDataRecebimento').value;
+    const dataHojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+    const dataEnvioFinal = (inputDataStr === dataHojeStr) ? new Date().toISOString() : `${inputDataStr}T12:00:00-03:00`;
+    
+    try {
+        const res = await fetchSeguro(`${API_BASE}/api/baixar-manual`, { 
+            method: 'POST', 
+            headers: headersAuth, 
+            body: JSON.stringify({ 
+                id: parseInt(id), 
+                valorPago: v || 0, 
+                dataRecebimento: dataEnvioFinal,
+                formaPagamento: document.getElementById('pgtoForma').value,
+                recalculoTratamento: document.getElementById('pgtoTratamento').value,
+                observacoes: document.getElementById('pgtoObs').value, 
+                recalculoAjuste: document.getElementById('pgtoAjuste').value ? parseFloat(document.getElementById('pgtoAjuste').value) : null, 
+                recalculoTaxa: document.getElementById('pgtoNovaTaxa').value ? parseFloat(document.getElementById('pgtoNovaTaxa').value) : null, 
+                recalculoParcelas: document.getElementById('pgtoNovoParcelamento').value ? parseInt(document.getElementById('pgtoNovoParcelamento').value) : null,
+                novoVencimento: document.getElementById('pgtoNovoVencimento').value || null,
+                modoBaixa: document.getElementById('pgtoModoBaixa').value,
+                parcelaId: document.getElementById('pgtoParcelaId').value
+            }) 
+        });
+        
+        if(res.ok) { 
+            showToast("Baixa Registrada com Sucesso!"); 
+            fecharModal('modalPagamento'); 
+            carregarAberto(); 
+            carregarDash();
+        } else { 
+            const eBody = await res.json().catch(() => ({}));
+            throw new Error(eBody.erro || "Erro ao processar baixa."); 
         }
-
+    } catch(e) { 
+        showToast(e.message, "error"); 
+        // Em caso de erro, reativa o botão para o utilizador tentar novamente
+        btn.disabled = false; 
+        btn.innerHTML = `<i class="fa-solid fa-rotate-right mr-2"></i> Tentar Novamente`;
+    } finally { 
+        // Se correu bem, o modal fecha, se não, o botão volta ao normal pelo catch ou após o tempo de resposta
+        if (!document.getElementById('modalPagamento').classList.contains('hidden')) {
+            btn.innerHTML = oldText; 
+            btn.disabled = false;
+        }
+    }
+}
         function abrirEdicaoContrato(idDevedor) {
     // Agora busca usando devedor_id
     const dev = listaDevedoresAtuais.find(x => String(x.devedor_id) === String(idDevedor)); 

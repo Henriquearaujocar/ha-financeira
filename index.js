@@ -952,80 +952,38 @@ app.post('/api/baixar-manual', async (req, res) => {
 app.post('/api/estornar-pagamento', async (req, res) => {
     try {
         const { logId } = req.body;
-        
-        // 1. Puxa o log original
-        const { data: logOrig, error: errLog } = await supabase.from('logs').select('*').eq('id', logId).single();
-        if (errLog || !logOrig) throw new Error("Registo financeiro não encontrado.");
 
-        // 2. Proteção contra duplo estorno (Verifica se já existe um estorno com esta referência)
+        // 1. Busca o log original para recuperar os valores exatos de capital e juro
+        const { data: logOriginal, error: errLog } = await supabase
+            .from('logs')
+            .select('*')
+            .eq('id', logId)
+            .single();
+
+        if (errLog || !logOriginal) throw new Error("Registo financeiro não encontrado.");
+
+        // 2. Proteção contra duplo estorno
         const { data: jaEstornado } = await supabase.from('logs').select('id').ilike('detalhes', `%Ref. Log #${logId}%`);
         if (jaEstornado && jaEstornado.length > 0) throw new Error("Este pagamento já foi estornado anteriormente.");
 
-        const valPago = parseFloat(logOrig.valor_fluxo);
-        if (valPago <= 0) throw new Error("Apenas recebimentos podem ser estornados.");
+        // 3. Lança o log de estorno NEGATIVANDO o juro e o fluxo original
+        // Isso fará com que o Dashboard e o Relatório Analítico batam os valores
+        const { error: errEstorno } = await supabase.rpc('processar_transacao_financeira', {
+            p_devedor_id: logOriginal.devedor_id,
+            p_pago: -Math.abs(logOriginal.valor_fluxo), // Retira do retorno bruto
+            p_novo_total: 0, // A RPC usará o valor negativo de p_pago para somar ao saldo do devedor
+            p_capital: 0,
+            p_status: 'ATRASADO', 
+            p_evento: 'Estorno de Pagamento',
+            p_detalhes: `Estorno (Ref. Log #${logId}). Juros anulados: R$ ${logOriginal.valor_juros}`,
+            p_valor_juros: -Math.abs(logOriginal.valor_juros || 0), // 🚨 ANULA O JURO NO DRE
+            p_limpar_atraso: false
+        });
 
-        const devId = logOrig.devedor_id;
-        const { data: dev } = await supabase.from('devedores').select('*').eq('id', devId).single();
-        if (!dev) throw new Error("Cliente não encontrado na base de dados.");
-
-        // 3. Tentar descobrir qual parcela foi paga lendo os detalhes do log
-        let numParcela = null;
-        const match = logOrig.detalhes.match(/ref\. parcela (\d+)/);
-        if (match) numParcela = parseInt(match[1]);
-
-        let parcelaId = null;
-        let parcelaStatusNovo = 'PENDENTE';
-        let parcelaValorPagoNovo = 0;
-
-        if (numParcela) {
-            const { data: parc } = await supabase.from('parcelas').select('*').eq('devedor_id', devId).eq('numero_parcela', numParcela).single();
-            if (parc) {
-                parcelaId = parc.id;
-                parcelaValorPagoNovo = Math.max(0, parseFloat(parc.valor_pago) - valPago);
-                
-                const faltaPagar = parseFloat(parc.valor_atual) - parcelaValorPagoNovo;
-                const hoje = new Date(); hoje.setHours(0,0,0,0);
-                const dtVenc = new Date(parc.data_vencimento + 'T12:00:00Z');
-                
-                if (faltaPagar <= 0.10) parcelaStatusNovo = 'PAGA';
-                else if (parcelaValorPagoNovo > 0) parcelaStatusNovo = 'PARCIAL';
-                else if (dtVenc < hoje) parcelaStatusNovo = 'ATRASADO';
-            }
-        }
-
-        // 4. Atualizar saldos globais (Devolver a dívida ao cliente)
-        const novoValorTotal = parseFloat(dev.valor_total) + valPago;
-        const novoValorEmprestado = parseFloat(dev.valor_emprestado) + parseFloat(logOrig.valor_capital || 0);
-        const novoTotalJaPego = Math.max(0, parseFloat(dev.total_ja_pego) - valPago);
-        
-        let novoStatusContrato = dev.status;
-        if (dev.status === 'QUITADO' && novoValorTotal > 0) novoStatusContrato = 'ABERTO'; // Reabre o contrato se estava quitado
-
-        // Executa as reparações no banco
-        await supabase.from('devedores').update({
-            valor_total: novoValorTotal,
-            valor_emprestado: novoValorEmprestado,
-            total_ja_pego: novoTotalJaPego,
-            status: novoStatusContrato,
-            pago: novoStatusContrato === 'QUITADO'
-        }).eq('id', devId);
-
-        if (parcelaId) {
-            await supabase.from('parcelas').update({ valor_pago: parcelaValorPagoNovo, status: parcelaStatusNovo }).eq('id', parcelaId);
-        }
-
-        // 5. Lança o Log Negativo para anular o DRE (Imutabilidade preservada)
-        await supabase.from('logs').insert([{
-            evento: 'Estorno de Pagamento',
-            detalhes: `Estorno (Ref. Log #${logId}). Valores devolvidos ao saldo devedor.`,
-            devedor_id: devId,
-            valor_fluxo: -Math.abs(valPago), // Sai do caixa
-            valor_capital: -Math.abs(parseFloat(logOrig.valor_capital || 0)),
-            valor_juros: -Math.abs(parseFloat(logOrig.valor_juros || 0))
-        }]);
+        if (errEstorno) throw errEstorno;
 
         res.json({ sucesso: true });
-    } catch(e) {
+    } catch (e) {
         res.status(500).json({ erro: e.message });
     }
 });
