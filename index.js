@@ -13,6 +13,7 @@ const {
     enviarAvisoAtraso,
     enviarReguaCobranca,
     enviarConfirmacaoBaixa,
+    enviarAgendamentoParcial,
     enviarResumoDiarioAdmin,
     enviarAprovacaoComTermos 
 } = require('./services/zapService');
@@ -781,24 +782,74 @@ app.post('/api/baixar-manual', async (req, res) => {
         });
         if (error) throw error;
         
-        const { data: parcAbertas } = await supabase.from('parcelas').select('valor_atual, valor_pago').eq('devedor_id', id).neq('status', 'CANCELADA');
+        const { data: parcAbertas } = await supabase
+            .from('parcelas')
+            .select('id, valor_atual, valor_pago, data_vencimento, status, numero_parcela')
+            .eq('devedor_id', id)
+            .neq('status', 'CANCELADA')
+            .order('numero_parcela', { ascending: true });
+
         let saldoAtualizado = 0;
         parcAbertas?.forEach(p => saldoAtualizado += (parseFloat(p.valor_atual) - parseFloat(p.valor_pago || 0)));
-        
+
+        // Próxima parcela pendente — usada para avançar o vencimento do contrato
+        // e para informar a data correta na mensagem de confirmação.
+        // SEM isso, o contrato ficaria travado em 17/04 mesmo após pagar a primeira
+        // parcela, e a mensagem diria "próximo vencimento: 17/04" (a que foi paga).
+        const proximaParcela = parcAbertas?.find(
+            p => ['PENDENTE', 'ATRASADO', 'PARCIAL'].includes(p.status)
+        );
+        const proximoVencimentoReal = proximaParcela?.data_vencimento || null;
+
         if (saldoAtualizado <= 0.10) {
             await supabase.from('devedores').update({ valor_total: 0, valor_emprestado: 0, status: 'QUITADO', pago: true }).eq('id', id);
             await supabase.from('logs').insert([{ evento: 'Quitação Total', detalhes: 'Contrato liquidado com sucesso.', devedor_id: id }]);
+        } else if (proximoVencimentoReal && novoStatusParcela === 'PAGA') {
+            // Avança data_vencimento do contrato para a próxima parcela real
+            await supabase.from('devedores')
+                .update({ data_vencimento: proximoVencimentoReal })
+                .eq('id', id);
         }
 
-        // Confirmação de pagamento para o cliente via WhatsApp (não bloqueia a resposta)
+        // MENSAGEM WHATSAPP — bifurca conforme o tipo de baixa:
+        //   PARCIAL + data agendada → confirma parcial e informa agendamento do restante
+        //   PARCIAL sem data        → confirmação simples com saldo restante
+        //   PAGA (integral)         → confirmação com próximo vencimento real
         const novoSaldoFinal = saldoAtualizado <= 0.10 ? 0 : Math.round(saldoAtualizado * 100) / 100;
-        enviarConfirmacaoBaixa(
-            dev.telefone, dev.nome,
-            valPago,
-            novoSaldoFinal,
-            novoSaldoFinal > 0 ? dataVencGlobal : null,
-            formaPagamento || 'PIX'
-        ).catch(e => console.warn('[CONFIRM BAIXA] Falha ao enviar WhatsApp:', e.message));
+
+        if (novoStatusParcela === 'PARCIAL') {
+            // Calcula quanto ainda falta pagar nesta parcela específica
+            const parcelaAtualizada = parcAbertas?.find(p => p.id === parseInt(parcelaId));
+            const restanteParcela = parcelaAtualizada
+                ? Math.max(0, Math.round((parseFloat(parcelaAtualizada.valor_atual) - parseFloat(parcelaAtualizada.valor_pago || 0)) * 100) / 100)
+                : novoSaldoFinal;
+
+            if (novoVencimento) {
+                // Admin agendou uma data para o segundo pagamento → mensagem de agendamento
+                enviarAgendamentoParcial(
+                    dev.telefone, dev.nome,
+                    valPago, restanteParcela,
+                    novoVencimento,
+                    formaPagamento || 'PIX'
+                ).catch(e => console.warn('[AGENDAMENTO PARCIAL] Falha WhatsApp:', e.message));
+            } else {
+                // Sem data agendada → confirmação simples informando o restante
+                enviarConfirmacaoBaixa(
+                    dev.telefone, dev.nome,
+                    valPago, restanteParcela,
+                    null,
+                    formaPagamento || 'PIX'
+                ).catch(e => console.warn('[CONFIRM PARCIAL] Falha WhatsApp:', e.message));
+            }
+        } else {
+            // Parcela integralmente paga → confirma com próximo vencimento real (17/05, não 17/04)
+            enviarConfirmacaoBaixa(
+                dev.telefone, dev.nome,
+                valPago, novoSaldoFinal,
+                novoSaldoFinal > 0 ? proximoVencimentoReal : null,
+                formaPagamento || 'PIX'
+            ).catch(e => console.warn('[CONFIRM BAIXA] Falha WhatsApp:', e.message));
+        }
 
         res.json({ sucesso: true });
     } catch (e) { res.status(500).json({ erro: e.message || "Erro interno ao processar baixa." }); }

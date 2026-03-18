@@ -230,8 +230,31 @@ const enviarResumoDiarioAdmin = async (numeroAdmin, dados) => {
 };
 
 /**
- * @deprecated use enviarReguaCobranca — mantido para não quebrar chamadas legadas
+ * Confirmação de agendamento da segunda parte de um pagamento parcial.
+ * Disparada quando o admin registra um pagamento parcial com data agendada
+ * para o restante — informa o cliente do que foi recebido e o que está pendente.
  */
+const enviarAgendamentoParcial = async (numero, nome, valorPago, valorRestante, dataAgendada, formaPagamento = 'PIX') => {
+    const nomeCurto   = nome.split(' ')[0];
+    const tagPgto     = formaPagamento === 'DINHEIRO' ? 'dinheiro em espécie' : 'PIX/transferência';
+    const valorPagoFmt = formatarMoedaZap(valorPago);
+    const restanteFmt  = formatarMoedaZap(valorRestante);
+    const dataHoje     = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    const dataAgFmt    = new Date(dataAgendada + 'T12:00:00Z').toLocaleDateString('pt-BR');
+
+    let msg  = `✅ *CMS VENTURES — PAGAMENTO PARCIAL CONFIRMADO*\n\n`;
+    msg += `Olá ${nomeCurto}! Recebemos parte do seu pagamento.\n\n`;
+    msg += `📋 *Recibo parcial:*\n`;
+    msg += `• Valor recebido hoje: R$ *${valorPagoFmt}* (${tagPgto})\n`;
+    msg += `• Data: ${dataHoje}\n`;
+    msg += `• Saldo restante: R$ *${restanteFmt}*\n\n`;
+    msg += `📅 *Segunda parte agendada para: ${dataAgFmt}*\n\n`;
+    msg += `_Lembramos que na data agendada enviaremos um lembrete. Qualquer dúvida, é só responder aqui!_ 🙏`;
+
+    return await enviarZap(numero, msg);
+};
+
+
 const enviarAvisoAtraso = async (numero, nome, valorAtualizado, diasAtraso, pixDados) => {
     return await enviarReguaCobranca(numero, nome, valorAtualizado, valorAtualizado, diasAtraso, pixDados, null);
 };
@@ -259,9 +282,10 @@ module.exports = {
     formatarMoedaZap,
     verificarStatusZapi,
     enviarLembreteVencimento,
-    enviarAvisoAtraso,         // legado
-    enviarReguaCobranca,       // novo — substitui enviarAvisoAtraso
-    enviarConfirmacaoBaixa,    // novo
-    enviarResumoDiarioAdmin,   // novo
+    enviarAvisoAtraso,           // legado
+    enviarReguaCobranca,         // régua escalonada por dias de atraso
+    enviarConfirmacaoBaixa,      // confirmação de pagamento integral/quitação
+    enviarAgendamentoParcial,    // confirmação de pagamento parcial + data agendada
+    enviarResumoDiarioAdmin,
     enviarAprovacaoComTermos
 };
