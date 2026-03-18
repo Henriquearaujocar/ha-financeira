@@ -651,14 +651,24 @@ app.get('/api/buscar-cliente-admin/:busca', async (req, res) => {
 app.get('/api/crm', async (req, res) => {
     try {
         const hojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
-        const { data, error } = await supabase.from('vw_cobranca_ativa_parcelas')
-            .select('devedor_id, uuid, nome, telefone, valor_atual, valor_pago, vencimento_parcela, status_contrato, cpf, data_promessa')
+
+        // CORREÇÃO: select explícito com 'data_promessa' causava 500 porque a coluna
+        // não existe na view vw_cobranca_ativa_parcelas (apenas em devedores).
+        // Usamos select('*') para buscar tudo que a view expõe sem quebrar.
+        // A view foi atualizada no SQL para incluir d.data_promessa e d.referencia1_nome.
+        const { data, error } = await supabase
+            .from('vw_cobranca_ativa_parcelas')
+            .select('*')
             .lt('vencimento_parcela', hojeStr)
             .order('vencimento_parcela', { ascending: true });
 
         if (error) throw error;
-        const formatados = (data || []).map(d => ({ ...d, id: d.devedor_id, valor_total: parseFloat(d.valor_atual) - parseFloat(d.valor_pago || 0) }));
-        res.json(formatados || []);
+        const formatados = (data || []).map(d => ({
+            ...d,
+            id:          d.devedor_id,
+            valor_total: parseFloat(d.valor_atual) - parseFloat(d.valor_pago || 0)
+        }));
+        res.json(formatados);
     } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
