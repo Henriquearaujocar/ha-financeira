@@ -23,7 +23,10 @@ const formatarMoedaZap = (valor) => {
  */
 const enviarZap = async (numeroRecebido, mensagem) => {
     const numeroFormatado = formatarNumero(numeroRecebido);
-    if (!numeroFormatado) return console.error("Número inválido para envio:", numeroRecebido);
+    if (!numeroFormatado) {
+        console.error("Número inválido para envio:", numeroRecebido);
+        return false;
+    }
 
     try {
         const url = `https://api.z-api.io/instances/${process.env.ZAPI_INSTANCE_ID}/token/${process.env.ZAPI_TOKEN}/send-text`;
@@ -95,23 +98,142 @@ const enviarLembreteVencimento = async (numero, nome, valor, dataVenc, pixDados,
 };
 
 /**
- * Aviso de Atraso Diário com PIX direto na mensagem
+ * RÉGUA DE COBRANÇA ESCALONADA
+ *
+ * Envia mensagens com tom progressivo conforme os dias em atraso:
+ *   Dia  1–4  → Lembrete gentil com saldo atualizado (já inclui multa) + PIX
+ *   Dia  5–14 → Tom mais firme, destaca o crescimento diário da dívida
+ *   Dia 15–24 → Sério, exibe total de multas acumuladas
+ *   Dia 25+   → Aviso de acionamento de referências + risco de calote no cadastro
  */
-const enviarAvisoAtraso = async (numero, nome, valorAtualizado, diasAtraso, pixDados) => {
-    let msg = `⚠️ *CMS VENTURES - AVISO DE ATRASO (${diasAtraso} DIAS)* ⚠️\n\nOlá ${nome.split(' ')[0]},\n\nIdentificamos que a sua fatura encontra-se em atraso.\n\nO valor atualizado (com as multas diárias aplicadas) é de *R$ ${Number(valorAtualizado).toFixed(2)}*.\n\n`;
-    
-    if (pixDados && pixDados.chave) {
-        msg += `🏦 *REGULARIZE AGORA VIA PIX:*\n`;
-        msg += `Favorecido: *${pixDados.nome}*\n`;
-        msg += `Instituição: *${pixDados.banco}*\n\n`;
-        msg += `Copie a chave PIX abaixo:\n`;
-        msg += `${pixDados.chave}\n\n`;
-        msg += `⚠️ _Evite que o seu saldo continue a crescer. Assim que pagar, envie-nos o comprovante de pagamento por aqui!_\n\n`;
+const enviarReguaCobranca = async (numero, nome, valorAtualizado, capitalOriginal, diasAtraso, pixDados, referencia1Nome = null) => {
+    const nomeCurto   = nome.split(' ')[0];
+    const valorFmt    = formatarMoedaZap(valorAtualizado);
+    const capitalFmt  = formatarMoedaZap(capitalOriginal);
+    const multaAcum   = formatarMoedaZap(Math.max(0, valorAtualizado - capitalOriginal));
+
+    // Bloco PIX reutilizável
+    const blocoPix = pixDados?.chave
+        ? `🏦 *PAGUE AGORA VIA PIX:*\nFavorecido: *${pixDados.nome}*\nInstituição: *${pixDados.banco}*\n\nChave PIX:\n*${pixDados.chave}*\n\n`
+        : `Para regularizar, entre em contato imediatamente.\n\n`;
+
+    let msg = '';
+
+    // ── DIA 1 a 4: gentil ──────────────────────────────────────────────
+    if (diasAtraso <= 4) {
+        msg  = `⏰ *CMS VENTURES — FATURA EM ABERTO*\n\n`;
+        msg += `Olá ${nomeCurto}, tudo bem?\n\n`;
+        msg += `Identificamos que sua fatura está em atraso há *${diasAtraso} dia${diasAtraso > 1 ? 's' : ''}*.\n\n`;
+        msg += `📌 *Saldo atualizado (com multa):* R$ *${valorFmt}*\n\n`;
+        msg += blocoPix;
+        msg += `_Qualquer dúvida, é só responder aqui. Estamos à disposição!_ 😊`;
+
+    // ── DIA 5 a 14: mais firme ─────────────────────────────────────────
+    } else if (diasAtraso <= 14) {
+        msg  = `⚠️ *CMS VENTURES — ATRASO: ${diasAtraso} DIAS*\n\n`;
+        msg += `${nomeCurto}, sua fatura segue em aberto e *a dívida cresce a cada dia*.\n\n`;
+        msg += `📌 Saldo atual (com multas): R$ *${valorFmt}*\n`;
+        msg += `📌 Capital emprestado: R$ ${capitalFmt}\n`;
+        msg += `📌 Multas acumuladas: R$ *${multaAcum}*\n\n`;
+        msg += `Regularize o quanto antes para evitar que o valor continue aumentando.\n\n`;
+        msg += blocoPix;
+        msg += `_Mensagem automática. Dúvidas? Responda aqui._`;
+
+    // ── DIA 15 a 24: sério ─────────────────────────────────────────────
+    } else if (diasAtraso <= 24) {
+        msg  = `🚨 *CMS VENTURES — COBRANÇA URGENTE (${diasAtraso} DIAS)*\n\n`;
+        msg += `${nomeCurto}, sua situação está se agravando.\n\n`;
+        msg += `Você está *${diasAtraso} dias* em atraso e até o momento não houve nenhum contato ou pagamento.\n\n`;
+        msg += `💰 *Valor total devido (com multas):* R$ *${valorFmt}*\n`;
+        msg += `📈 Multas acumuladas: R$ *${multaAcum}* — e continuam crescendo diariamente.\n\n`;
+        msg += `Precisamos que você entre em contato *hoje* para regularizar ou negociar.\n\n`;
+        msg += blocoPix;
+        msg += `_Mensagem automática. Responda aqui ou ligue imediatamente._`;
+
+    // ── DIA 25+: acionamento de referências ───────────────────────────
+    } else {
+        msg  = `🔴 *CMS VENTURES — NOTIFICAÇÃO FINAL (${diasAtraso} DIAS)*\n\n`;
+        msg += `${nomeCurto}, esta é uma notificação formal.\n\n`;
+        msg += `Sua dívida de R$ *${valorFmt}* está há *${diasAtraso} dias* em aberto sem qualquer retorno.\n\n`;
+        msg += `⚠️ *Caso não haja pagamento ou acordo até hoje:*\n`;
+        if (referencia1Nome) {
+            msg += `• Entraremos em contato com *${referencia1Nome}*, referência cadastrada no seu processo.\n`;
+        }
+        msg += `• O contrato será classificado como *CALOTE* em nosso sistema.\n`;
+        msg += `• Seu CPF será incluído na *lista de restrição* da CMS Ventures.\n\n`;
+        msg += blocoPix;
+        msg += `_Evite consequências maiores. Responda agora._`;
     }
-    
-    msg += `🤖 _Esta é uma mensagem automática. Qualquer dúvida ou se precisar de ajuda, basta responder aqui mesmo!_`;
 
     return await enviarZap(numero, msg);
+};
+
+/**
+ * Confirmação de pagamento recebido — disparada após cada baixa manual
+ */
+const enviarConfirmacaoBaixa = async (numero, nome, valorPago, novoSaldo, proximoVencimento, formaPagamento = 'PIX') => {
+    const nomeCurto  = nome.split(' ')[0];
+    const tagPgto    = formaPagamento === 'DINHEIRO' ? 'dinheiro em espécie' : 'PIX/transferência';
+    const valorFmt   = formatarMoedaZap(valorPago);
+    const saldoFmt   = formatarMoedaZap(novoSaldo);
+    const dataHoje   = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
+    let msg  = `✅ *CMS VENTURES — PAGAMENTO CONFIRMADO*\n\n`;
+    msg += `Olá ${nomeCurto}! Recebemos seu pagamento.\n\n`;
+    msg += `📋 *Recibo:*\n`;
+    msg += `• Valor recebido: R$ *${valorFmt}* (${tagPgto})\n`;
+    msg += `• Data: ${dataHoje}\n`;
+
+    if (novoSaldo <= 0.05) {
+        msg += `\n🎉 *Parabéns! Seu contrato está totalmente quitado.*\n`;
+        msg += `Agradecemos a confiança na CMS Ventures! Até a próxima. 🤝`;
+    } else {
+        msg += `• Saldo devedor atualizado: R$ *${saldoFmt}*\n`;
+        if (proximoVencimento) {
+            const dtVenc = new Date(proximoVencimento + 'T12:00:00Z').toLocaleDateString('pt-BR');
+            msg += `• Próximo vencimento: *${dtVenc}*\n`;
+        }
+        msg += `\n_Qualquer dúvida, é só responder aqui. Obrigado!_ 🙏`;
+    }
+
+    return await enviarZap(numero, msg);
+};
+
+/**
+ * Resumo diário enviado ao admin às 07h00
+ */
+const enviarResumoDiarioAdmin = async (numeroAdmin, dados) => {
+    const { vencenteHoje, vencenteAmanha, atrasados, valorAtrasado,
+            solicitacoesPendentes, recebidoOntem, caixaDisponivel } = dados;
+
+    const hoje = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
+    let msg  = `☀️ *BOM DIA — CMS VENTURES*\n`;
+    msg += `📅 Resumo de ${hoje}\n`;
+    msg += `─────────────────────\n\n`;
+
+    msg += `📆 *Vencem HOJE:* ${vencenteHoje} cliente${vencenteHoje !== 1 ? 's' : ''}\n`;
+    msg += `📆 *Vencem AMANHÃ:* ${vencenteAmanha} cliente${vencenteAmanha !== 1 ? 's' : ''}\n\n`;
+
+    msg += `⚠️ *Em atraso:* ${atrasados} contratos\n`;
+    msg += `💸 *Valor em risco:* R$ ${formatarMoedaZap(valorAtrasado)}\n\n`;
+
+    if (solicitacoesPendentes > 0) {
+        msg += `🆕 *Solicitações pendentes:* ${solicitacoesPendentes} aguardando análise\n\n`;
+    }
+
+    msg += `💰 *Recebido ontem:* R$ ${formatarMoedaZap(recebidoOntem)}\n`;
+    msg += `🏦 *Caixa disponível:* R$ ${formatarMoedaZap(caixaDisponivel)}\n\n`;
+    msg += `_Tenha um ótimo dia! 🚀_`;
+
+    return await enviarZap(numeroAdmin, msg);
+};
+
+/**
+ * @deprecated use enviarReguaCobranca — mantido para não quebrar chamadas legadas
+ */
+const enviarAvisoAtraso = async (numero, nome, valorAtualizado, diasAtraso, pixDados) => {
+    return await enviarReguaCobranca(numero, nome, valorAtualizado, valorAtualizado, diasAtraso, pixDados, null);
 };
 
 /**
@@ -134,8 +256,12 @@ const verificarStatusZapi = async () => {
 module.exports = {
     enviarZap,
     formatarNumero,
+    formatarMoedaZap,
     verificarStatusZapi,
     enviarLembreteVencimento,
-    enviarAvisoAtraso,
+    enviarAvisoAtraso,         // legado
+    enviarReguaCobranca,       // novo — substitui enviarAvisoAtraso
+    enviarConfirmacaoBaixa,    // novo
+    enviarResumoDiarioAdmin,   // novo
     enviarAprovacaoComTermos
 };
