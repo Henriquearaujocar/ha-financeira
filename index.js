@@ -1067,19 +1067,43 @@ app.post('/api/relatorio-periodo', async (req, res) => {
         let jurosAtrasoGerado = 0, jurosMensalidadeFix = 0;
         let qtdCadastros = 0, qtdQuitados = 0;
 
+        // ── CONTROLE DE ESTORNOS ─────────────────────────────────────────────
+        // Cada estorno é rastreado individualmente para aparecer em destaque
+        // no relatório — evita que o admin passe batido achando que não foi estornado.
+        let qtdEstornos   = 0;
+        let totalEstornado = 0; // valor absoluto total revertido no período
+        const listaEstornos = []; // detalhes de cada estorno para o frontend destacar
+        // ─────────────────────────────────────────────────────────────────────
+
         (logs || []).forEach(log => {
             const dev = Array.isArray(log.devedores) ? log.devedores[0] : log.devedores; 
             if (dev && dev.status === 'CANCELADO') return;
 
-            const v = Number(log.valor_fluxo) || 0;
-            const jurosOriginal = Number(log.valor_juros) || 0;
-            const ev = log.evento || "";
+            const v           = Number(log.valor_fluxo) || 0;
+            const jurosOrig   = Number(log.valor_juros)  || 0;
+            const capitalOrig = Number(log.valor_capital) || 0;
+            const ev  = log.evento  || "";
             const det = log.detalhes || "";
 
             if (ev.includes('Estorno')) {
+                // v é negativo — abate corretamente o totalRecebido no DRE
                 totalRecebido += v;
-                if (det.includes('[MULTA]')) jurosAtrasoGerado += jurosOriginal;
-                else jurosMensalidadeFix += jurosOriginal;
+                if (det.includes('[MULTA]')) jurosAtrasoGerado += jurosOrig;
+                else jurosMensalidadeFix += jurosOrig;
+
+                // Registro individual do estorno para destaque no frontend
+                qtdEstornos++;
+                totalEstornado += Math.abs(v);
+                listaEstornos.push({
+                    log_id:      log.id,
+                    data:        log.created_at,
+                    cliente:     dev?.nome || 'Desconhecido',
+                    valor:       Math.abs(v),
+                    capital_revertido: Math.abs(capitalOrig),
+                    juros_revertido:   Math.abs(jurosOrig),
+                    detalhes:    det,
+                    tipo_multa:  det.includes('[MULTA]'),
+                });
             }
             else if (ev === 'Empréstimo Liberado' || (ev.includes('Ajuste') && v < 0)) {
                 totalEmprestado += Math.abs(v);
@@ -1091,9 +1115,9 @@ app.post('/api/relatorio-periodo', async (req, res) => {
             else if (v > 0) {
                 totalRecebido += v;
                 if (ev.includes('Atraso') || det.includes('Multa') || det.includes('Atraso')) {
-                    jurosAtrasoGerado += jurosOriginal;
+                    jurosAtrasoGerado += jurosOrig;
                 } else {
-                    jurosMensalidadeFix += jurosOriginal;
+                    jurosMensalidadeFix += jurosOrig;
                 }
                 if (ev === 'Quitação Total') qtdQuitados++;
             }
@@ -1117,14 +1141,35 @@ app.post('/api/relatorio-periodo', async (req, res) => {
         const movFormatadas = (logs || []).filter(log => {
             const dev = Array.isArray(log.devedores) ? log.devedores[0] : log.devedores;
             return !(dev && dev.status === 'CANCELADO');
-        }).slice(0, 1500).map(m => ({ ...m, devedores: Array.isArray(m.devedores) ? m.devedores[0] : m.devedores }));
+        }).slice(0, 1500).map(m => ({
+            ...m,
+            devedores:  Array.isArray(m.devedores) ? m.devedores[0] : m.devedores,
+            // Flag para o frontend destacar linhas de estorno em vermelho / ícone de alerta
+            is_estorno: (m.evento || '').includes('Estorno'),
+        }));
 
         res.json({
-            totalEmprestado, totalRecebido, totalDespesas,
-            lucro: lucroLiquidoReal, jurosAtrasoGerado, jurosMensalidade: jurosMensalidadeFix,
-            qtdCadastros, qtdQuitados, totalGarantias,
+            totalEmprestado,
+            // totalRecebido já é líquido: entradas brutas menos estornos
+            totalRecebido,
+            totalDespesas,
+            lucro:              lucroLiquidoReal,
+            jurosAtrasoGerado,
+            jurosMensalidade:   jurosMensalidadeFix,
+            qtdCadastros,
+            qtdQuitados,
+            totalGarantias,
             valor_inadimplencia: valorTotalAtrasadoReal,
-            movimentacoes: movFormatadas 
+            // ── RESUMO DE ESTORNOS ──────────────────────────────────────────
+            // Permite ao frontend mostrar um aviso em destaque quando existirem
+            // estornos no período — ex: "⚠️ 2 estornos (R$600 devolvidos)"
+            estornos: {
+                quantidade:     qtdEstornos,
+                total_revertido: Math.round(totalEstornado * 100) / 100,
+                lista:          listaEstornos,    // detalhe de cada estorno
+            },
+            // ────────────────────────────────────────────────────────────────
+            movimentacoes: movFormatadas,
         });
 
     } catch (e) {
