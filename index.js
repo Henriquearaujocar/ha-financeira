@@ -477,20 +477,17 @@ app.get(['/api/dashboard', '/api/dashboard-master'], async (req, res) => {
         valorInadimplenciaReal = Math.round(valorInadimplenciaReal * 100) / 100;
 
         res.json({ 
-            totalAReceber: resumoSeguro.totalAReceber || 0, 
+            totalAReceber: resumoSeguro.totalAReceber || 0,
+            // lucroEstimado = totalAReceber - capitalNaRua
+            // totalAReceber inclui juros mensais + multas acumuladas pelo robô
+            // capitalNaRua = só o capital puro sem juros
+            // Resultado: lucro previsto se todos pagarem (mensalidade + multas)
+            lucroEstimado: (parseFloat(resumoSeguro.totalAReceber) || 0) - (parseFloat(resumoSeguro.capitalNaRua) || 0),
             recebidoHoje: resumoSeguro.recebidoHoje || 0, 
             pendencias: resumoSeguro.pendencias || 0, 
-            lucroEstimado: (parseFloat(resumoSeguro.totalAReceber) || 0) - (parseFloat(resumoSeguro.capitalNaRua) || 0), 
             capitalNaRua: resumoSeguro.capitalNaRua || 0,
-            // CAIXA REAL:
-            // caixa_total (config) = saldo no momento zero (antes de qualquer operação).
-            // fluxoLiquidoTotal    = SUM(valor_fluxo) de todos os logs:
-            //   + pagamentos recebidos  (positivo)
-            //   - empréstimos liberados (negativo)
-            //   - saídas de caixa      (negativo — baixadas manualmente pelo admin)
-            // Resultado: saldo real atual do caixa.
             caixaDisponivel: caixaGeral + (parseFloat(resumoSeguro.fluxoLiquidoTotal) || 0),
-            caixaConfigurado, // false = admin ainda não definiu o saldo inicial em config
+            caixaConfigurado,
             valor_inadimplencia: valorInadimplenciaReal
         });
     } catch (err) { res.status(500).json({ erro: "Erro ao processar dashboard" }); }
@@ -988,23 +985,29 @@ app.post('/api/baixar-manual', async (req, res) => {
         const pagoSobreOriginal = Math.min(valPago, restoOriginal);
         const pagoMulta         = Math.max(0, Math.round((valPago - restoOriginal) * 100) / 100);
 
-        // Busca total de parcelas originais para calcular capital por parcela corretamente
-        const { data: infoMaxParc } = await supabase
-            .from('parcelas').select('numero_parcela')
-            .eq('devedor_id', id).neq('status', 'CANCELADA')
-            .order('numero_parcela', { ascending: false }).limit(1).maybeSingle();
-        const totalParcelasOriginais = infoMaxParc?.numero_parcela || dev.qtd_parcelas || 1;
+        // ── AMORTIZAÇÃO CORRETA DE CAPITAL ──────────────────────────────────
+        //
+        // PROBLEMA DO RATIO FIXO: usar capitalAtual/totalOriginalContrato causa drift.
+        // Após pagar parcela 1, capitalAtual cai de 2000→1500, mas totalOriginal fica
+        // em 4000 — o ratio diminui de 0.5 para 0.375, distorcendo as parcelas seguintes.
+        //
+        // SOLUÇÃO: capitalAtual / parcelasRestantes = capital fixo por parcela
+        //   Parcela 1: 2000/4 = 500  Parcela 2: 1500/3 = 500  Parcela 3: 1000/2 = 500
+        //   Resultado: sempre R$ 500 de capital por parcela, R$ 500 de juros mensais.
+        //
+        // Busca quantas parcelas ainda estão em aberto (incluindo a atual)
+        const { data: parcsAbertas } = await supabase
+            .from('parcelas')
+            .select('id')
+            .eq('devedor_id', id)
+            .in('status', ['PENDENTE', 'ATRASADO', 'PARCIAL'])
+            .neq('status', 'CANCELADA');
+        const parcelasRestantes = Math.max(1, (parcsAbertas?.length || 1));
 
-        // Ratio baseado no contrato ORIGINAL (não inflado por multas)
-        const totalOriginalContrato  = Math.round(valorOriginalParcela * totalParcelasOriginais * 100) / 100;
-        const ratioCapitalOriginal   = totalOriginalContrato > 0 ? (capitalAtual / totalOriginalContrato) : 0;
-
-        // Capital e juros mensalidade apenas da porção original da parcela
-        const amortizaCapital        = Math.round(pagoSobreOriginal * ratioCapitalOriginal * 100) / 100;
-        const amortizaJurosMensalid  = Math.round((pagoSobreOriginal - amortizaCapital) * 100) / 100;
-
-        // Total de juros no log = mensalidade + multa (para totalRecebido estar correto)
-        const amortizaJurosTotal     = Math.round((amortizaJurosMensalid + pagoMulta) * 100) / 100;
+        const capitalPorParcela    = Math.round((capitalAtual / parcelasRestantes) * 100) / 100;
+        const amortizaCapital      = Math.min(capitalPorParcela, pagoSobreOriginal);
+        const amortizaJurosMensalid = Math.max(0, Math.round((pagoSobreOriginal - amortizaCapital) * 100) / 100);
+        const amortizaJurosTotal    = Math.round((amortizaJurosMensalid + pagoMulta) * 100) / 100;
 
         const novoValorTotal      = Math.max(0, Math.round((totalAtual - valPago) * 100) / 100);
         // Capital reduz APENAS pela porção mensalidade — multa não toca no capital
@@ -1506,11 +1509,33 @@ app.post('/api/relatorio-periodo', async (req, res) => {
 
         const lucroLiquidoReal = jurosMensalidadeFix + jurosAtrasoGerado - totalDespesas;
 
+        // Inadimplência real no relatório: mesmo cálculo do dashboard
+        // valor_original + capital × taxa × dias — não usa valor_atual defasado
         let valorTotalAtrasadoReal = 0;
         try {
-            const hojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
-            const { data: parcGargalo } = await supabase.from('vw_cobranca_ativa_parcelas').select('valor_atual, valor_pago').lt('vencimento_parcela', hojeStr);
-            parcGargalo?.forEach(p => valorTotalAtrasadoReal += (parseFloat(p.valor_atual) - parseFloat(p.valor_pago || 0)));
+            const hojeRelStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+            const taxaRel    = await buscarTaxaMultaDiaria();
+            const hojeRelObj = new Date(); hojeRelObj.setHours(0,0,0,0);
+            const { data: parcGargalo } = await supabase
+                .from('vw_cobranca_ativa_parcelas')
+                .select('valor_original, valor_pago, valor_emprestado, vencimento_parcela, devedor_id')
+                .lt('vencimento_parcela', hojeRelStr);
+
+            const multaContadaRel = new Set();
+            (parcGargalo || []).forEach(p => {
+                const valOrig  = parseFloat(p.valor_original || 0);
+                const jaPago   = parseFloat(p.valor_pago    || 0);
+                const capital  = parseFloat(p.valor_emprestado || 0);
+                const dtVc     = new Date(p.vencimento_parcela + 'T00:00:00-03:00');
+                const diasAtr  = dtVc < hojeRelObj ? Math.max(0, Math.floor((hojeRelObj - dtVc) / (1000*60*60*24))) : 0;
+                let multa = 0;
+                if (diasAtr > 0 && !multaContadaRel.has(p.devedor_id)) {
+                    multa = Math.round(capital * taxaRel * diasAtr * 100) / 100;
+                    multaContadaRel.add(p.devedor_id);
+                }
+                valorTotalAtrasadoReal += Math.max(0, valOrig - jaPago + multa);
+            });
+            valorTotalAtrasadoReal = Math.round(valorTotalAtrasadoReal * 100) / 100;
         } catch(e) {}
 
         let totalGarantias = 0;
