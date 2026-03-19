@@ -100,17 +100,29 @@ const enviarLembreteVencimento = async (numero, nome, valor, dataVenc, pixDados,
 /**
  * RÉGUA DE COBRANÇA ESCALONADA
  *
- * Envia mensagens com tom progressivo conforme os dias em atraso:
- *   Dia  1–4  → Lembrete gentil com saldo atualizado (já inclui multa) + PIX
- *   Dia  5–14 → Tom mais firme, destaca o crescimento diário da dívida
- *   Dia 15–24 → Sério, exibe total de multas acumuladas
- *   Dia 25+   → Aviso de acionamento de referências + risco de calote no cadastro
+ * @param numero          — telefone do devedor
+ * @param nome            — nome completo
+ * @param valorAtualizado — saldo atual já com multas pendentes projetadas
+ * @param capitalOriginal — valor_emprestado (capital puro, sem juros mensais)
+ * @param diasAtraso      — dias corridos desde o vencimento
+ * @param pixDados        — objeto PIX ou null
+ * @param referencia1Nome — nome da referência para aviso dia 25+
+ * @param multaAcumulada  — valor em R$ só das multas de atraso (separado dos juros mensais)
+ *
+ * Faixas:
+ *   Dia  1–4  → Lembrete gentil com saldo atualizado + PIX
+ *   Dia  5–14 → Tom mais firme, destaca crescimento diário
+ *   Dia 15–24 → Sério, exibe multas acumuladas separadas
+ *   Dia 25+   → Aviso de acionamento de referências + risco de calote
  */
-const enviarReguaCobranca = async (numero, nome, valorAtualizado, capitalOriginal, diasAtraso, pixDados, referencia1Nome = null) => {
+const enviarReguaCobranca = async (numero, nome, valorAtualizado, capitalOriginal, diasAtraso, pixDados, referencia1Nome = null, multaAcumulada = null) => {
     const nomeCurto   = nome.split(' ')[0];
     const valorFmt    = formatarMoedaZap(valorAtualizado);
     const capitalFmt  = formatarMoedaZap(capitalOriginal);
-    const multaAcum   = formatarMoedaZap(Math.max(0, valorAtualizado - capitalOriginal));
+    // Usa multaAcumulada se fornecida (só multa de atraso).
+    // Fallback: diferença entre saldo e capital (mantém compatibilidade com chamadas antigas).
+    const multaReal   = multaAcumulada !== null ? multaAcumulada : Math.max(0, valorAtualizado - capitalOriginal);
+    const multaFmt    = formatarMoedaZap(multaReal);
 
     // Bloco PIX reutilizável
     const blocoPix = pixDados?.chave
@@ -134,7 +146,7 @@ const enviarReguaCobranca = async (numero, nome, valorAtualizado, capitalOrigina
         msg += `${nomeCurto}, sua fatura segue em aberto e *a dívida cresce a cada dia*.\n\n`;
         msg += `📌 Saldo atual (com multas): R$ *${valorFmt}*\n`;
         msg += `📌 Capital emprestado: R$ ${capitalFmt}\n`;
-        msg += `📌 Multas acumuladas: R$ *${multaAcum}*\n\n`;
+        msg += `📌 Multas acumuladas: R$ *${multaFmt}*\n\n`;
         msg += `Regularize o quanto antes para evitar que o valor continue aumentando.\n\n`;
         msg += blocoPix;
         msg += `_Mensagem automática. Dúvidas? Responda aqui._`;
@@ -145,7 +157,7 @@ const enviarReguaCobranca = async (numero, nome, valorAtualizado, capitalOrigina
         msg += `${nomeCurto}, sua situação está se agravando.\n\n`;
         msg += `Você está *${diasAtraso} dias* em atraso e até o momento não houve nenhum contato ou pagamento.\n\n`;
         msg += `💰 *Valor total devido (com multas):* R$ *${valorFmt}*\n`;
-        msg += `📈 Multas acumuladas: R$ *${multaAcum}* — e continuam crescendo diariamente.\n\n`;
+        msg += `📈 Multas acumuladas: R$ *${multaFmt}* — e continuam crescendo diariamente.\n\n`;
         msg += `Precisamos que você entre em contato *hoje* para regularizar ou negociar.\n\n`;
         msg += blocoPix;
         msg += `_Mensagem automática. Responda aqui ou ligue imediatamente._`;

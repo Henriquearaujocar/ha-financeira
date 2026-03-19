@@ -977,6 +977,50 @@
                     </div>
                     <button onclick="salvarConfig()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase py-3 rounded-xl shadow-lg mt-4"><i class="fa-solid fa-save mr-2"></i> Guardar Alterações</button>
                 </div>
+
+                <!-- PAINEL DE ROBÔS -->
+                <div class="glass-card p-6 rounded-3xl border border-slate-700 space-y-4">
+                    <h3 class="text-xs font-black uppercase text-purple-400 mb-2 border-b border-slate-700 pb-2"><i class="fa-solid fa-robot mr-2"></i> Acionamento Manual dos Robôs</h3>
+                    <p class="text-[10px] text-slate-500">Os robôs rodam automaticamente às 8h e 14h. Use os botões abaixo para acionar manualmente quando necessário.</p>
+
+                    <div class="space-y-3 mt-4">
+                        <!-- Robô de Multas -->
+                        <div class="bg-slate-800/50 rounded-2xl p-4 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-black text-white uppercase">Robô de Multas e Cobranças</p>
+                                <p class="text-[9px] text-slate-400 mt-0.5">Aplica juros de atraso e envia mensagens escalonadas no WhatsApp</p>
+                                <p id="robo-multas-status" class="text-[9px] text-slate-500 mt-1 italic"></p>
+                            </div>
+                            <button onclick="acionarRobo('robo')" id="btn-robo-multas" class="ml-4 flex-shrink-0 bg-purple-600 hover:bg-purple-500 text-white font-black uppercase text-[10px] px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-purple-500/20 flex items-center gap-2">
+                                <i class="fa-solid fa-play"></i> Executar
+                            </button>
+                        </div>
+
+                        <!-- Robô de Lembretes -->
+                        <div class="bg-slate-800/50 rounded-2xl p-4 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-black text-white uppercase">Robô de Lembretes</p>
+                                <p class="text-[9px] text-slate-400 mt-0.5">Envia lembrete de vencimento para clientes que vencem hoje ou amanhã</p>
+                                <p id="robo-lembretes-status" class="text-[9px] text-slate-500 mt-1 italic"></p>
+                            </div>
+                            <button onclick="acionarRobo('lembretes')" id="btn-robo-lembretes" class="ml-4 flex-shrink-0 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase text-[10px] px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-blue-500/20 flex items-center gap-2">
+                                <i class="fa-solid fa-play"></i> Executar
+                            </button>
+                        </div>
+
+                        <!-- Resumo Admin -->
+                        <div class="bg-slate-800/50 rounded-2xl p-4 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-black text-white uppercase">Resumo Diário (WhatsApp Admin)</p>
+                                <p class="text-[9px] text-slate-400 mt-0.5">Envia o briefing matinal com o estado da carteira para o seu WhatsApp</p>
+                                <p id="robo-resumo-status" class="text-[9px] text-slate-500 mt-1 italic"></p>
+                            </div>
+                            <button onclick="acionarRobo('resumo')" id="btn-robo-resumo" class="ml-4 flex-shrink-0 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase text-[10px] px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2">
+                                <i class="fa-solid fa-play"></i> Enviar
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1896,7 +1940,7 @@ function renderizarAberto(lista) {
                 </td>
                 
                 <td class="px-4 py-4 text-xs font-black text-slate-300">
-                    ${p.qtd_parcelas_original > 1 ? `${p.numero_parcela}ª de ${p.qtd_parcelas_original}` : 'Única'}
+                    ${(p.total_parcelas_originais || 1) > 1 ? `${p.numero_parcela}/${p.total_parcelas_originais}` : 'Única'}
                 </td>
                 
                 <td class="px-4 py-4 text-xs font-bold ${corTextoAtraso}">${dt.toLocaleDateString('pt-BR')}</td>
@@ -2052,7 +2096,10 @@ function renderizarAberto(lista) {
             document.getElementById('pgtoData').innerText = new Date(data.data_emprestimo).toLocaleDateString('pt-BR'); 
             
             // Calculando atraso em cima do vencimento DA PARCELA
-            let dtVenc = new Date(parc.vencimento_parcela + 'T12:00:00Z');
+            // CORREÇÃO: usar T00:00:00-03:00 (meia-noite BRT) em vez de T12:00:00Z
+            // pois T12:00:00Z = 09h Brasil, tornando a diferença < 24h no primeiro
+            // dia de atraso e Math.floor retornando 0 incorretamente.
+            let dtVenc = new Date(parc.vencimento_parcela + 'T00:00:00-03:00');
             let hoje = new Date(); hoje.setHours(0,0,0,0);
             
             if (dtVenc < hoje) {
@@ -3086,7 +3133,7 @@ function renderizarAberto(lista) {
                         div.innerHTML = `
                             <p class="text-[10px] font-black text-white flex justify-between items-start leading-tight">
                                 <span>${escapeHTML(d.nome.split(' ')[0])} <br><span class="font-normal text-slate-400 text-[8px]">${escapeHTML(d.cpf)}</span></span>
-                                <span class="text-red-400">R$ ${formatMoney(parseFloat(d.valor_total))}</span>
+                                <span class="text-red-400">${formatMoney(parseFloat(d.valor_total))}</span>
                             </p>
                             ${tagData}
                             <div class="mt-2 pt-2 border-t border-slate-700 flex justify-between gap-1">
@@ -3317,6 +3364,54 @@ function renderizarAberto(lista) {
                 carregarConfig();
             } catch(e) {
                 showToast("Erro ao salvar.", "error");
+            }
+        }
+
+        async function acionarRobo(tipo) {
+            const rotas = {
+                robo:      { url: '/api/forcar-robo',         btn: 'btn-robo-multas',    status: 'robo-multas-status'    },
+                lembretes: { url: '/api/forcar-lembretes',    btn: 'btn-robo-lembretes', status: 'robo-lembretes-status' },
+                resumo:    { url: '/api/forcar-resumo-admin', btn: 'btn-robo-resumo',    status: 'robo-resumo-status'    },
+            };
+            const cfg = rotas[tipo];
+            if (!cfg) return;
+
+            const btn = document.getElementById(cfg.btn);
+            const statusEl = document.getElementById(cfg.status);
+
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Executando...`;
+            statusEl.textContent = 'Aguardando resposta...';
+            statusEl.className = 'text-[9px] text-slate-400 mt-1 italic';
+
+            try {
+                const res = await fetchSeguro(`${API_BASE}${cfg.url}`, { headers: headersAuth });
+                const data = await res.json();
+
+                if (data.erro) {
+                    statusEl.textContent = `Erro: ${data.erro}`;
+                    statusEl.className = 'text-[9px] text-red-400 mt-1 font-bold';
+                    showToast(data.erro, 'error');
+                } else {
+                    const total = data.total !== undefined ? ` — ${data.total} processado(s)` : '';
+                    const hora = new Date().toLocaleTimeString('pt-BR');
+                    statusEl.textContent = `✓ Concluído às ${hora}${total}`;
+                    statusEl.className = 'text-[9px] text-emerald-400 mt-1 font-bold';
+                    showToast('Robô executado com sucesso!');
+                    // Recarrega a aba de cobrança se estiver ativa
+                    if (document.getElementById('aba-aberto') && !document.getElementById('aba-aberto').classList.contains('hidden')) {
+                        carregarAberto();
+                    }
+                }
+            } catch(e) {
+                statusEl.textContent = 'Falha na comunicação com o servidor.';
+                statusEl.className = 'text-[9px] text-red-400 mt-1 font-bold';
+                showToast('Erro ao acionar robô.', 'error');
+            } finally {
+                btn.disabled = false;
+                const icones = { robo: 'fa-play', lembretes: 'fa-play', resumo: 'fa-play' };
+                const labels = { robo: 'Executar', lembretes: 'Executar', resumo: 'Enviar' };
+                btn.innerHTML = `<i class="fa-solid ${icones[tipo]}"></i> ${labels[tipo]}`;
             }
         }
 

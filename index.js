@@ -142,8 +142,70 @@ const escolherPixInteligente = (configPixString, valorCobranca) => {
 };
 
 // ==========================================
-// 1. SISTEMA DE AUTENTICAÇÃO E SESSÕES
+// HELPER: TAXA DE MULTA DIÁRIA
 // ==========================================
+/**
+ * Lê a taxa de multa diária da tabela config (chave 'multa_diaria').
+ * Fallback: 1%/dia se não configurada.
+ * Resultado em decimal (ex: 3% → 0.03).
+ */
+const buscarTaxaMultaDiaria = async () => {
+    try {
+        const { data } = await supabase.from('config').select('valor').eq('chave', 'multa_diaria').maybeSingle();
+        if (data?.valor) return Math.max(0, parseFloat(data.valor) / 100);
+    } catch (_) {}
+    return 0.01; // fallback 1%/dia
+};
+
+// ==========================================
+// HELPER: PROJEÇÃO DE JUROS AO VIVO
+// ==========================================
+/**
+ * Calcula quantas multas diárias estão pendentes desde a última aplicada pelo robô.
+ * NÃO grava nada no banco — usado apenas para exibição ao vivo e para
+ * garantir que pagamentos manuais já reflitam o saldo correto do dia.
+ *
+ * @param dev           — objeto devedor do banco
+ * @param taxaDiaria    — taxa em decimal (ex: 0.03 para 3%). Leia com buscarTaxaMultaDiaria().
+ *
+ * Retorna:
+ *   diasPendentes  — quantos dias de multa ainda não foram gravados
+ *   multaPendente  — valor total a acrescentar (R$)
+ *   valorProjetado — valor_total + multaPendente (saldo real de hoje)
+ */
+const projetarJurosAtraso = (dev, taxaDiaria = 0.01) => {
+    const hoje = new Date(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date()) + 'T00:00:00-03:00');
+
+    if (dev.isento_multa || !['ATRASADO', 'ABERTO'].includes(dev.status)) {
+        return { diasPendentes: 0, multaPendente: 0, valorProjetado: parseFloat(dev.valor_total || 0) };
+    }
+
+    const dataVenc = new Date(dev.data_vencimento + 'T00:00:00-03:00');
+    if (hoje <= dataVenc) {
+        return { diasPendentes: 0, multaPendente: 0, valorProjetado: parseFloat(dev.valor_total || 0) };
+    }
+
+    const ultimaMulata = dev.ultima_cobranca_atraso
+        ? new Date(dev.ultima_cobranca_atraso + 'T00:00:00-03:00')
+        : dataVenc;
+
+    const diasPendentes = Math.max(0, Math.floor((hoje - ultimaMulata) / (1000 * 60 * 60 * 24)));
+
+    if (diasPendentes === 0) {
+        return { diasPendentes: 0, multaPendente: 0, valorProjetado: parseFloat(dev.valor_total || 0) };
+    }
+
+    const capitalBase    = Math.round(parseFloat(dev.valor_emprestado || 0) * 100) / 100;
+    const totalAtual     = Math.round(parseFloat(dev.valor_total || 0) * 100) / 100;
+
+    // Juros compostos: capital × taxa × dias (sobre o capital, não sobre o total crescente)
+    const multaPendente  = Math.round(capitalBase * taxaDiaria * diasPendentes * 100) / 100;
+    const valorProjetado = Math.round((totalAtual + multaPendente) * 100) / 100;
+
+    return { diasPendentes, multaPendente, valorProjetado };
+};
+
+
 app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
@@ -197,7 +259,7 @@ app.get('/api/verify-session', (req, res) => res.json({ autenticado: true, email
 // 2. ROTAS PÚBLICAS E SOLICITAÇÃO
 // ==========================================
 app.get('/status-zapi', async (req, res) => { try { const status = await verificarStatusZapi(); res.json(status); } catch(e) { res.json({ connected: false }); } });
-app.get('/api/config-publica', async (req, res) => { try { const { data } = await supabase.from('config').select('*').in('chave', ['valor_minimo', 'juros_unico', 'juros_parcelado', 'pix_avancado']); res.json(data || []); } catch(e) { res.json([]); } });
+app.get('/api/config-publica', async (req, res) => { try { const { data } = await supabase.from('config').select('*').in('chave', ['valor_minimo', 'juros_unico', 'juros_parcelado', 'pix_avancado', 'multa_diaria']); res.json(data || []); } catch(e) { res.json([]); } });
 
 app.get('/api/buscar-cliente-publico/:cpf', async (req, res) => {
     try {
@@ -263,9 +325,7 @@ app.post('/api/enviar-solicitacao', async (req, res) => {
 // ==========================================
 app.post('/validar-extrato', async (req, res) => { 
     try { 
-        // CORREÇÃO: select(*) foi substituído por campos específicos — rota pública não deve
-        // expor CPF, telefone, URLs de documentos e referências pessoais.
-        const camposPublicos = 'id, uuid, nome, valor_emprestado, valor_total, qtd_parcelas, frequencia, data_vencimento, status, taxa_juros, total_ja_pego, cobrar_so_em_dinheiro';
+        const camposPublicos = 'id, uuid, nome, valor_emprestado, valor_total, qtd_parcelas, frequencia, data_vencimento, status, taxa_juros, total_ja_pego, cobrar_so_em_dinheiro, isento_multa, ultima_cobranca_atraso';
         let query = supabase.from('devedores').select(camposPublicos).eq('uuid', req.body.id);
         if (req.body.cpf) query = query.eq('cpf', req.body.cpf.replace(/\D/g, '')); 
         
@@ -273,6 +333,15 @@ app.post('/validar-extrato', async (req, res) => {
         if (error || !dev) return res.status(404).json({ erro: "Extrato não encontrado." }); 
         
         const devFormatado = formatarContratoCarne(dev);
+
+        // Lê taxa configurada e projeta juros pendentes ao vivo
+        const taxa = await buscarTaxaMultaDiaria();
+        const projecao = projetarJurosAtraso(devFormatado, taxa);
+        devFormatado.valor_total_projetado = projecao.valorProjetado;
+        devFormatado.multa_pendente        = projecao.multaPendente;
+        devFormatado.dias_pendentes        = projecao.diasPendentes;
+        devFormatado.taxa_multa_diaria_pct = Math.round(taxa * 10000) / 100; // ex: 3.00
+
         res.json(devFormatado); 
     } catch(e) { res.status(500).json({ erro: e.message }); } 
 });
@@ -374,14 +443,38 @@ app.get(['/api/dashboard', '/api/dashboard-master'], async (req, res) => {
         
         const resumoSeguro = dbResumo || {};
         const hojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
-        
+        const taxaInad = await buscarTaxaMultaDiaria();
+        const hojeObj  = new Date(); hojeObj.setHours(0,0,0,0);
+
         const { data: parcelasVencidas } = await supabase
             .from('vw_cobranca_ativa_parcelas')
-            .select('valor_atual, valor_pago')
+            .select('valor_original, valor_pago, valor_emprestado, vencimento_parcela, devedor_id')
             .lt('vencimento_parcela', hojeStr);
 
+        // Calcula inadimplência com juros de atraso reais:
+        // valor_original (parcela combinada) + capital × taxa × dias - já pago
+        // Multa é contada UMA vez por devedor (não por parcela)
+        const multaContadaPorDevedor = new Set();
         let valorInadimplenciaReal = 0;
-        parcelasVencidas?.forEach(p => valorInadimplenciaReal += (parseFloat(p.valor_atual) - parseFloat(p.valor_pago || 0)));
+        (parcelasVencidas || []).forEach(p => {
+            const valorOriginal = parseFloat(p.valor_original || 0);
+            const jaPago        = parseFloat(p.valor_pago    || 0);
+            const capital       = parseFloat(p.valor_emprestado || 0);
+            const dtVenc        = new Date(p.vencimento_parcela + 'T00:00:00-03:00');
+            const diasAtr       = dtVenc < hojeObj
+                ? Math.max(0, Math.floor((hojeObj - dtVenc) / (1000 * 60 * 60 * 24)))
+                : 0;
+
+            // Multa total: sobre o capital do contrato, apenas uma vez por devedor
+            let multaDevedor = 0;
+            if (diasAtr > 0 && !multaContadaPorDevedor.has(p.devedor_id)) {
+                multaDevedor = Math.round(capital * taxaInad * diasAtr * 100) / 100;
+                multaContadaPorDevedor.add(p.devedor_id);
+            }
+
+            valorInadimplenciaReal += Math.max(0, valorOriginal - jaPago + multaDevedor);
+        });
+        valorInadimplenciaReal = Math.round(valorInadimplenciaReal * 100) / 100;
 
         res.json({ 
             totalAReceber: resumoSeguro.totalAReceber || 0, 
@@ -501,7 +594,68 @@ app.get('/api/devedores-ativos', async (req, res) => {
     try {
         const { data, error } = await supabase.from('vw_cobranca_ativa_parcelas').select('*').order('vencimento_parcela', { ascending: true }); 
         if (error) throw error;
-        res.json(data);
+
+        const taxa = await buscarTaxaMultaDiaria();
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+
+        // Agrupa por devedor — multa é sobre o CAPITAL DO CONTRATO, não por parcela
+        // Calculamos apenas UMA VEZ por devedor e atribuímos INTEIRA à parcela mais antiga
+        const multasPorDevedor  = {};
+        const primeiraPorDevedor = {};
+
+        (data || []).forEach(p => {
+            if (p.status_contrato !== 'ATRASADO') return;
+            const did = p.devedor_id;
+
+            if (!multasPorDevedor[did]) {
+                // CÁLCULO LIMPO: valor_original + capital × taxa × dias_totais_em_atraso
+                // NÃO usa valor_atual do banco (que pode estar desatualizado)
+                // NÃO depende do robô ter rodado — sempre correto
+                const dtVenc = new Date(p.vencimento_parcela + 'T00:00:00-03:00');
+                const diasTotais = dtVenc < hoje
+                    ? Math.max(0, Math.floor((hoje - dtVenc) / (1000 * 60 * 60 * 24)))
+                    : 0;
+                const capital = parseFloat(p.valor_emprestado || 0);
+                const multaTotal = diasTotais > 0
+                    ? Math.round(capital * taxa * diasTotais * 100) / 100
+                    : 0;
+
+                multasPorDevedor[did]   = { multaTotal, diasTotais };
+                primeiraPorDevedor[did] = p.parcela_id;
+            } else {
+                // Mantém a parcela mais antiga como a que recebe a multa
+                const jaReg = (data || []).find(x => x.parcela_id === primeiraPorDevedor[did]);
+                if (jaReg && p.vencimento_parcela < jaReg.vencimento_parcela) {
+                    primeiraPorDevedor[did] = p.parcela_id;
+                }
+            }
+        });
+
+        const projetados = (data || []).map(p => {
+            if (p.status_contrato !== 'ATRASADO') return p;
+
+            const info = multasPorDevedor[p.devedor_id];
+            if (!info || info.multaTotal <= 0) return p;
+
+            // Só a primeira parcela vencida recebe a multa
+            if (p.parcela_id !== primeiraPorDevedor[p.devedor_id]) return p;
+
+            // valor_a_pagar = valor_original (parcela combinada) + multa total do contrato
+            const valorOriginal = parseFloat(p.valor_original || p.valor_atual);
+            const jaPago        = parseFloat(p.valor_pago || 0);
+            const valorComMulta = Math.round((valorOriginal - jaPago + info.multaTotal) * 100) / 100;
+
+            return {
+                ...p,
+                valor_atual:    Math.round((valorOriginal + info.multaTotal) * 100) / 100,
+                valor_pago:     p.valor_pago,   // mantém o já pago intacto
+                multa_total:    info.multaTotal,
+                dias_atraso:    info.diasTotais,
+            };
+        });
+
+        res.json(projetados);
     } catch (error) { res.status(500).json({ erro: "Erro ao buscar parcelas de cobrança." }); }
 });
 
@@ -548,36 +702,82 @@ app.post('/api/enviar-cobranca-manual', async (req, res) => {
     try {
         const { data: dev } = await supabase.from('devedores').select('*').eq('id', req.body.id).single();
         if (!dev) throw new Error("Cliente não encontrado");
-        
+
         const { data: confPix } = await supabase.from('config').select('valor').eq('chave', 'pix_avancado').maybeSingle();
-        const pixDados = escolherPixInteligente(confPix?.valor, dev.qtd_parcelas > 1 ? (parseFloat(dev.valor_total) / dev.qtd_parcelas) : parseFloat(dev.valor_total));
 
-        const nomeCurto = dev.nome.split(' ')[0];
-        const valorFormatado = Number(dev.qtd_parcelas > 1 ? (parseFloat(dev.valor_total) / dev.qtd_parcelas) : parseFloat(dev.valor_total)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        
-        const dataVenc = new Date(dev.data_vencimento + 'T12:00:00Z');
-        const hoje = new Date(); hoje.setHours(0,0,0,0);
-        let dtFormatada = dataVenc.toLocaleDateString('pt-BR');
-        
-        let textoAtraso = "";
-        if (dataVenc < hoje) {
-             const diasAtraso = Math.floor((hoje - dataVenc) / (1000 * 60 * 60 * 24));
-             textoAtraso = `\n⚠️ *Atenção:* O contrato está com ${diasAtraso} dias de atraso.`;
-        }
+        // Lê taxa configurada no sistema (respeita o que está em config)
+        const taxa = await buscarTaxaMultaDiaria();
 
-        let msg = '';
-        if (dev.cobrar_so_em_dinheiro) {
-            msg = `Olá ${nomeCurto},\n\nAviso da *CMS Ventures* sobre a sua fatura de *${valorFormatado}* (Vencimento: ${dtFormatada}).${textoAtraso}\n\nConforme acordado, este contrato deve ser pago em *dinheiro físico*.\n\n`;
+        // Calcula dias em atraso reais
+        const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+        const dataVenc = new Date(dev.data_vencimento + 'T00:00:00-03:00');
+        const diasAtraso = dataVenc < hoje
+            ? Math.max(1, Math.floor((hoje - dataVenc) / (1000 * 60 * 60 * 24)))
+            : 0;
+
+        // Para parcelados: cobrar só parcelas vencidas + multa sobre o CAPITAL TOTAL
+        // A multa de atraso incide sobre todo o capital emprestado, não por parcela.
+        let valorCobranca;
+        const capitalBase = parseFloat(dev.valor_emprestado || 0);
+
+        if (dev.qtd_parcelas > 1 && diasAtraso > 0) {
+            const hojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+            const { data: parcsVencidas } = await supabase
+                .from('parcelas')
+                .select('valor_original, valor_pago')
+                .eq('devedor_id', dev.id)
+                .in('status', ['ATRASADO', 'PENDENTE', 'PARCIAL'])
+                .lte('data_vencimento', hojeStr);
+
+            // MULTA TOTAL: capital × taxa × todos os dias desde vencimento (não só os pendentes)
+            const multaTotalDias = Math.round(capitalBase * taxa * diasAtraso * 100) / 100;
+
+            if (parcsVencidas?.length > 0) {
+                // Usa valor_original (parcela combinada) não valor_atual (pode estar desatualizado)
+                const saldoParcelas = parcsVencidas.reduce((acc, p) =>
+                    acc + Math.max(0, parseFloat(p.valor_original) - parseFloat(p.valor_pago || 0)), 0);
+                valorCobranca = Math.round((saldoParcelas + multaTotalDias) * 100) / 100;
+            } else {
+                valorCobranca = Math.round((parseFloat(dev.valor_total) + multaTotalDias) * 100) / 100;
+            }
         } else {
-            msg = `Olá ${nomeCurto},\n\nAviso da *CMS Ventures* sobre a sua fatura de *${valorFormatado}* (Vencimento: ${dtFormatada}).${textoAtraso}\n\n`;
-            if (pixDados && pixDados.chave) {
-                msg += `🏦 *DADOS PIX*\nFavorecido: ${pixDados.nome}\nInstituição: ${pixDados.banco}\nChave:\n${pixDados.chave}\n\n⚠️ _Envie o comprovante por aqui._\n\n`;
-            } else { msg += `Para realizar o acerto, por favor, entre em contato.\n\n`; }
+            // Simples: valor_total + multa total desde vencimento
+            const multaTotalDias = Math.round(capitalBase * taxa * diasAtraso * 100) / 100;
+            valorCobranca = Math.round((parseFloat(dev.valor_total) + multaTotalDias) * 100) / 100;
         }
-        msg += `🤖 _Mensagem automática. Dúvidas? Responda aqui!_`;
-        
-        await enviarZap(dev.telefone, msg);
-        await supabase.from('logs').insert([{ evento: "Envio Manual de Cobrança", detalhes: `Cobrança enviada via WhatsApp.`, devedor_id: dev.id }]);
+
+        const pixDados = dev.cobrar_so_em_dinheiro ? null : escolherPixInteligente(confPix?.valor, valorCobranca);
+
+        if (diasAtraso > 0) {
+            // Calcula multa total acumulada desde o vencimento (capital × taxa × dias totais)
+            const dtVencMan = new Date(dev.data_vencimento + 'T00:00:00-03:00');
+            const diasTotais = Math.max(1, Math.floor((hoje - dtVencMan) / (1000 * 60 * 60 * 24)));
+            const multaTotalManual = Math.round(capitalBase * taxa * diasTotais * 100) / 100;
+
+            await enviarReguaCobranca(
+                dev.telefone, dev.nome,
+                valorCobranca, capitalBase,
+                diasAtraso, pixDados,
+                dev.referencia1_nome || null,
+                multaTotalManual   // multa real acumulada, não diferença total - capital
+            );
+        } else {
+            const nomeCurto = dev.nome.split(' ')[0];
+            const valorFmt  = valorCobranca.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            const dtFmt     = dataVenc.toLocaleDateString('pt-BR');
+            let msg = `⏰ *CMS VENTURES — LEMBRETE DE PAGAMENTO*\n\nOlá ${nomeCurto}!\n\nSua fatura de *${valorFmt}* vence em *${dtFmt}*.\n\n`;
+            if (pixDados?.chave) {
+                msg += `🏦 *PAGUE VIA PIX:*\nFavorecido: *${pixDados.nome}*\nInstituição: *${pixDados.banco}*\n\nChave PIX:\n*${pixDados.chave}*\n\n`;
+            } else if (dev.cobrar_so_em_dinheiro) {
+                msg += `Conforme acordado, este contrato deve ser pago em *dinheiro físico*.\n\n`;
+            } else {
+                msg += `Para realizar o pagamento, entre em contato.\n\n`;
+            }
+            msg += `🤖 _Mensagem automática. Dúvidas? Responda aqui!_`;
+            await enviarZap(dev.telefone, msg);
+        }
+
+        await supabase.from('logs').insert([{ evento: "Envio Manual de Cobrança", detalhes: `Cobrança enviada via WhatsApp. Valor cobrado: R$ ${valorCobranca.toFixed(2)}`, devedor_id: dev.id }]);
         res.json({ sucesso: true });
     } catch (e) { res.status(500).json({ erro: e.message }); }
 });
@@ -747,15 +947,67 @@ app.post('/api/baixar-manual', async (req, res) => {
         if (!parc || !dev) throw new Error("Dados não encontrados no banco.");
 
         const valPago     = Math.round((parseFloat(valorPago) || 0) * 100) / 100;
-        const totalAtual  = Math.round((parseFloat(dev.valor_total)    || 0) * 100) / 100;
-        const capitalAtual = Math.round((parseFloat(dev.valor_emprestado) || 0) * 100) / 100;
+        let totalAtual    = Math.round((parseFloat(dev.valor_total)      || 0) * 100) / 100;
+        let capitalAtual  = Math.round((parseFloat(dev.valor_emprestado) || 0) * 100) / 100;
 
-        // DRE: proporcionar capital e juros pelo ratio do contrato, arredondado para evitar float drift
-        const ratioCapital    = totalAtual > 0 ? (capitalAtual / totalAtual) : 0;
-        const amortizaCapital = Math.round(valPago * ratioCapital * 100) / 100;
-        const amortizaJuros   = Math.round((valPago - amortizaCapital) * 100) / 100;
+        // ── APLICAR MULTAS PENDENTES ANTES DO PAGAMENTO ──────────────────────
+        const taxa = await buscarTaxaMultaDiaria();
+        const projecao = projetarJurosAtraso(dev, taxa);
+        if (projecao.diasPendentes > 0 && projecao.multaPendente > 0) {
+            const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+            if (financeService?.aplicarMultaDiaria) {
+                await financeService.aplicarMultaDiaria(dev, hoje);
+            }
+            const { data: devAtualizado } = await supabase
+                .from('devedores').select('valor_total, valor_emprestado').eq('id', id).single();
+            if (devAtualizado) {
+                totalAtual   = Math.round((parseFloat(devAtualizado.valor_total)      || 0) * 100) / 100;
+                capitalAtual = Math.round((parseFloat(devAtualizado.valor_emprestado) || 0) * 100) / 100;
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────────
 
-        const novoValorTotal      = Math.max(0, Math.round((totalAtual  - valPago)        * 100) / 100);
+        // ── DRE CORRETO: SEPARAR PARCELA ORIGINAL DA MULTA ───────────────────
+        //
+        // REGRA DE NEGÓCIO:
+        //   - A multa de atraso (juros diários) é receita extra, NÃO reduz capital.
+        //   - Apenas a parcela combinada (valor_original) amortiza capital.
+        //   - O excedente (valPago - valor_original + já_pago) = multa pura = lucro extra.
+        //
+        // Exemplo: capital=2000, 4x1000, parcela 1/4 em atraso, multa=540, paga 1540
+        //   pagoOriginal = 1000 (parcela combinada)
+        //   pagoMulta    = 540  (multa pura — não toca no capital)
+        //   amortizaCapital = 1000 × (2000 / 4000) = 500   ← correto, não 677
+        //   novoValorEmprestado = 2000 - 500 = 1500         ← correto
+
+        const valorOriginalParcela = Math.round((parseFloat(parc.valor_original) || parseFloat(parc.valor_atual)) * 100) / 100;
+        const jaPagoParcela        = Math.round((parseFloat(parc.valor_pago || 0)) * 100) / 100;
+        const restoOriginal        = Math.max(0, valorOriginalParcela - jaPagoParcela);
+
+        // Quanto do pagamento cobre a parcela original vs a multa
+        const pagoSobreOriginal = Math.min(valPago, restoOriginal);
+        const pagoMulta         = Math.max(0, Math.round((valPago - restoOriginal) * 100) / 100);
+
+        // Busca total de parcelas originais para calcular capital por parcela corretamente
+        const { data: infoMaxParc } = await supabase
+            .from('parcelas').select('numero_parcela')
+            .eq('devedor_id', id).neq('status', 'CANCELADA')
+            .order('numero_parcela', { ascending: false }).limit(1).maybeSingle();
+        const totalParcelasOriginais = infoMaxParc?.numero_parcela || dev.qtd_parcelas || 1;
+
+        // Ratio baseado no contrato ORIGINAL (não inflado por multas)
+        const totalOriginalContrato  = Math.round(valorOriginalParcela * totalParcelasOriginais * 100) / 100;
+        const ratioCapitalOriginal   = totalOriginalContrato > 0 ? (capitalAtual / totalOriginalContrato) : 0;
+
+        // Capital e juros mensalidade apenas da porção original da parcela
+        const amortizaCapital        = Math.round(pagoSobreOriginal * ratioCapitalOriginal * 100) / 100;
+        const amortizaJurosMensalid  = Math.round((pagoSobreOriginal - amortizaCapital) * 100) / 100;
+
+        // Total de juros no log = mensalidade + multa (para totalRecebido estar correto)
+        const amortizaJurosTotal     = Math.round((amortizaJurosMensalid + pagoMulta) * 100) / 100;
+
+        const novoValorTotal      = Math.max(0, Math.round((totalAtual - valPago) * 100) / 100);
+        // Capital reduz APENAS pela porção mensalidade — multa não toca no capital
         const novoValorEmprestado = Math.max(0, Math.round((capitalAtual - amortizaCapital) * 100) / 100);
 
         // PAGAMENTO PARCIAL:
@@ -772,13 +1024,40 @@ app.post('/api/baixar-manual', async (req, res) => {
             ? (dataRecebimento.includes('T') ? dataRecebimento : `${dataRecebimento}T12:00:00-03:00`)
             : new Date().toISOString();
 
+        // Determina se o contrato estava atrasado (tem multa embutida no pagamento)
+        const dataVencCheck = new Date(dev.data_vencimento + 'T00:00:00-03:00');
+        const hojeCheck     = new Date(); hojeCheck.setHours(0,0,0,0);
+        const estaAtrasado  = dataVencCheck < hojeCheck;
+
+        // Evento e detalhe diferenciados para o relatório classificar corretamente:
+        //   Pagamento em dia    → "Pagamento de Parcela"
+        //   Pagamento atrasado  → "Pagamento com Atraso" + tag [MULTA] nos detalhes
+        //
+        // valor_juros no log = amortizaJurosMensalid + pagoMulta
+        //   O relatorio usa valor_juros para saber quanto foi lucro.
+        //   Distingue mensalidade de multa pelo evento/tag — não pelo valor_juros bruto.
+        const eventoLog = estaAtrasado ? 'Pagamento com Atraso' : 'Pagamento de Parcela';
+        const detalhesLog = estaAtrasado
+            ? `[MULTA] [${formaPagamento}] Recebido R$ ${valPago.toFixed(2)} ref. parcela ${parc.numero_parcela} (original: R$ ${pagoSobreOriginal.toFixed(2)} + multa: R$ ${pagoMulta.toFixed(2)}). ${observacoes ? 'OBS: ' + observacoes : ''}`
+            : `[${formaPagamento}] Recebido R$ ${valPago.toFixed(2)} ref. parcela ${parc.numero_parcela}. ${observacoes ? 'OBS: ' + observacoes : ''}`;
+
         const { error } = await supabase.rpc('processar_transacao_financeira', {
-            p_devedor_id: parseInt(id), p_pago: valPago, p_novo_total: novoValorTotal, p_capital: novoValorEmprestado, 
-            p_status: null, p_novo_vencimento: dataVencGlobal, p_novas_parcelas: dev.qtd_parcelas, p_limpar_atraso: false,
-            p_evento: 'Pagamento de Parcela',
-            p_detalhes: `[${formaPagamento}] Recebido R$ ${valPago.toFixed(2)} ref. parcela ${parc.numero_parcela}. ${observacoes ? 'OBS: ' + observacoes : ''}`,
-            p_data_pagamento: dataEnvioFinal, p_valor_capital: amortizaCapital, p_valor_juros: amortizaJuros,
-            p_parcela_id: parseInt(parcelaId), p_parcela_pago: valPago, p_parcela_status: novoStatusParcela
+            p_devedor_id:      parseInt(id),
+            p_pago:            valPago,
+            p_novo_total:      novoValorTotal,
+            p_capital:         novoValorEmprestado,   // capital reduz só pela porção mensalidade
+            p_status:          null,
+            p_novo_vencimento: dataVencGlobal,
+            p_novas_parcelas:  dev.qtd_parcelas,
+            p_limpar_atraso:   estaAtrasado,          // limpa flag de atraso se pagou
+            p_evento:          eventoLog,
+            p_detalhes:        detalhesLog,
+            p_data_pagamento:  dataEnvioFinal,
+            p_valor_capital:   amortizaCapital,       // só a porção mensalidade
+            p_valor_juros:     amortizaJurosTotal,    // mensalidade + multa = lucro total
+            p_parcela_id:      parseInt(parcelaId),
+            p_parcela_pago:    valPago,
+            p_parcela_status:  novoStatusParcela
         });
         if (error) throw error;
         
@@ -867,8 +1146,16 @@ app.post('/api/estornar-pagamento', async (req, res) => {
         const valorEstornarBruto = parseFloat(logOriginal.valor_fluxo);
         if (valorEstornarBruto <= 0) throw new Error("Apenas recebimentos podem ser estornados.");
 
-        const tinhaMulta = logOriginal.detalhes.toLowerCase().includes('multa') || logOriginal.evento.toLowerCase().includes('atraso');
-        const tagMulta = tinhaMulta ? ' [MULTA]' : '';
+        const eraAtrasado = logOriginal.evento?.toLowerCase().includes('atraso')
+            || logOriginal.detalhes?.includes('[MULTA]');
+        const tagMulta = eraAtrasado ? ' [MULTA]' : '';
+
+        // Extrai porção da multa do detalhe para reverter corretamente no DRE
+        let multaOriginal = 0;
+        if (eraAtrasado) {
+            const matchMulta = (logOriginal.detalhes || '').match(/multa[:\s]+R?\$?\s*([\d.]+)/i);
+            multaOriginal = matchMulta ? Math.round(parseFloat(matchMulta[1]) * 100) / 100 : 0;
+        }
 
         let numParcela = null;
         const match = logOriginal.detalhes.match(/ref\. parcela (\d+)/i);
@@ -894,11 +1181,24 @@ app.post('/api/estornar-pagamento', async (req, res) => {
             }
         }
 
+        const detalheEstorno = multaOriginal > 0
+            ? `Estorno (Ref. Log #${logId}). Valores devolvidos.${tagMulta} multa: R$ ${multaOriginal.toFixed(2)}`
+            : `Estorno (Ref. Log #${logId}). Valores devolvidos.${tagMulta}`;
+
         const { error: errEstorno } = await supabase.rpc('processar_transacao_financeira', {
-            p_devedor_id: logOriginal.devedor_id, p_pago: -Math.abs(valorEstornarBruto), p_novo_total: 0, p_capital: 0,
-            p_status: 'ABERTO', p_evento: 'Estorno de Pagamento', p_detalhes: `Estorno (Ref. Log #${logId}). Valores devolvidos.${tagMulta}`,
-            p_valor_capital: -Math.abs(parseFloat(logOriginal.valor_capital || 0)), p_valor_juros: -Math.abs(parseFloat(logOriginal.valor_juros || 0)),
-            p_limpar_atraso: false, p_parcela_id: p_parcela_id, p_parcela_pago: p_parcela_pago_negativo, p_parcela_status: p_parcela_status
+            p_devedor_id:    logOriginal.devedor_id,
+            p_pago:          -Math.abs(valorEstornarBruto),
+            p_novo_total:    0,
+            p_capital:       0,
+            p_status:        'ABERTO',
+            p_evento:        'Estorno de Pagamento',
+            p_detalhes:      detalheEstorno,
+            p_valor_capital: -Math.abs(parseFloat(logOriginal.valor_capital || 0)),
+            p_valor_juros:   -Math.abs(parseFloat(logOriginal.valor_juros   || 0)),
+            p_limpar_atraso: false,
+            p_parcela_id:    p_parcela_id,
+            p_parcela_pago:  p_parcela_pago_negativo,
+            p_parcela_status: p_parcela_status
         });
 
         if (errEstorno) throw errEstorno;
@@ -1058,8 +1358,8 @@ app.post('/api/simular-emprestimo', async (req, res) => {
         const valorParcela = Math.round((totalDevido / parcelas) * 100) / 100;
         const roiPct       = Math.round((lucro / valor) * 10000) / 100;
 
-        // Projeção de risco: multa se ficar 15 dias atrasado (1%/dia sobre capital)
-        const multaDiaria15         = Math.round(valor * 0.01 * 15 * 100) / 100;
+        const taxaMulta      = await buscarTaxaMultaDiaria();
+        const multaDiaria15         = Math.round(valor * taxaMulta * 15 * 100) / 100;
         const totalCom15DiasAtraso  = Math.round((totalDevido + multaDiaria15) * 100) / 100;
 
         // Vencimento projetado
@@ -1115,61 +1415,91 @@ app.post('/api/relatorio-periodo', async (req, res) => {
         }
 
         let totalEmprestado = 0, totalRecebido = 0, totalDespesas = 0;
-        let jurosAtrasoGerado = 0, jurosMensalidadeFix = 0;
+        let jurosMensalidadeFix = 0;  // juros mensais recebidos (receita prevista)
+        let jurosAtrasoGerado   = 0;  // multa de atraso RECEBIDA (receita extra)
+        let multasAcumuladas    = 0;  // multa GERADA no período mas ainda não paga (v=0)
         let qtdCadastros = 0, qtdQuitados = 0;
 
         // ── CONTROLE DE ESTORNOS ─────────────────────────────────────────────
-        // Cada estorno é rastreado individualmente para aparecer em destaque
-        // no relatório — evita que o admin passe batido achando que não foi estornado.
         let qtdEstornos   = 0;
-        let totalEstornado = 0; // valor absoluto total revertido no período
-        const listaEstornos = []; // detalhes de cada estorno para o frontend destacar
+        let totalEstornado = 0;
+        const listaEstornos = [];
         // ─────────────────────────────────────────────────────────────────────
 
         (logs || []).forEach(log => {
             const dev = Array.isArray(log.devedores) ? log.devedores[0] : log.devedores; 
             if (dev && dev.status === 'CANCELADO') return;
 
-            const v           = Number(log.valor_fluxo) || 0;
-            const jurosOrig   = Number(log.valor_juros)  || 0;
-            const capitalOrig = Number(log.valor_capital) || 0;
-            const ev  = log.evento  || "";
+            const v         = Number(log.valor_fluxo) || 0;
+            const jurosOrig = Number(log.valor_juros)  || 0;
+            const capOrig   = Number(log.valor_capital) || 0;
+            const ev  = log.evento   || "";
             const det = log.detalhes || "";
 
-            if (ev.includes('Estorno')) {
-                // v é negativo — abate corretamente o totalRecebido no DRE
-                totalRecebido += v;
-                if (det.includes('[MULTA]')) jurosAtrasoGerado += jurosOrig;
-                else jurosMensalidadeFix += jurosOrig;
+            // ── Multa GERADA (robô diário) — v=0, ainda não paga ──────────────
+            if (ev === 'Juros de Atraso' && v === 0) {
+                // Rastreia multa acumulada no período. NÃO entra em totalRecebido.
+                // Quando o cliente pagar, vai para jurosAtrasoGerado.
+                multasAcumuladas += jurosOrig;
+                return;
+            }
 
-                // Registro individual do estorno para destaque no frontend
-                qtdEstornos++;
-                totalEstornado += Math.abs(v);
-                listaEstornos.push({
-                    log_id:      log.id,
-                    data:        log.created_at,
-                    cliente:     dev?.nome || 'Desconhecido',
-                    valor:       Math.abs(v),
-                    capital_revertido: Math.abs(capitalOrig),
-                    juros_revertido:   Math.abs(jurosOrig),
-                    detalhes:    det,
-                    tipo_multa:  det.includes('[MULTA]'),
-                });
-            }
-            else if (ev === 'Empréstimo Liberado' || (ev.includes('Ajuste') && v < 0)) {
-                totalEmprestado += Math.abs(v);
-                if (ev === 'Empréstimo Liberado') qtdCadastros++;
-            }
-            else if (ev === 'SAÍDA DE CAIXA') {
-                totalDespesas += Math.abs(v);
-            }
-            else if (v > 0) {
-                totalRecebido += v;
-                if (ev.includes('Atraso') || det.includes('Multa') || det.includes('Atraso')) {
-                    jurosAtrasoGerado += jurosOrig;
+            // ── Estornos ─────────────────────────────────────────────────────
+            if (ev.includes('Estorno')) {
+                totalRecebido += v; // v negativo — abate do totalRecebido
+                // Estorno de multa: reverte jurosAtraso; estorno de mensalidade: reverte mensalidade
+                if (det.includes('[MULTA]') || ev.includes('Atraso')) {
+                    jurosAtrasoGerado   += jurosOrig; // jurosOrig negativo → reduz
                 } else {
                     jurosMensalidadeFix += jurosOrig;
                 }
+                qtdEstornos++;
+                totalEstornado += Math.abs(v);
+                listaEstornos.push({
+                    log_id:            log.id,
+                    data:              log.created_at,
+                    cliente:           dev?.nome || 'Desconhecido',
+                    valor:             Math.abs(v),
+                    capital_revertido: Math.abs(capOrig),
+                    juros_revertido:   Math.abs(jurosOrig),
+                    detalhes:          det,
+                    tipo_multa:        det.includes('[MULTA]'),
+                });
+                return;
+            }
+
+            // ── Empréstimos liberados / saídas ────────────────────────────────
+            if (ev === 'Empréstimo Liberado' || (ev.includes('Ajuste') && v < 0)) {
+                totalEmprestado += Math.abs(v);
+                if (ev === 'Empréstimo Liberado') qtdCadastros++;
+                return;
+            }
+            if (ev === 'SAÍDA DE CAIXA') {
+                totalDespesas += Math.abs(v);
+                return;
+            }
+
+            // ── Recebimentos positivos ────────────────────────────────────────
+            if (v > 0) {
+                totalRecebido += v;
+
+                if (ev === 'Pagamento com Atraso' || det.includes('[MULTA]')) {
+                    // Extrai o valor da multa do detalhe estruturado:
+                    // "original: R$ 1000.00 + multa: R$ 540.00"
+                    const matchMulta = det.match(/multa[:\s]+R?\$?\s*([\d.]+)/i);
+                    const multaPaga  = matchMulta ? Math.round(parseFloat(matchMulta[1]) * 100) / 100 : 0;
+                    const mensalPago = Math.max(0, Math.round((jurosOrig - multaPaga) * 100) / 100);
+
+                    jurosAtrasoGerado   += multaPaga;
+                    jurosMensalidadeFix += mensalPago;
+
+                    // Quando multa é paga, subtrai das acumuladas pendentes
+                    // (evita contar duas vezes no resumo de lucro estimado)
+                    multasAcumuladas = Math.max(0, multasAcumuladas - multaPaga);
+                } else {
+                    jurosMensalidadeFix += jurosOrig;
+                }
+
                 if (ev === 'Quitação Total') qtdQuitados++;
             }
         });
@@ -1201,25 +1531,21 @@ app.post('/api/relatorio-periodo', async (req, res) => {
 
         res.json({
             totalEmprestado,
-            // totalRecebido já é líquido: entradas brutas menos estornos
-            totalRecebido,
+            totalRecebido,         // entradas brutas menos estornos
             totalDespesas,
             lucro:              lucroLiquidoReal,
-            jurosAtrasoGerado,
+            jurosAtrasoGerado,     // multa de atraso RECEBIDA no período
             jurosMensalidade:   jurosMensalidadeFix,
+            multasAcumuladas:   Math.round(multasAcumuladas * 100) / 100, // multa gerada mas ainda não paga
             qtdCadastros,
             qtdQuitados,
             totalGarantias,
             valor_inadimplencia: valorTotalAtrasadoReal,
-            // ── RESUMO DE ESTORNOS ──────────────────────────────────────────
-            // Permite ao frontend mostrar um aviso em destaque quando existirem
-            // estornos no período — ex: "⚠️ 2 estornos (R$600 devolvidos)"
             estornos: {
-                quantidade:     qtdEstornos,
+                quantidade:      qtdEstornos,
                 total_revertido: Math.round(totalEstornado * 100) / 100,
-                lista:          listaEstornos,    // detalhe de cada estorno
+                lista:           listaEstornos,
             },
-            // ────────────────────────────────────────────────────────────────
             movimentacoes: movFormatadas,
         });
 
@@ -1242,6 +1568,36 @@ const rodarRoboCobranca = async () => {
     const hojeDate = new Date(hoje + 'T00:00:00-03:00');
 
     try {
+        // ── PASSO 1: MARCAR ABERTO → ATRASADO ────────────────────────────────
+        // Contratos ABERTOS com vencimento no passado precisam ser marcados como
+        // ATRASADO antes de qualquer coisa — senão o cron nunca os processa e
+        // a multa nunca é aplicada. Esta é a causa do "valor não atualizado".
+        const { data: vencidos } = await supabase
+            .from('devedores')
+            .select('id, data_vencimento')
+            .eq('status', 'ABERTO')
+            .lt('data_vencimento', hoje);
+
+        if (vencidos?.length > 0) {
+            const idsVencidos = vencidos.map(d => d.id);
+            await supabase
+                .from('devedores')
+                .update({ status: 'ATRASADO' })
+                .in('id', idsVencidos);
+
+            // Marca também as parcelas correspondentes como ATRASADO
+            await supabase
+                .from('parcelas')
+                .update({ status: 'ATRASADO' })
+                .in('devedor_id', idsVencidos)
+                .eq('status', 'PENDENTE')
+                .lt('data_vencimento', hoje);
+
+            console.log(`[ROBÔ] ${idsVencidos.length} contrato(s) marcado(s) ABERTO → ATRASADO`);
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
+        // ── PASSO 2: BUSCAR TODOS OS ATRASADOS (incluindo os recém-marcados) ─
         const { data: devedores, error } = await supabase
             .from('devedores')
             .select('*')
@@ -1265,26 +1621,50 @@ const rodarRoboCobranca = async () => {
                     const dtVenc   = new Date(dev.data_vencimento + 'T00:00:00-03:00');
                     const diasAtraso = Math.max(1, Math.floor((hojeDate - dtVenc) / (1000 * 60 * 60 * 24)));
 
-                    // 3. Busca saldo atualizado (após multa recém aplicada) para mostrar na mensagem
+                    // 3. Busca saldo e parcelas atrasadas para montar o valor correto da mensagem
                     const { data: devAtualizado } = await supabase
-                        .from('devedores').select('valor_total, valor_emprestado').eq('id', dev.id).single();
-                    const saldoAtual   = parseFloat(devAtualizado?.valor_total   || dev.valor_total);
-                    const capitalBase  = parseFloat(devAtualizado?.valor_emprestado || dev.valor_emprestado);
+                        .from('devedores')
+                        .select('valor_total, valor_emprestado, ultima_cobranca_atraso, isento_multa, status, data_vencimento')
+                        .eq('id', dev.id).single();
+                    const saldoTotalAtual = parseFloat(devAtualizado?.valor_total   || dev.valor_total);
+                    const capitalBase     = parseFloat(devAtualizado?.valor_emprestado || dev.valor_emprestado);
+
+                    // Multa total acumulada: capital × taxa × dias totais em atraso
+                    const taxaRobo = await buscarTaxaMultaDiaria();
+                    const dtVencRobo = new Date((devAtualizado?.data_vencimento || dev.data_vencimento) + 'T00:00:00-03:00');
+                    const diasTotaisAtraso = Math.max(1, Math.floor((hojeDate - dtVencRobo) / (1000 * 60 * 60 * 24)));
+                    const multaTotalAcum = Math.round(capitalBase * taxaRobo * diasTotaisAtraso * 100) / 100;
+
+                    // VALOR DA MENSAGEM:
+                    // Parcelado → soma só as parcelas vencidas + multa total sobre o capital
+                    // Simples   → saldo total do contrato (já correto)
+                    let saldoMensagem = saldoTotalAtual;
+                    if (dev.qtd_parcelas > 1) {
+                        const { data: parcsVenc } = await supabase
+                            .from('parcelas')
+                            .select('valor_original, valor_pago')
+                            .eq('devedor_id', dev.id)
+                            .in('status', ['ATRASADO', 'PENDENTE', 'PARCIAL'])
+                            .lte('data_vencimento', hoje);
+                        if (parcsVenc?.length > 0) {
+                            const saldoVencidas = parcsVenc.reduce((acc, p) =>
+                                acc + Math.max(0, parseFloat(p.valor_original) - parseFloat(p.valor_pago || 0)), 0);
+                            saldoMensagem = Math.round((saldoVencidas + multaTotalAcum) * 100) / 100;
+                        }
+                    }
 
                     // 4. Escolhe chave PIX conforme configuração
-                    const valorParaPix = dev.qtd_parcelas > 1
-                        ? saldoAtual / dev.qtd_parcelas
-                        : saldoAtual;
-                    const pixDados = escolherPixInteligente(confPix?.valor, valorParaPix);
+                    const pixDados = escolherPixInteligente(confPix?.valor, saldoMensagem);
 
-                    // 5. Dispara a mensagem escalonada
+                    // 5. Dispara a mensagem escalonada com o valor correto
                     if (!dev.cobrar_so_em_dinheiro || diasAtraso >= 25) {
                         await enviarReguaCobranca(
                             dev.telefone, dev.nome,
-                            saldoAtual, capitalBase,
+                            saldoMensagem, capitalBase,
                             diasAtraso,
                             dev.cobrar_so_em_dinheiro ? null : pixDados,
-                            dev.referencia1_nome || null
+                            dev.referencia1_nome || null,
+                            multaTotalAcum
                         );
                     }
 
@@ -1397,17 +1777,11 @@ cron.schedule('0 7 * * *',    rodarResumoDiarioAdmin, { scheduled: true, timezon
 cron.schedule('0 8,14 * * *', rodarRoboCobranca,      { scheduled: true, timezone: "America/Sao_Paulo" });
 cron.schedule('0 9 * * *',    rodarRoboLembretes,     { scheduled: true, timezone: "America/Sao_Paulo" });
 
-// Rotas de cron protegidas por CRON_SECRET
-const verificarCronSecret = (req, res, next) => {
-    const secret = process.env.CRON_SECRET;
-    if (!secret || req.headers['x-cron-secret'] !== secret) {
-        return res.status(403).json({ erro: "Acesso negado ao endpoint de cron." });
-    }
-    next();
-};
-app.get('/api/forcar-robo',         verificarCronSecret, async (req, res) => res.json(await rodarRoboCobranca()      || { status: "OK" }));
-app.get('/api/forcar-lembretes',    verificarCronSecret, async (req, res) => res.json(await rodarRoboLembretes()     || { status: "OK" }));
-app.get('/api/forcar-resumo-admin', verificarCronSecret, async (req, res) => res.json(await rodarResumoDiarioAdmin() || { status: "OK" }));
+// Rotas de acionamento manual dos robôs — protegidas pelo authMiddleware (login do admin)
+// CRON_SECRET removido: o login já garante que só o admin acessa.
+app.get('/api/forcar-robo',         async (req, res) => res.json(await rodarRoboCobranca()      || { status: "OK" }));
+app.get('/api/forcar-lembretes',    async (req, res) => res.json(await rodarRoboLembretes()     || { status: "OK" }));
+app.get('/api/forcar-resumo-admin', async (req, res) => res.json(await rodarResumoDiarioAdmin() || { status: "OK" }));
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`🚀 Plataforma CMS Ventures operando na porta ${PORT}`));

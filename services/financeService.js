@@ -369,13 +369,18 @@ module.exports = { recalcularDivida, aplicarMultaDiaria };
 async function aplicarMultaDiaria(dev, hojeStr) {
     if (!dev || dev.isento_multa) return;
 
-    // BASE DA MULTA: capital emprestado (não o total que já inclui juros mensais)
     const capitalBase = Math.round(parseFloat(dev.valor_emprestado || 0) * 100) / 100;
     const totalAtual  = Math.round(parseFloat(dev.valor_total    || 0) * 100) / 100;
     if (capitalBase <= 0 || totalAtual <= 0) return;
 
-    // Percentual diário padrão 1%. Pode ser configurável via tabela config futuramente.
-    const percentualDiario = 0.01;
+    // Lê taxa de multa diária da tabela config (chave 'multa_diaria', valor em %)
+    // Ex: config valor = '3' → 3%/dia → 0.03
+    let percentualDiario = 0.01; // fallback padrão
+    try {
+        const { data: cfgMulda } = await supabase.from('config').select('valor').eq('chave', 'multa_diaria').maybeSingle();
+        if (cfgMulda?.valor) percentualDiario = Math.max(0, parseFloat(cfgMulda.valor) / 100);
+    } catch (_) {}
+
     const multaValor = Math.round(capitalBase * percentualDiario * 100) / 100;
     const novoTotal  = Math.round((totalAtual + multaValor) * 100) / 100;
 

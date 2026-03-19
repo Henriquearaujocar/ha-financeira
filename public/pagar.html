@@ -144,7 +144,10 @@
                         return;
                     }
 
-                    const valorTotalFloat = parseFloat(dev.valor_total);
+                    // PROJEÇÃO AO VIVO: usa valor_total_projetado (já inclui multas pendentes
+                    // desde o último robô) para que o cliente pague o valor correto do dia.
+                    // Cai para valor_total se a projeção não estiver disponível.
+                    const valorTotalFloat = parseFloat(dev.valor_total_projetado || dev.valor_total);
                     window.valorMaximoPagar = valorTotalFloat;
                     document.getElementById('valorTotal').innerText = valorTotalFloat.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -154,7 +157,11 @@
                         const numeroParcela = (dev.parcelas_pagas || 0) + 1;
                         document.getElementById('nomeCliente').innerText = `${nomeQuebrado} (Pagando Parcela ${numeroParcela}/${dev.qtd_parcelas})`;
                         document.getElementById('lblValorPagar').innerText = "Valor da Parcela Atual (R$)";
-                        document.getElementById('valorAbater').value = parseFloat(dev.valor_parcela).toFixed(2);
+                        // Para parcelado usa valor_parcela + multa proporcional pendente
+                        const multaPorParcela = dev.multa_pendente > 0
+                            ? Math.round((dev.multa_pendente / dev.qtd_parcelas) * 100) / 100
+                            : 0;
+                        document.getElementById('valorAbater').value = (parseFloat(dev.valor_parcela) + multaPorParcela).toFixed(2);
                     } else {
                         document.getElementById('nomeCliente').innerText = dev.nome.split(' ')[0];
                         document.getElementById('lblValorPagar').innerText = "Valor que deseja pagar (R$)";
@@ -169,7 +176,8 @@
                     
                     if(dataVenc < hoje) {
                         elVenc.classList.replace('text-orange-400', 'text-red-500');
-                        elVenc.innerText += " (EM ATRASO - COM MULTA)";
+                        const diasStr = dev.dias_pendentes > 0 ? ` — ${dev.dias_pendentes} dias de multa acumulados` : '';
+                        elVenc.innerText += ` (EM ATRASO - COM MULTA${diasStr})`;
                     }
 
                     document.getElementById('step-auth').classList.add('hidden');
