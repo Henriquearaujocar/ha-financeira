@@ -1047,8 +1047,23 @@
         </div>
     </div>
 
-    <div id="modalZoom" class="fixed inset-0 bg-black/95 z-[200] hidden flex items-center justify-center p-4 cursor-pointer">
-        <img id="zoomSource" src="" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl">
+    <div id="modalZoom" class="fixed inset-0 bg-black/95 z-[200] hidden flex items-center justify-center p-4">
+        <!-- Fechar -->
+        <button onclick="document.getElementById('modalZoom').classList.add('hidden')" class="absolute top-5 right-5 text-white/70 hover:text-white text-3xl z-10"><i class="fa-solid fa-xmark"></i></button>
+        <!-- Label da foto -->
+        <p id="zoomLabel" class="absolute top-5 left-1/2 -translate-x-1/2 text-white/60 text-xs font-black uppercase tracking-widest"></p>
+        <!-- Botão anterior -->
+        <button onclick="navegarZoom(-1)" class="absolute left-4 text-white/70 hover:text-white text-4xl z-10 bg-black/40 hover:bg-black/70 w-12 h-12 rounded-full flex items-center justify-center transition-all">
+            <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        <!-- Foto -->
+        <img id="zoomSource" src="" class="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl select-none">
+        <!-- Botão próximo -->
+        <button onclick="navegarZoom(1)" class="absolute right-4 text-white/70 hover:text-white text-4xl z-10 bg-black/40 hover:bg-black/70 w-12 h-12 rounded-full flex items-center justify-center transition-all">
+            <i class="fa-solid fa-chevron-right"></i>
+        </button>
+        <!-- Indicadores -->
+        <div id="zoomDots" class="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2"></div>
     </div>
 
     <div id="modalDocumentos" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
@@ -1458,21 +1473,63 @@
             document.getElementById(id).classList.add('hidden'); 
         }
         
-        function zoomImg(src) { 
-            document.getElementById('zoomSource').src = src; 
-            document.getElementById('modalZoom').classList.remove('hidden'); 
-        }
-        
-        function logout() { 
-            localStorage.removeItem('token'); 
-            window.location.href = '/login.html'; 
+        // ── GALERIA DE FOTOS COM NAVEGAÇÃO ──────────────────────────────────
+        let _zoomFotos  = [];   // lista de { src, label } carregada ao abrir o modal de docs
+        let _zoomIndice = 0;    // foto atual
+
+        function zoomImg(src) {
+            // Monta galeria com as fotos disponíveis no modal de documentos atual
+            const ids = [
+                { id: 'imgSelfie',    label: 'Selfie' },
+                { id: 'imgFrente',    label: 'Doc. Frente' },
+                { id: 'imgVerso',     label: 'Doc. Verso' },
+                { id: 'imgResidencia',label: 'Residência' },
+                { id: 'imgCasa',      label: 'Fachada' },
+            ];
+            const placeholder = 'via.placeholder.com';
+            _zoomFotos = ids
+                .map(f => ({ src: document.getElementById(f.id)?.src || '', label: f.label }))
+                .filter(f => f.src && !f.src.includes(placeholder) && !f.src.endsWith('undefined'));
+
+            // Abre na foto clicada
+            const idx = _zoomFotos.findIndex(f => f.src === src);
+            _zoomIndice = idx >= 0 ? idx : 0;
+            _renderZoom();
+            document.getElementById('modalZoom').classList.remove('hidden');
         }
 
+        function _renderZoom() {
+            const foto = _zoomFotos[_zoomIndice];
+            if (!foto) return;
+            document.getElementById('zoomSource').src  = foto.src;
+            document.getElementById('zoomLabel').innerText = `${foto.label} (${_zoomIndice + 1}/${_zoomFotos.length})`;
+
+            // Dots de navegação
+            const dots = document.getElementById('zoomDots');
+            dots.innerHTML = _zoomFotos.map((_, i) =>
+                `<span class="w-2 h-2 rounded-full transition-all ${i === _zoomIndice ? 'bg-white' : 'bg-white/30'}"></span>`
+            ).join('');
+        }
+
+        function navegarZoom(dir) {
+            if (!_zoomFotos.length) return;
+            _zoomIndice = (_zoomIndice + dir + _zoomFotos.length) % _zoomFotos.length;
+            _renderZoom();
+        }
+
+        // Teclas ← → para navegar, ESC para fechar
         document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                document.querySelectorAll('.fixed.inset-0:not(#modalSessaoExpirada)').forEach(m => m.classList.add('hidden'));
+            const zoom = document.getElementById('modalZoom');
+            if (!zoom.classList.contains('hidden')) {
+                if (e.key === 'ArrowLeft')  { navegarZoom(-1); return; }
+                if (e.key === 'ArrowRight') { navegarZoom(1);  return; }
+                if (e.key === 'Escape')     { zoom.classList.add('hidden'); return; }
             }
         });
+            localStorage.removeItem('token'); 
+            window.location.href = '/login.html'; 
+        
+
 
         // =====================================
         // DASHBOARD E PREVISÃO DE CAIXA
