@@ -1486,22 +1486,23 @@ app.post('/api/relatorio-periodo', async (req, res) => {
             if (v > 0) {
                 totalRecebido += v;
 
-                if (ev === 'Pagamento com Atraso' || det.includes('[MULTA]')) {
-                    // Extrai o valor da multa do detalhe estruturado:
-                    // "original: R$ 1000.00 + multa: R$ 540.00"
-                    const matchMulta = det.match(/multa[:\s]+R?\$?\s*([\d.]+)/i);
-                    const multaPaga  = matchMulta ? Math.round(parseFloat(matchMulta[1]) * 100) / 100 : 0;
-                    const mensalPago = Math.max(0, Math.round((jurosOrig - multaPaga) * 100) / 100);
+                // CÁLCULO CORRETO DE MENSALIDADE:
+                // NÃO usa valor_juros do log (pode estar errado em logs antigos por drift de ratio).
+                // Recalcula sempre: mensalidade = valor_recebido - capital_amortizado - multa_paga
+                // Isso é matematicamente correto independente de como foi gravado.
+                const multaPaga = (() => {
+                    if (ev === 'Pagamento com Atraso' || det.includes('[MULTA]')) {
+                        const m = det.match(/multa[:\s]+R?\$?\s*([\d.]+)/i);
+                        return m ? Math.round(parseFloat(m[1]) * 100) / 100 : 0;
+                    }
+                    return 0;
+                })();
 
-                    jurosAtrasoGerado   += multaPaga;
-                    jurosMensalidadeFix += mensalPago;
+                const mensalPago = Math.max(0, Math.round((v - capOrig - multaPaga) * 100) / 100);
 
-                    // Quando multa é paga, subtrai das acumuladas pendentes
-                    // (evita contar duas vezes no resumo de lucro estimado)
-                    multasAcumuladas = Math.max(0, multasAcumuladas - multaPaga);
-                } else {
-                    jurosMensalidadeFix += jurosOrig;
-                }
+                jurosAtrasoGerado   += multaPaga;
+                jurosMensalidadeFix += mensalPago;
+                multasAcumuladas = Math.max(0, multasAcumuladas - multaPaga);
 
                 if (ev === 'Quitação Total') qtdQuitados++;
             }
