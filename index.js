@@ -314,8 +314,45 @@ app.post('/api/enviar-solicitacao', async (req, res) => {
         }]);
         
         if (error) throw error;
-        
-        enviarZap(process.env.ADMIN_WHATSAPP, `🚀 CMS Ventures - Nova Solicitação:\n👤 ${d.nome}\n💰 R$ ${d.valor}`).catch(e => {});
+
+        // ── NOTIFICAÇÃO DE NOVA SOLICITAÇÃO ──────────────────────────────────
+        // Envia para ADMIN_WHATSAPP (número principal) E para NOTIF_WHATSAPP
+        // (segundo número — só recebe notificações, ex: sócio, outro celular).
+        // Para configurar o segundo número: adicione NOTIF_WHATSAPP no .env
+        const numerosNotif = [
+            process.env.ADMIN_WHATSAPP,
+            process.env.NOTIF_WHATSAPP,   // segundo número (opcional)
+        ].filter(Boolean);                // remove os que não estão configurados
+
+        if (numerosNotif.length > 0) {
+            const valorFmt  = Number(limparMoeda(d.valor)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            const planoFmt  = d.tipo_plano === '30DIAS'
+                ? `Única parcela (30 dias)`
+                : `${parcelasMatematicas}x — ${d.frequencia === 'SEMANAL' ? 'Semanal' : 'Mensal'}`;
+            const cpfFmt    = (d.cpf || '').replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+            const indicador = d.indicado_por && d.indicado_por !== 'DIRETO'
+                ? `\n🤝 *Indicado por:* ${d.indicado_por}` : '';
+            const ref1      = d.referencia1_nome
+                ? `\n📞 *Referência:* ${d.referencia1_nome}${d.referencia1_tel ? ' — ' + d.referencia1_tel : ''}` : '';
+            const obs       = d.observacoes ? `\n📝 *Obs:* ${d.observacoes}` : '';
+
+            const msgNotif =
+                `🔔 *CMS VENTURES — NOVA SOLICITAÇÃO*\n\n` +
+                `👤 *Nome:* ${d.nome}\n` +
+                `🪪 *CPF:* ${cpfFmt}\n` +
+                `📱 *WhatsApp:* ${d.whatsapp || '—'}\n` +
+                `💰 *Valor:* ${valorFmt}\n` +
+                `📋 *Plano:* ${planoFmt}` +
+                indicador + ref1 + obs + `\n\n` +
+                `👉 Acesse o painel para *aprovar ou rejeitar*:\n${process.env.APP_URL || 'http://localhost:3001'}`;
+
+            // Envia para todos os números configurados (sem bloquear a resposta)
+            numerosNotif.forEach(num => {
+                enviarZap(num, msgNotif).catch(e => console.warn(`[NOTIF SOLICITAÇÃO] Falha para ${num}:`, e.message));
+            });
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         res.status(200).json({ mensagem: "Solicitação recebida com sucesso!" });
     } catch (err) { res.status(500).json({ erro: err.message }); }
 });
