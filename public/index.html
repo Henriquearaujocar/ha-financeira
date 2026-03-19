@@ -1591,6 +1591,8 @@
                 document.getElementById('dash-capital-rua').innerText = formatMoney(parseFloat(data.capitalNaRua) || 0);
                 document.getElementById('dash-caixa-disponivel').innerText = formatMoney(parseFloat(data.caixaDisponivel) || 0);
                 document.getElementById('dash-valor-atraso').innerText = formatMoney(parseFloat(data.valor_inadimplencia) || 0);
+                // Finalizados vem direto do banco (COUNT status=QUITADO), sempre preciso
+                document.getElementById('dash-finalizados').innerText = parseInt(data.finalizados) || 0;
 
                 const resLogs = await fetchSeguro(`${API_BASE}/api/logs-auditoria`, { headers: headersAuth });
                 const logsReais = resLogs.ok ? await resLogs.json() : [];
@@ -2044,16 +2046,13 @@ function renderizarAberto(lista) {
         }
 
         async function prepararPagamento(idDevedor, idParcela) {
-    // 1. Busca a parcela específica na lista que veio da View
     const parc = listaDevedoresAtuais.find(x => String(x.parcela_id) === String(idParcela)); 
     if (!parc) return;
 
     document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show')); 
     
-    // 2. Guarda o ID do Devedor e o ID da Parcela
     document.getElementById('pgtoDevedorId').value = parc.devedor_id; 
     
-    // Cria um input oculto para a parcela (se não existir)
     let inputParcela = document.getElementById('pgtoParcelaId');
     if(!inputParcela) {
         inputParcela = document.createElement('input');
@@ -2063,54 +2062,64 @@ function renderizarAberto(lista) {
     }
     inputParcela.value = parc.parcela_id;
 
-    // 3. O valor sugerido para pagar agora é exatamente o que falta DESTA parcela
-    const faltaNestaParcela = parseFloat(parc.valor_atual) - parseFloat(parc.valor_pago || 0);
-    document.getElementById('pgtoValor').value = faltaNestaParcela.toFixed(2);
+    // ── CÁLCULO AO VIVO — independente do estado do banco ────────────────────
+    // Não usa valor_atual (pode estar defasado) nem multa_total (pode não existir).
+    // Calcula sempre do zero: capital × taxa × dias_totais desde vencimento.
+    const dtVencModal = new Date(parc.vencimento_parcela + 'T00:00:00-03:00');
+    const hojeModal   = new Date(); hojeModal.setHours(0,0,0,0);
+    const diasAtraso  = dtVencModal < hojeModal
+        ? Math.max(0, Math.floor((hojeModal - dtVencModal) / (1000 * 60 * 60 * 24)))
+        : 0;
 
-    // 4. Preenche os textos visuais
+    // Lê a taxa da config se disponível, senão usa 3% como padrão
+    const taxaDiaria   = (window._taxaMultaDiaria || 3) / 100;
+    const capital      = parseFloat(parc.valor_emprestado || 0);
+    const valOriginal  = parseFloat(parc.valor_original  || parc.valor_atual);
+    const jaPago       = parseFloat(parc.valor_pago      || 0);
+
+    // Multa total sobre o capital do contrato (inteira na primeira parcela vencida)
+    const multaTotal   = diasAtraso > 0 ? Math.round(capital * taxaDiaria * diasAtraso * 100) / 100 : 0;
+    // Valor a pagar nesta parcela = original restante + multa total do contrato
+    const faltaNestaParcela = Math.max(0, Math.round((valOriginal - jaPago + multaTotal) * 100) / 100);
+
+    document.getElementById('pgtoValor').value = faltaNestaParcela.toFixed(2);
     document.getElementById('pgtoNome').innerText = `${parc.nome} (CT #${parc.devedor_id} - Parc ${parc.numero_parcela})`; 
     document.getElementById('pgtoCpf').innerText = parc.cpf; 
     document.getElementById('pgtoDataRecebimento').value = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
 
-    document.getElementById('pgtoAtraso').innerText = "..."; 
+    // Saldo total projetado = valor_total do banco + multa pendente do dia atual
+    const saldoTotalProjetado = Math.round((parseFloat(parc.valor_total) + multaTotal) * 100) / 100;
+
     document.getElementById('pgtoSaldo').innerHTML = `
-        R$ ${parseFloat(parc.valor_total).toFixed(2)}<br>
+        ${formatMoney(saldoTotalProjetado)}<br>
         <span class="text-[9px] text-slate-400 font-normal block mt-1 leading-tight">
-        Falta Nesta Parcela: <b class="text-orange-400">R$ ${faltaNestaParcela.toFixed(2)}</b>
+        Falta Nesta Parcela: <b class="text-orange-400">${formatMoney(faltaNestaParcela)}</b>
+        ${multaTotal > 0 ? `<br><span class="text-red-400">⚠ Multa (${diasAtraso}d × ${(taxaDiaria*100).toFixed(1)}%): ${formatMoney(multaTotal)}</span>` : ''}
         </span>`;
 
-    // Limpa campos manuais
+    // Juros/Multas = multa acumulada total
+    const elJuros = document.getElementById('pgtoMinimoJuros');
+    elJuros.innerText = multaTotal > 0 ? formatMoney(multaTotal) : 'R$ 0,00';
+    elJuros.className = multaTotal > 0 ? 'text-lg text-red-400 font-black mt-1' : 'text-lg text-orange-400 font-black mt-1';
+
+    // Dias em atraso (calculado localmente — sem esperar a API)
+    const elAtraso = document.getElementById('pgtoAtraso');
+    elAtraso.innerText   = diasAtraso > 0 ? `${diasAtraso} Dias` : 'Em Dia';
+    elAtraso.className   = diasAtraso > 0 ? 'text-sm font-black text-red-500 mt-1' : 'text-sm font-black text-emerald-500 mt-1';
+
     document.getElementById('pgtoObs').value = ''; 
     document.getElementById('pgtoAjuste').value = ''; 
     document.getElementById('pgtoNovaTaxa').value = ''; 
     document.getElementById('pgtoNovoParcelamento').value = '';
     document.getElementById('pgtoTratamento').value = 'AMORTIZAR';
-
     document.getElementById('modalPagamento').classList.remove('hidden');
 
-    // Traz estatísticas do servidor
+    // Traz estatísticas adicionais do servidor (capital original, total pago)
     try {
         const res = await fetchSeguro(`${API_BASE}/api/estatisticas-pagamento/${parc.devedor_id}`, { headers: headersAuth });
         if(res.ok) { 
             const data = await res.json(); 
             document.getElementById('pgtoData').innerText = new Date(data.data_emprestimo).toLocaleDateString('pt-BR'); 
-            
-            // Calculando atraso em cima do vencimento DA PARCELA
-            // CORREÇÃO: usar T00:00:00-03:00 (meia-noite BRT) em vez de T12:00:00Z
-            // pois T12:00:00Z = 09h Brasil, tornando a diferença < 24h no primeiro
-            // dia de atraso e Math.floor retornando 0 incorretamente.
-            let dtVenc = new Date(parc.vencimento_parcela + 'T00:00:00-03:00');
-            let hoje = new Date(); hoje.setHours(0,0,0,0);
-            
-            if (dtVenc < hoje) {
-                let dias = Math.floor((hoje - dtVenc) / (1000 * 60 * 60 * 24));
-                document.getElementById('pgtoAtraso').innerText = `${dias} Dias`; 
-                document.getElementById('pgtoAtraso').className = "text-sm font-black text-red-500 mt-1";
-            } else {
-                document.getElementById('pgtoAtraso').innerText = 'Em Dia'; 
-                document.getElementById('pgtoAtraso').className = "text-sm font-black text-emerald-500 mt-1";
-            }
-            
             document.getElementById('pgtoTotalCapital').innerText = formatMoney(data.capital_original); 
             document.getElementById('pgtoTotalPago').innerText = formatMoney(data.total_pago); 
         }
@@ -3312,6 +3321,8 @@ function renderizarAberto(lista) {
                 let obj = {};
                 configList.forEach(c => obj[c.chave] = c.valor);
                 window.sistemaConfig = obj;
+                // Cache da taxa de multa para uso no modal de pagamento sem chamada extra
+                window._taxaMultaDiaria = parseFloat(obj.multa_diaria || 3);
 
                 if (document.getElementById('conf_caixa_total')) {
                     document.getElementById('conf_caixa_total').value = obj.caixa_total || 50000;

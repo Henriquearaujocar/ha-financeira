@@ -476,16 +476,52 @@ app.get(['/api/dashboard', '/api/dashboard-master'], async (req, res) => {
         });
         valorInadimplenciaReal = Math.round(valorInadimplenciaReal * 100) / 100;
 
+        // ── PROJEÇÃO AO VIVO DE MULTAS ────────────────────────────────────────
+        // Usa EXATAMENTE o mesmo cálculo da aba de cobrança (devedores-ativos):
+        //   capital × taxa × diasTotais_desde_vencimento (não dias pendentes)
+        // Isso garante que o dashboard e a aba de cobrança mostram o mesmo número.
+        //
+        // Para não dupla-contar: recalculamos totalAReceber do zero usando parcelas reais.
+        // totalAReceber = sum(valor_original - valor_pago) de parcelas abertas
+        //               + multaTotal por devedor atrasado
+        const { data: todasParcelas } = await supabase
+            .from('vw_cobranca_ativa_parcelas')
+            .select('valor_original, valor_pago, valor_emprestado, vencimento_parcela, devedor_id, status_contrato');
+
+        let totalAReceberCalculado = 0;
+        const multaContadaDash = new Set();
+
+        (todasParcelas || []).forEach(p => {
+            const valOrig = parseFloat(p.valor_original || 0);
+            const jaPago  = parseFloat(p.valor_pago    || 0);
+            totalAReceberCalculado += Math.max(0, valOrig - jaPago);
+
+            // Multa: uma vez por devedor atrasado, sobre o capital total
+            if (p.status_contrato === 'ATRASADO' && !multaContadaDash.has(p.devedor_id)) {
+                const capital  = parseFloat(p.valor_emprestado || 0);
+                const dtVenc   = new Date(p.vencimento_parcela + 'T00:00:00-03:00');
+                const diasTotais = dtVenc < hojeObj
+                    ? Math.max(0, Math.floor((hojeObj - dtVenc) / (1000 * 60 * 60 * 24)))
+                    : 0;
+                if (diasTotais > 0) {
+                    totalAReceberCalculado += Math.round(capital * taxaInad * diasTotais * 100) / 100;
+                }
+                multaContadaDash.add(p.devedor_id);
+            }
+        });
+
+        const totalAReceberReal = Math.round(totalAReceberCalculado * 100) / 100;
+        const capitalNaRuaReal  = parseFloat(resumoSeguro.capitalNaRua) || 0;
+        const lucroEstimadoReal = Math.round((totalAReceberReal - capitalNaRuaReal) * 100) / 100;
+        // ─────────────────────────────────────────────────────────────────────
+
         res.json({ 
-            totalAReceber: resumoSeguro.totalAReceber || 0,
-            // lucroEstimado = totalAReceber - capitalNaRua
-            // totalAReceber inclui juros mensais + multas acumuladas pelo robô
-            // capitalNaRua = só o capital puro sem juros
-            // Resultado: lucro previsto se todos pagarem (mensalidade + multas)
-            lucroEstimado: (parseFloat(resumoSeguro.totalAReceber) || 0) - (parseFloat(resumoSeguro.capitalNaRua) || 0),
+            totalAReceber: totalAReceberReal,
+            lucroEstimado: lucroEstimadoReal,
             recebidoHoje: resumoSeguro.recebidoHoje || 0, 
             pendencias: resumoSeguro.pendencias || 0, 
-            capitalNaRua: resumoSeguro.capitalNaRua || 0,
+            finalizados: resumoSeguro.finalizados || 0,
+            capitalNaRua: capitalNaRuaReal,
             caixaDisponivel: caixaGeral + (parseFloat(resumoSeguro.fluxoLiquidoTotal) || 0),
             caixaConfigurado,
             valor_inadimplencia: valorInadimplenciaReal
@@ -849,11 +885,9 @@ app.get('/api/buscar-cliente-admin/:busca', async (req, res) => {
 app.get('/api/crm', async (req, res) => {
     try {
         const hojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+        const hojeObj = new Date(); hojeObj.setHours(0,0,0,0);
+        const taxa    = await buscarTaxaMultaDiaria();
 
-        // CORREÇÃO: select explícito com 'data_promessa' causava 500 porque a coluna
-        // não existe na view vw_cobranca_ativa_parcelas (apenas em devedores).
-        // Usamos select('*') para buscar tudo que a view expõe sem quebrar.
-        // A view foi atualizada no SQL para incluir d.data_promessa e d.referencia1_nome.
         const { data, error } = await supabase
             .from('vw_cobranca_ativa_parcelas')
             .select('*')
@@ -861,11 +895,44 @@ app.get('/api/crm', async (req, res) => {
             .order('vencimento_parcela', { ascending: true });
 
         if (error) throw error;
-        const formatados = (data || []).map(d => ({
-            ...d,
-            id:          d.devedor_id,
-            valor_total: parseFloat(d.valor_atual) - parseFloat(d.valor_pago || 0)
-        }));
+
+        // Mesma lógica do devedores-ativos:
+        // multa total (capital × taxa × diasTotais) vai inteira na primeira parcela vencida.
+        const multasPorDevedor  = {};
+        const primeiraPorDevedor = {};
+
+        (data || []).forEach(p => {
+            const did = p.devedor_id;
+            if (!multasPorDevedor[did]) {
+                const capital    = parseFloat(p.valor_emprestado || 0);
+                const dtVenc     = new Date(p.vencimento_parcela + 'T00:00:00-03:00');
+                const diasTotais = dtVenc < hojeObj
+                    ? Math.max(0, Math.floor((hojeObj - dtVenc) / (1000 * 60 * 60 * 24)))
+                    : 0;
+                multasPorDevedor[did]    = diasTotais > 0 ? Math.round(capital * taxa * diasTotais * 100) / 100 : 0;
+                primeiraPorDevedor[did]  = p.parcela_id;
+            } else {
+                const jaReg = (data || []).find(x => x.parcela_id === primeiraPorDevedor[did]);
+                if (jaReg && p.vencimento_parcela < jaReg.vencimento_parcela) {
+                    primeiraPorDevedor[did] = p.parcela_id;
+                }
+            }
+        });
+
+        const formatados = (data || []).map(d => {
+            const valOrig  = parseFloat(d.valor_original || d.valor_atual);
+            const jaPago   = parseFloat(d.valor_pago || 0);
+            const multa    = d.parcela_id === primeiraPorDevedor[d.devedor_id]
+                ? (multasPorDevedor[d.devedor_id] || 0)
+                : 0;
+            return {
+                ...d,
+                id:          d.devedor_id,
+                valor_total: Math.round((valOrig - jaPago + multa) * 100) / 100,
+                multa_total: multa,
+            };
+        });
+
         res.json(formatados);
     } catch(e) { res.status(500).json({ erro: e.message }); }
 });
@@ -1009,18 +1076,21 @@ app.post('/api/baixar-manual', async (req, res) => {
         const amortizaJurosMensalid = Math.max(0, Math.round((pagoSobreOriginal - amortizaCapital) * 100) / 100);
         const amortizaJurosTotal    = Math.round((amortizaJurosMensalid + pagoMulta) * 100) / 100;
 
-        const novoValorTotal      = Math.max(0, Math.round((totalAtual - valPago) * 100) / 100);
+        // novoStatusParcela precisa ser declarado ANTES de novoValorTotal que o usa
+        const faltaPagarNaParcela = Math.max(0, restoOriginal);
+        const novoStatusParcela   = (pagoSobreOriginal >= Math.max(0.01, restoOriginal - 0.10)) ? 'PAGA' : 'PARCIAL';
+
+        const novoValorTotal = (() => {
+            if (novoStatusParcela === 'PAGA') {
+                const multaAcumuladaNoBanco = Math.max(0, totalAtual - (parcelasRestantes * valorOriginalParcela));
+                const multaRestante         = Math.max(0, multaAcumuladaNoBanco - pagoMulta);
+                return Math.max(0, Math.round(((parcelasRestantes - 1) * valorOriginalParcela + multaRestante) * 100) / 100);
+            } else {
+                return Math.max(0, Math.round((totalAtual - valPago) * 100) / 100);
+            }
+        })();
         // Capital reduz APENAS pela porção mensalidade — multa não toca no capital
         const novoValorEmprestado = Math.max(0, Math.round((capitalAtual - amortizaCapital) * 100) / 100);
-
-        // PAGAMENTO PARCIAL:
-        // O campo valor_pago na tabela parcelas é acumulativo (SQL faz `valor_pago + p_parcela_pago`).
-        // Isso permite que o cliente pague R$100 hoje e R$100 amanhã na mesma parcela.
-        // faltaPagarNaParcela já desconta o que foi pago antes — a lógica abaixo é sempre sobre o saldo restante.
-        const faltaPagarNaParcela = Math.round((parseFloat(parc.valor_atual) - parseFloat(parc.valor_pago || 0)) * 100) / 100;
-        // CORREÇÃO: threshold nunca pode ser negativo (ex: restam R$0,05, threshold = -0,05
-        // aceitaria qualquer pagamento como quitação). Math.max garante mínimo de R$0,01.
-        const novoStatusParcela = (valPago >= Math.max(0.01, faltaPagarNaParcela - 0.10)) ? 'PAGA' : 'PARCIAL';
 
         let dataVencGlobal  = novoVencimento ? novoVencimento : dev.data_vencimento;
         const dataEnvioFinal = dataRecebimento
@@ -1441,9 +1511,13 @@ app.post('/api/relatorio-periodo', async (req, res) => {
 
             // ── Multa GERADA (robô diário) — v=0, ainda não paga ──────────────
             if (ev === 'Juros de Atraso' && v === 0) {
-                // Rastreia multa acumulada no período. NÃO entra em totalRecebido.
-                // Quando o cliente pagar, vai para jurosAtrasoGerado.
                 multasAcumuladas += jurosOrig;
+                return;
+            }
+
+            // ── Quitação Total — v=0 mas precisa ser contada ──────────────────
+            if (ev === 'Quitação Total') {
+                qtdQuitados++;
                 return;
             }
 
@@ -1503,8 +1577,6 @@ app.post('/api/relatorio-periodo', async (req, res) => {
                 jurosAtrasoGerado   += multaPaga;
                 jurosMensalidadeFix += mensalPago;
                 multasAcumuladas = Math.max(0, multasAcumuladas - multaPaga);
-
-                if (ev === 'Quitação Total') qtdQuitados++;
             }
         });
 
