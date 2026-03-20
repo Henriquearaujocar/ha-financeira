@@ -420,7 +420,10 @@ app.post('/cliente-aceitou', async (req, res) => {
         
         await supabase.from('devedores').update({ status: 'ABERTO' }).eq('id', dev.id);
         await supabase.from('solicitacoes').update({ status: 'ASSINADO' }).eq('cpf', dev.cpf).eq('status', 'APROVADO_CP');
-        await supabase.from('logs').insert([{ evento: "Assinatura Digital", detalhes: `Contrato ativado. Vencimento: ${dev.data_vencimento}.`, devedor_id: dev.id }]); 
+        // Só aqui o dinheiro sai do caixa — cliente assinou, contrato ativado
+        await supabase.from('logs').insert([
+            { evento: 'Empréstimo Liberado', detalhes: `Contrato assinado digitalmente. Vencimento: ${dev.data_vencimento}.`, devedor_id: dev.id, valor_fluxo: -Math.abs(dev.valor_emprestado) },
+        ]);
         res.json({ status: 'Assinado' }); 
     } catch(e) { res.status(500).json({ erro: e.message }); } 
 });
@@ -650,7 +653,9 @@ app.post('/api/aprovar-solicitacao', async (req, res) => {
 
         await gerarParcelasNoBanco(devId, valorTotal, parcelasFinais, dtVencimentoProjetado, freqFinal);
         await supabase.from('solicitacoes').update({ status: 'APROVADO_CP', observacoes: observacao }).eq('id', id);
-        await supabase.from('logs').insert([{ evento: 'Empréstimo Liberado', detalhes: `Aprovado R$ ${valorFinal.toFixed(2)}.`, devedor_id: devId, valor_fluxo: -Math.abs(valorFinal) }]);
+        // NÃO grava log de Empréstimo Liberado aqui — o dinheiro só sai do caixa
+        // quando o cliente assinar. Gravar aqui causava -R$X no caixa mesmo em aprovações
+        // que depois eram rejeitadas ou que o cliente nunca assinou.
 
         const linkAceite = `${APP_URL}/aceitar.html?id=${devUuid}`;
         let whatsappEnviado = false;
@@ -669,10 +674,25 @@ app.post('/api/aprovar-solicitacao', async (req, res) => {
 
 app.post('/api/rejeitar-solicitacao', async (req, res) => {
     try {
-        const { data: sol } = await supabase.from('solicitacoes').select('status').eq('id', req.body.id).single();
+        const { data: sol } = await supabase.from('solicitacoes').select('*').eq('id', req.body.id).single();
         if (sol && sol.status === 'ASSINADO') return res.status(400).json({ erro: "Cliente já assinou este contrato."});
+
         await supabase.from('solicitacoes').update({ status: 'REJEITADO', observacoes: req.body.motivo }).eq('id', req.body.id);
-        await supabase.from('logs').insert([{ evento: "Solicitação Rejeitada", detalhes: `Motivo: ${req.body.motivo}` }]);
+
+        // Se havia um devedor criado aguardando aceite (aprovado mas não assinado),
+        // cancelar para não sujar o dashboard com capital_na_rua fantasma
+        if (sol?.cpf) {
+            await supabase.from('devedores')
+                .update({ status: 'CANCELADO', pago: true })
+                .eq('cpf', sol.cpf.replace(/\D/g, ''))
+                .eq('status', 'APROVADO_AGUARDANDO_ACEITE');
+        }
+
+        await supabase.from('logs').insert([{
+            evento: "Solicitação Rejeitada",
+            detalhes: `Motivo: ${req.body.motivo || '—'}`,
+            valor_fluxo: 0
+        }]);
         res.json({ sucesso: true });
     } catch (e) { res.status(500).json({ erro: e.message }); }
 });
