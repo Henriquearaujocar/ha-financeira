@@ -1358,15 +1358,63 @@
         let devedorKanbanAtual = null;
         let novoStatusKanban = null;
 
-        const token = localStorage.getItem('token');
-        const headersAuth = { 
-            'Content-Type': 'application/json', 
-            'Authorization': `Bearer ${token}` 
+        let _token = localStorage.getItem('token');
+        let _refreshToken = localStorage.getItem('refresh_token');
+        let _tokenExpiraEm = parseInt(localStorage.getItem('token_expira_em') || '0');
+
+        // headersAuth é uma função para sempre pegar o token mais recente
+        const getHeadersAuth = () => ({
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${_token}`
+        });
+        // Compatibilidade com código antigo que usa headersAuth diretamente
+        const headersAuth = new Proxy({}, { get: (_, key) => getHeadersAuth()[key] });
+
+        // Renova o token automaticamente se faltar menos de 5 minutos para expirar
+        const renovarTokenSeNecessario = async () => {
+            const agora = Date.now();
+            if (!_refreshToken || _tokenExpiraEm <= 0) return;
+            if (_tokenExpiraEm - agora > 5 * 60 * 1000) return; // mais de 5min restantes, ok
+
+            try {
+                const res = await fetch(`${API_BASE}/api/refresh-session`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refresh_token: _refreshToken })
+                });
+                if (!res.ok) { logout(); return; }
+                const data = await res.json();
+                _token = data.token;
+                _refreshToken = data.refresh_token;
+                _tokenExpiraEm = Date.now() + (data.expires_in * 1000);
+                localStorage.setItem('token', _token);
+                localStorage.setItem('refresh_token', _refreshToken);
+                localStorage.setItem('token_expira_em', String(_tokenExpiraEm));
+            } catch (e) {
+                console.warn('[AUTH] Falha ao renovar token:', e.message);
+            }
         };
 
+        // Verifica renovação a cada 2 minutos
+        setInterval(renovarTokenSeNecessario, 2 * 60 * 1000);
+
         const fetchSeguro = async (url, options = {}) => {
+            await renovarTokenSeNecessario();
+            // Injeta sempre o token mais recente
+            options.headers = { ...getHeadersAuth(), ...(options.headers || {}) };
             const response = await fetch(url, options);
             if (response.status === 401 || response.status === 403) {
+                // Tenta renovar uma vez antes de deslogar
+                if (_refreshToken) {
+                    await renovarTokenSeNecessario();
+                    options.headers = { ...getHeadersAuth(), ...(options.headers || {}) };
+                    const retry = await fetch(url, options);
+                    if (retry.status === 401 || retry.status === 403) {
+                        document.getElementById('modalSessaoExpirada').classList.remove('hidden');
+                        throw new Error("Sessão Expirada.");
+                    }
+                    return retry;
+                }
                 document.getElementById('modalSessaoExpirada').classList.remove('hidden');
                 throw new Error("Sessão Expirada.");
             }
@@ -1391,15 +1439,17 @@
         }
 
         async function initApp() {
-            if (!token && window.location.hostname !== 'localhost') {
+            if (!_token && window.location.hostname !== 'localhost') {
                 return logout();
             }
+            // Tenta renovar o token se estiver prestes a expirar antes de qualquer requisição
+            await renovarTokenSeNecessario();
             mudarAba('dashboard');
             carregarConfig(); 
             try {
-                await fetchSeguro(`${API_BASE}/api/verify-session`, { headers: headersAuth });
+                await fetchSeguro(`${API_BASE}/api/verify-session`, { headers: getHeadersAuth() });
             } catch (error) { 
-                console.warn("Servidor offline."); 
+                console.warn("Servidor offline ou sessão inválida."); 
             }
         }
 
@@ -1526,9 +1576,13 @@
                 if (e.key === 'Escape')     { zoom.classList.add('hidden'); return; }
             }
         });
-            localStorage.removeItem('token'); 
-            window.location.href = '/login.html'; 
-        
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('token_expira_em');
+            window.location.href = '/login.html';
+        }
 
 
         // =====================================

@@ -221,15 +221,35 @@ app.post('/api/login', async (req, res) => {
             return res.status(401).json({ erro: 'E-mail ou palavra-passe incorretos.' });
         }
         tentativasLogin.delete(ip); 
-        res.json({ token: data.session.access_token, email: data.user?.email });
+        // Retorna access_token E refresh_token para o frontend renovar a sessão automaticamente
+        res.json({
+            token:         data.session.access_token,
+            refresh_token: data.session.refresh_token,
+            expires_in:    data.session.expires_in || 3600,
+            email:         data.user?.email
+        });
     } catch (err) { res.status(500).json({ erro: 'Erro interno de autenticação.' }); }
+});
+
+// Rota para renovar o access_token usando o refresh_token (sem precisar fazer login novamente)
+app.post('/api/refresh-session', async (req, res) => {
+    const { refresh_token } = req.body;
+    if (!refresh_token) return res.status(400).json({ erro: 'refresh_token obrigatório.' });
+    try {
+        const { data, error } = await supabase.auth.refreshSession({ refresh_token });
+        if (error || !data?.session) return res.status(401).json({ erro: 'Sessão expirada. Faça login novamente.' });
+        res.json({
+            token:         data.session.access_token,
+            refresh_token: data.session.refresh_token,
+            expires_in:    data.session.expires_in || 3600,
+        });
+    } catch (err) { res.status(500).json({ erro: 'Erro ao renovar sessão.' }); }
 });
 
 const authMiddleware = async (req, res, next) => {
     const rotasPublicas = [
         '/api/login',
-        // '/upload-foto' removido: rota nunca definida no servidor — era dead code na lista pública.
-        // '/enviar-solicitacao' removido: a rota real é /api/enviar-solicitacao (abaixo).
+        '/api/refresh-session',   // renovação de token não requer auth (usa refresh_token)
         '/api/enviar-solicitacao',
         '/validar-extrato', 
         '/cliente-aceitou', 

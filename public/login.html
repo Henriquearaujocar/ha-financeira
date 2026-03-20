@@ -99,8 +99,10 @@
                 const data = await response.json();
 
                 if (response.ok && data.token) {
-                    // Guarda o token de segurança no navegador
+                    // Salva token, refresh_token e tempo de expiração para renovação automática
                     localStorage.setItem('token', data.token);
+                    localStorage.setItem('refresh_token', data.refresh_token || '');
+                    localStorage.setItem('token_expira_em', String(Date.now() + ((data.expires_in || 3600) * 1000)));
                     
                     btn.classList.replace('bg-blue-600', 'bg-emerald-600');
                     btn.classList.replace('shadow-blue-500/30', 'shadow-emerald-500/30');
