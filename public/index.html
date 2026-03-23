@@ -297,7 +297,8 @@
             </div>
             
             <div class="glass-card rounded-3xl overflow-visible border border-slate-700">
-                <table class="w-full text-left text-sm">
+                <!-- Tabela — visível apenas em telas médias/grandes -->
+                <table class="w-full text-left text-sm hidden md:table">
                     <thead class="bg-slate-800/50 text-[10px] uppercase font-black text-slate-400 tracking-wider">
                       <tr>
                          <th class="px-4 py-4">Cliente</th>
@@ -308,11 +309,11 @@
                          <th class="px-4 py-4">Status</th>
                          <th class="px-4 py-4 text-center">Opções</th>
                       </tr>
-                </thead>
                     </thead>
-                    <tbody id="lista-aberto" class="divide-y divide-slate-800">
-                        </tbody>
+                    <tbody id="lista-aberto" class="divide-y divide-slate-800"></tbody>
                 </table>
+                <!-- Cards mobile — visível apenas em telas pequenas -->
+                <div id="lista-aberto-mobile" class="md:hidden divide-y divide-slate-800"></div>
             </div>
         </div>
 
@@ -1066,105 +1067,143 @@
         <div id="zoomDots" class="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2"></div>
     </div>
 
-    <div id="modalDocumentos" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
-        <div class="glass-card w-full max-w-6xl max-h-[95vh] overflow-y-auto rounded-3xl border border-slate-700 p-8 relative">
-            <button onclick="fecharModal('modalDocumentos')" class="absolute top-6 right-6 text-slate-400 hover:text-white text-2xl"><i class="fa-solid fa-xmark"></i></button>
+    <div id="modalDocumentos" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden z-[90] flex items-end md:items-center justify-center">
+        <div class="glass-card w-full md:max-w-5xl h-[95vh] md:max-h-[95vh] overflow-y-auto rounded-t-3xl md:rounded-3xl border border-slate-700 relative flex flex-col">
             
-            <div class="border-b border-slate-800 pb-4 mb-6 flex justify-between items-end">
+            <!-- Header fixo -->
+            <div class="sticky top-0 z-10 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-5 py-4 flex justify-between items-center shrink-0">
                 <div>
-                    <h2 class="text-2xl font-black uppercase text-blue-500">Documentos e Análise</h2>
-                    <p id="docNomeCliente" class="text-lg text-white font-bold mt-1">...</p>
-                    <p id="docCpf" class="text-xs font-mono text-slate-400">...</p>
-                    <p id="docNumContrato" class="text-[10px] text-emerald-400 font-bold hidden mt-1">Contrato: <span></span></p> 
+                    <h2 class="text-base font-black uppercase text-blue-500">Análise de Crédito</h2>
+                    <p id="docNomeCliente" class="text-sm text-white font-bold leading-tight">...</p>
+                    <p id="docCpf" class="text-[10px] font-mono text-slate-400">...</p>
+                    <p id="docNumContrato" class="text-[10px] text-emerald-400 font-bold hidden mt-0.5">Contrato: <span></span></p>
                 </div>
-                <div class="text-right">
-                    <p id="docData" class="text-xs font-bold text-slate-500 uppercase">...</p>
+                <div class="flex items-center gap-3">
+                    <p id="docData" class="text-[9px] font-bold text-slate-500 uppercase hidden md:block">...</p>
+                    <button onclick="fecharModal('modalDocumentos')" class="text-slate-400 hover:text-white text-2xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-800 transition-all"><i class="fa-solid fa-xmark"></i></button>
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-                <div class="space-y-2"><p class="text-[10px] font-black uppercase text-center text-slate-400">Selfie</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgSelfie" class="w-full h-32 object-contain cursor-pointer transition-colors" onerror="this.src='https://via.placeholder.com/300x200?text=Erro+na+Foto'" onclick="zoomImg(this.src)"></div></div>
-                <div class="space-y-2"><p class="text-[10px] font-black uppercase text-center text-slate-400">Doc. Frente</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgFrente" class="w-full h-32 object-contain cursor-pointer transition-colors" onerror="this.src='https://via.placeholder.com/300x200?text=Erro+na+Foto'" onclick="zoomImg(this.src)"></div></div>
-                <div class="space-y-2"><p class="text-[10px] font-black uppercase text-center text-slate-400">Doc. Verso</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgVerso" class="w-full h-32 object-contain cursor-pointer transition-colors" onerror="this.src='https://via.placeholder.com/300x200?text=Erro+na+Foto'" onclick="zoomImg(this.src)"></div></div>
-                <div class="space-y-2"><p class="text-[10px] font-black uppercase text-center text-slate-400">Residência</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgResidencia" class="w-full h-32 object-contain cursor-pointer transition-colors" onerror="this.src='https://via.placeholder.com/300x200?text=Erro+na+Foto'" onclick="zoomImg(this.src)"></div></div>
-                <div class="space-y-2 col-span-2 md:col-span-1"><p class="text-[10px] font-black uppercase text-center text-slate-400">Fachada Casa</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgCasa" class="w-full h-32 object-contain cursor-pointer transition-colors" onerror="this.src='https://via.placeholder.com/300x200?text=Erro+na+Foto'" onclick="zoomImg(this.src)"></div></div>
+            <!-- Conteúdo scrollável -->
+            <div class="flex-1 overflow-y-auto p-4 md:p-6 space-y-5">
+
+                <!-- Fotos — scroll horizontal no mobile -->
+                <div class="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory md:grid md:grid-cols-5">
+                    <div class="snap-center shrink-0 w-36 md:w-auto space-y-1"><p class="text-[9px] font-black uppercase text-center text-slate-400">Selfie</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgSelfie" class="w-36 md:w-full h-28 object-contain cursor-pointer" onerror="this.src='https://via.placeholder.com/300x200?text=Sem+Foto'" onclick="zoomImg(this.src)"></div></div>
+                    <div class="snap-center shrink-0 w-36 md:w-auto space-y-1"><p class="text-[9px] font-black uppercase text-center text-slate-400">Doc. Frente</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgFrente" class="w-36 md:w-full h-28 object-contain cursor-pointer" onerror="this.src='https://via.placeholder.com/300x200?text=Sem+Foto'" onclick="zoomImg(this.src)"></div></div>
+                    <div class="snap-center shrink-0 w-36 md:w-auto space-y-1"><p class="text-[9px] font-black uppercase text-center text-slate-400">Doc. Verso</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgVerso" class="w-36 md:w-full h-28 object-contain cursor-pointer" onerror="this.src='https://via.placeholder.com/300x200?text=Sem+Foto'" onclick="zoomImg(this.src)"></div></div>
+                    <div class="snap-center shrink-0 w-36 md:w-auto space-y-1"><p class="text-[9px] font-black uppercase text-center text-slate-400">Residência</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgResidencia" class="w-36 md:w-full h-28 object-contain cursor-pointer" onerror="this.src='https://via.placeholder.com/300x200?text=Sem+Foto'" onclick="zoomImg(this.src)"></div></div>
+                    <div class="snap-center shrink-0 w-36 md:w-auto space-y-1"><p class="text-[9px] font-black uppercase text-center text-slate-400">Fachada</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgCasa" class="w-36 md:w-full h-28 object-contain cursor-pointer" onerror="this.src='https://via.placeholder.com/300x200?text=Sem+Foto'" onclick="zoomImg(this.src)"></div></div>
+                </div>
+
+                <!-- Grid de 2 colunas no mobile, 3 no desktop -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                    <!-- Dados cadastrais -->
+                    <div class="bg-slate-900/50 p-4 rounded-2xl border border-slate-700">
+                        <h3 class="text-[9px] font-black uppercase text-blue-400 mb-3">Dados Cadastrais</h3>
+                        <div class="space-y-2 text-xs">
+                            <p class="flex justify-between"><span class="text-slate-500">WhatsApp:</span> <span id="docZap" class="font-bold text-white"></span></p>
+                            <p class="flex justify-between"><span class="text-slate-500">Valor:</span> <span id="docValor" class="font-bold text-emerald-400"></span></p>
+                            <p class="flex justify-between"><span class="text-slate-500">Plano:</span> <span id="docPlano" class="font-bold text-white"></span></p>
+                            <p class="flex justify-between"><span class="text-slate-500">Avalista:</span> <span id="docIndicacao" class="font-bold text-purple-400"></span></p>
+                        </div>
+                        <div class="mt-3 pt-3 border-t border-slate-800 space-y-1 text-xs">
+                            <p class="text-[9px] font-black uppercase text-slate-500">Referências</p>
+                            <p>1: <span id="docRef1" class="font-bold text-white"></span></p>
+                            <p>2: <span id="docRef2" class="font-bold text-white"></span></p>
+                        </div>
+                    </div>
+
+                    <!-- Observações -->
+                    <div class="bg-slate-900/50 p-4 rounded-2xl border border-slate-700 flex flex-col">
+                        <h3 class="text-[9px] font-black uppercase text-orange-400 mb-2">Observações / Auditoria</h3>
+                        <textarea id="docObs" class="input-dark flex-1 resize-none text-sm min-h-[100px]" placeholder="Notas sobre o perfil, restrições, garantias..."></textarea>
+                    </div>
+
+                    <!-- Simulador + Opções -->
+                    <div class="bg-slate-900/50 p-4 rounded-2xl border border-slate-700 space-y-3" id="box-simulador-cp">
+                        <h3 class="text-[9px] font-black uppercase text-emerald-400 border-b border-slate-700 pb-2">Simulador & Contra-Proposta</h3>
+
+                        <div class="flex flex-col gap-2">
+                            <label class="flex items-center gap-2 cursor-pointer bg-slate-800 px-3 py-2 rounded-lg border border-slate-600 hover:border-emerald-500 transition-colors">
+                                <input type="checkbox" id="docApenasDinheiro" class="w-4 h-4 accent-emerald-500">
+                                <span class="text-[9px] font-black uppercase text-emerald-400">Apenas Dinheiro Físico</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer bg-slate-800 px-3 py-2 rounded-lg border border-slate-600 hover:border-orange-500 transition-colors">
+                                <input type="checkbox" id="docIsentoMulta" class="w-4 h-4 accent-orange-500">
+                                <span class="text-[9px] font-black uppercase text-orange-400">Isentar Multa Diária</span>
+                            </label>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-[9px] font-black uppercase text-slate-500 block mb-1">Valor Aprovado (R$)</label>
+                                <input type="number" id="docNovoValor" class="input-dark text-sm font-bold text-emerald-400" min="0" oninput="if(this.value<0)this.value=0; recalcularSimulacaoDoc()">
+                            </div>
+                            <div>
+                                <label class="text-[9px] font-black uppercase text-slate-500 block mb-1">Juros Base (%)</label>
+                                <input type="number" id="docJuros" class="input-dark text-sm font-bold text-orange-400" min="0" oninput="if(this.value<0)this.value=0; recalcularSimulacaoDoc()">
+                            </div>
+                            <div>
+                                <label class="text-[9px] font-black uppercase text-slate-500 block mb-1">Frequência</label>
+                                <select id="docNovaFreq" class="input-dark text-xs p-2 h-11" onchange="atualizarContraPropostaFreq()">
+                                    <option value="MENSAL">Mensal</option>
+                                    <option value="SEMANAL">Semanal</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[9px] font-black uppercase text-slate-500 block mb-1">Nº Parcelas</label>
+                                <input type="number" id="docNovasParcelas" class="input-dark text-sm font-bold" min="1" oninput="recalcularSimulacaoDoc()">
+                            </div>
+                        </div>
+
+                        <!-- NOVO: Vencimento customizado -->
+                        <div class="bg-blue-900/20 border border-blue-500/30 rounded-xl p-3 space-y-2">
+                            <p class="text-[9px] font-black uppercase text-blue-400"><i class="fa-solid fa-calendar-pen mr-1"></i> Vencimento Personalizado</p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-[9px] font-black uppercase text-slate-500 block mb-1">Venc. 1ª Parcela</label>
+                                    <input type="date" id="docVenc1" class="input-dark text-xs p-2 h-10"
+                                        title="Deixe em branco para usar a data padrão (30 dias)">
+                                </div>
+                                <div>
+                                    <label class="text-[9px] font-black uppercase text-slate-500 block mb-1">Valor 1ª Parcela (R$)</label>
+                                    <input type="number" id="docValorParcela1" class="input-dark text-xs p-2 h-10 text-yellow-400 font-bold" min="0" placeholder="Padrão"
+                                        title="Deixe em branco para usar o valor padrão calculado">
+                                </div>
+                            </div>
+                            <p class="text-[8px] text-slate-500">As demais parcelas seguem a partir desta data. Use para cobrar taxa de entrada diferenciada na 1ª parcela.</p>
+                        </div>
+
+                        <!-- Resultado simulador -->
+                        <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-600 shadow-inner">
+                            <div class="flex justify-between items-center mb-1.5 border-b border-slate-700 pb-1.5">
+                                <span class="text-[9px] font-bold text-slate-400 uppercase">Parcela:</span>
+                                <span id="calcParcela" class="text-sm font-black text-blue-400">R$ 0,00</span>
+                            </div>
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-[9px] font-bold text-slate-400 uppercase">Total c/ Juros:</span>
+                                <span id="calcTotal" class="text-base font-black text-emerald-400">R$ 0,00</span>
+                            </div>
+                            <p id="calcTaxaDetalhe" class="text-[8px] text-right text-slate-500 font-bold uppercase tracking-wider"></p>
+                        </div>
+                    </div>
+
+                </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="bg-slate-900/50 p-5 rounded-2xl border border-slate-700">
-                    <h3 class="text-[10px] font-black uppercase text-blue-400 mb-3">Dados Cadastrais</h3>
-                    <div class="space-y-2 text-xs">
-                        <p class="flex justify-between"><span class="text-slate-500">WhatsApp:</span> <span id="docZap" class="font-bold text-white"></span></p>
-                        <p class="flex justify-between"><span class="text-slate-500">Valor Pedido:</span> <span id="docValor" class="font-bold text-emerald-400"></span></p>
-                        <p class="flex justify-between"><span class="text-slate-500">Plano / Freq:</span> <span id="docPlano" class="font-bold text-white"></span></p>
-                        <p class="flex justify-between"><span class="text-slate-500">Avalista:</span> <span id="docIndicacao" class="font-bold text-purple-400"></span></p>
-                    </div>
-                    <div class="mt-4 pt-4 border-t border-slate-800 space-y-2 text-xs">
-                        <p class="text-[9px] font-black uppercase text-slate-500">Referências</p>
-                        <p>1: <span id="docRef1" class="font-bold text-white"></span></p>
-                        <p>2: <span id="docRef2" class="font-bold text-white"></span></p>
-                    </div>
-                </div>
-
-                <div class="bg-slate-900/50 p-5 rounded-2xl border border-slate-700 flex flex-col">
-                    <h3 class="text-[10px] font-black uppercase text-orange-400 mb-2">Observações / Auditoria</h3>
-                    <textarea id="docObs" class="input-dark flex-1 resize-none text-sm" placeholder="Adicione notas sobre o perfil do cliente, restrições encontradas, itens deixados como garantia..."></textarea>
-                </div>
-
-                <div class="bg-slate-900/50 p-5 rounded-2xl border border-slate-700 flex flex-col justify-between" id="box-simulador-cp">
-                    <h3 class="text-[10px] font-black uppercase text-emerald-400 mb-3 border-b border-slate-700 pb-2">Simulador & Contra-Proposta</h3>
-                    
-                    <div class="flex flex-col gap-2 mb-3">
-                        <label class="flex items-center gap-2 cursor-pointer bg-slate-800 px-3 py-2 rounded-lg border border-slate-600 hover:border-emerald-500 transition-colors">
-                            <input type="checkbox" id="docApenasDinheiro" class="w-4 h-4 accent-emerald-500">
-                            <span class="text-[9px] font-black uppercase text-emerald-400">Apenas Dinheiro Físico (S/ Link PIX)</span>
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer bg-slate-800 px-3 py-2 rounded-lg border border-slate-600 hover:border-orange-500 transition-colors">
-                            <input type="checkbox" id="docIsentoMulta" class="w-4 h-4 accent-orange-500">
-                            <span class="text-[9px] font-black uppercase text-orange-400">Isentar Cliente da Multa Diária (Atrasos)</span>
-                        </label>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3 mb-3">
-                        <div>
-                            <label class="text-[9px] font-black uppercase text-slate-500 block mb-1">Valor Aprovado (R$)</label>
-                            <input type="number" id="docNovoValor" class="input-dark text-sm font-bold text-emerald-400" min="0" oninput="if(this.value<0)this.value=0; recalcularSimulacaoDoc()">
-                        </div>
-                        <div>
-                            <label class="text-[9px] font-black uppercase text-slate-500 block mb-1" title="Para planos parcelados, esta taxa é multiplicada pelo número de meses.">Taxa de Juros (Base %)</label>
-                            <input type="number" id="docJuros" class="input-dark text-sm font-bold text-orange-400" min="0" oninput="if(this.value<0)this.value=0; recalcularSimulacaoDoc()">
-                        </div>
-                        <div>
-                            <label class="text-[9px] font-black uppercase text-slate-500 block mb-1">Frequência</label>
-                            <select id="docNovaFreq" class="input-dark text-xs p-2 h-11" onchange="atualizarContraPropostaFreq()">
-                                <option value="MENSAL">Mensal</option>
-                                <option value="SEMANAL">Semanal</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="text-[9px] font-black uppercase text-slate-500 block mb-1">Nº Parcelas</label>
-                            <input type="number" id="docNovasParcelas" class="input-dark text-sm font-bold" min="1" oninput="recalcularSimulacaoDoc()">
-                        </div>
-                    </div>
-
-                    <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-600 mb-4 shadow-inner">
-                        <div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-2">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase">Valor da Parcela:</span>
-                            <span id="calcParcela" class="text-sm font-black text-blue-400 drop-shadow-[0_0_5px_rgba(59,130,246,0.3)]">R$ 0,00</span>
-                        </div>
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase">Total c/ Juros:</span>
-                            <span id="calcTotal" class="text-lg font-black text-emerald-400 drop-shadow-[0_0_5px_rgba(16,185,129,0.3)]">R$ 0,00</span>
-                        </div>
-                        <p id="calcTaxaDetalhe" class="text-[8px] text-right text-slate-500 font-bold uppercase tracking-wider"></p>
-                    </div>
-
-                    <div class="space-y-2 mt-auto">
-                        <button onclick="aprovarSolicitacao(false)" id="btnAprovarOriginal" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-black uppercase text-[10px] shadow-lg shadow-blue-500/20 transition-all"><i class="fa-solid fa-check-double mr-1"></i> Aprovar Termos Originais</button>
-                        <button onclick="aprovarSolicitacao(true)" id="btnAprovarCP" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl font-black uppercase text-[10px] shadow-lg shadow-emerald-500/20 transition-all"><i class="fa-solid fa-handshake mr-1"></i> Enviar Contra-Proposta</button>
-                        <button onclick="rejeitarSolicitacao()" class="w-full bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white py-3 rounded-xl font-black uppercase text-[10px] transition-all"><i class="fa-solid fa-xmark mr-1"></i> Rejeitar Ficha</button>
-                    </div>
-                </div>
+            <!-- Botões fixos no bottom — sempre visíveis no mobile -->
+            <div class="sticky bottom-0 bg-slate-900/95 backdrop-blur border-t border-slate-800 p-4 grid grid-cols-3 gap-2 shrink-0">
+                <button onclick="aprovarSolicitacao(false)" id="btnAprovarOriginal" class="bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-black uppercase text-[10px] shadow-lg transition-all flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-check-double"></i> <span class="hidden sm:inline">Aprovar</span> Original
+                </button>
+                <button onclick="aprovarSolicitacao(true)" id="btnAprovarCP" class="bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl font-black uppercase text-[10px] shadow-lg transition-all flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-handshake"></i> <span class="hidden sm:inline">Contra-</span>Proposta
+                </button>
+                <button onclick="rejeitarSolicitacao()" class="bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white py-3 rounded-xl font-black uppercase text-[10px] transition-all flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-xmark"></i> Rejeitar
+                </button>
             </div>
         </div>
     </div>
@@ -1901,6 +1940,9 @@
             }
             
             try {
+                const venc1 = document.getElementById('docVenc1')?.value || '';
+                const valorP1 = parseFloat(document.getElementById('docValorParcela1')?.value) || null;
+
                 const res = await fetchSeguro(`${API_BASE}/api/aprovar-solicitacao`, { 
                     method: 'POST', 
                     headers: headersAuth, 
@@ -1913,7 +1955,9 @@
                         novasParcelas: parseInt(novasParcelas), 
                         cobrarSoEmDinheiro: document.getElementById('docApenasDinheiro').checked, 
                         isentoMulta: document.getElementById('docIsentoMulta').checked,
-                        isContraProposta: isContraProposta 
+                        isContraProposta: isContraProposta,
+                        vencimento1: venc1 || null,       // data da 1ª parcela (opcional)
+                        valorParcela1: valorP1,            // valor da 1ª parcela (opcional)
                     }) 
                 });
                 
@@ -2108,7 +2152,63 @@ function renderizarAberto(lista) {
             </td>
          </tr>`;
     }
-}
+
+    // ── MOBILE CARDS ─────────────────────────────────────────────────────────
+    const mobileContainer = document.getElementById('lista-aberto-mobile');
+    if (!mobileContainer) return;
+    mobileContainer.innerHTML = '';
+
+    listaVisual.forEach(p => {
+        let dt = new Date(p.vencimento_parcela + 'T00:00:00-03:00');
+        let hoje2 = new Date(); hoje2.setHours(0,0,0,0);
+        const isAtrasado2 = dt < hoje2 && p.status_contrato !== 'APROVADO_AGUARDANDO_ACEITE';
+        const corBorda = isAtrasado2 ? 'border-red-500/40 bg-red-900/10' : 'border-slate-700';
+        const totalParcs = p.total_parcelas_originais || 1;
+        const nParcela = totalParcs > 1 ? `${p.numero_parcela}/${totalParcs}` : 'Única';
+        const valorExibir = parseFloat(p.valor_atual) - parseFloat(p.valor_pago || 0);
+        const badgeMob = isAtrasado2
+            ? '<span class="bg-red-500/20 text-red-400 px-2 py-0.5 rounded text-[9px] font-black">ATRASADA</span>'
+            : p.status_contrato === 'APROVADO_AGUARDANDO_ACEITE'
+            ? '<span class="bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded text-[9px] font-black">ASSINAR</span>'
+            : '<span class="bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded text-[9px] font-black">EM DIA</span>';
+
+        mobileContainer.innerHTML += `
+        <div class="p-4 ${corBorda} border-b">
+            <div class="flex justify-between items-start mb-2">
+                <div>
+                    <p class="font-bold text-white text-sm">${isAtrasado2 ? '<i class="fa-solid fa-triangle-exclamation text-red-400 mr-1 text-xs"></i>' : ''}${escapeHTML(p.nome)}</p>
+                    <p class="text-[10px] text-slate-500 font-mono">${escapeHTML(p.cpf)} · CT #${p.devedor_id}</p>
+                </div>
+                ${badgeMob}
+            </div>
+            <div class="grid grid-cols-3 gap-2 mb-3 text-center">
+                <div class="bg-slate-800/60 rounded-lg p-2">
+                    <p class="text-[8px] text-slate-500 uppercase font-black">Parcela</p>
+                    <p class="text-xs font-black text-slate-300">${nParcela}</p>
+                </div>
+                <div class="bg-slate-800/60 rounded-lg p-2">
+                    <p class="text-[8px] text-slate-500 uppercase font-black">Vencimento</p>
+                    <p class="text-xs font-black ${isAtrasado2 ? 'text-red-400' : 'text-emerald-400'}">${dt.toLocaleDateString('pt-BR')}</p>
+                </div>
+                <div class="bg-slate-800/60 rounded-lg p-2">
+                    <p class="text-[8px] text-slate-500 uppercase font-black">A Pagar</p>
+                    <p class="text-xs font-black text-orange-400">${formatMoney(valorExibir)}</p>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="prepararPagamento('${p.devedor_id}', '${p.parcela_id}')" class="flex-1 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600 hover:text-white py-2 rounded-lg text-[10px] font-black uppercase transition-all">
+                    <i class="fa-solid fa-money-bill-wave mr-1"></i> Receber
+                </button>
+                <button onclick="enviarCobrancaManual('${p.devedor_id}')" class="flex-1 bg-green-600/20 text-green-400 hover:bg-green-600 hover:text-white py-2 rounded-lg text-[10px] font-black uppercase transition-all">
+                    <i class="fa-brands fa-whatsapp mr-1"></i> Cobrar
+                </button>
+                <button onclick="abrirExtratoListagem('${p.cpf}')" class="bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white px-3 py-2 rounded-lg text-[10px] font-black uppercase transition-all">
+                    <i class="fa-solid fa-file-invoice"></i>
+                </button>
+            </div>
+        </div>`;
+    });
+} 
 
         function toggleDropdown(id, btnElement) {
             document.querySelectorAll('.dropdown-menu').forEach(m => { 

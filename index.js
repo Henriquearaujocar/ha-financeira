@@ -47,27 +47,45 @@ const limparMoeda = (valor) => {
 // FUNÇÕES AUXILIARES DE MATEMÁTICA E PARCELAS
 // ==========================================
 async function gerarParcelasNoBanco(devedorId, valorTotal, qtdParcelas, dataVencimento, frequencia) {
-    const valorPorParcela = valorTotal / qtdParcelas;
+    return gerarParcelasComPersonalizacao(devedorId, valorTotal, qtdParcelas, dataVencimento, frequencia, null);
+}
+
+/**
+ * Gera parcelas com suporte a valor diferenciado na 1ª parcela.
+ * Se valorParcela1 for informado, a 1ª parcela usa esse valor e as demais dividem o restante.
+ * Útil quando o admin cobra uma entrada diferenciada (ex: taxa de cadastro + juros antecipados).
+ */
+async function gerarParcelasComPersonalizacao(devedorId, valorTotal, qtdParcelas, dataVencimento, frequencia, valorParcela1 = null) {
+    const valorPadrao = Math.round((valorTotal / qtdParcelas) * 100) / 100;
+
+    // Se a 1ª parcela tem valor customizado, distribui o restante nas demais
+    let valorP1 = valorPadrao;
+    let valorDemais = valorPadrao;
+    if (valorParcela1 && valorParcela1 > 0 && qtdParcelas > 1) {
+        valorP1 = Math.round(valorParcela1 * 100) / 100;
+        valorDemais = Math.round(((valorTotal - valorP1) / (qtdParcelas - 1)) * 100) / 100;
+    }
+
     const insertData = [];
     let dt = new Date(dataVencimento + 'T12:00:00Z');
 
     for (let i = 0; i < qtdParcelas; i++) {
+        const valor = i === 0 ? valorP1 : valorDemais;
         insertData.push({
-            devedor_id: devedorId,
-            numero_parcela: i + 1,
-            valor_original: valorPorParcela,
-            valor_atual: valorPorParcela,
+            devedor_id:      devedorId,
+            numero_parcela:  i + 1,
+            valor_original:  valor,
+            valor_atual:     valor,
             data_vencimento: dt.toISOString().split('T')[0],
-            status: 'PENDENTE'
+            status:          'PENDENTE'
         });
         
         if (frequencia === 'SEMANAL') {
             dt.setDate(dt.getDate() + 7);
         } else {
-            // CORREÇÃO: setMonth() estoura em dias 29/30/31 (ex: 31/jan + 1 mês = 03/mar).
             const diaOriginal = dt.getDate();
             dt.setMonth(dt.getMonth() + 1);
-            if (dt.getDate() !== diaOriginal) dt.setDate(0); // recua para último dia do mês
+            if (dt.getDate() !== diaOriginal) dt.setDate(0);
         }
     }
     
@@ -297,7 +315,7 @@ app.post('/api/enviar-solicitacao', async (req, res) => {
     
     try {
         const d = req.body;
-        const imagensParaVerificar = [d.url_selfie, d.url_residencia, d.url_frente, d.url_verso, d.url_casa];
+        const imagensParaVerificar = [d.url_selfie, d.url_residencia, d.url_frente, d.url_verso, d.url_casa, d.url_rg];
         for (let img of imagensParaVerificar) { if (img && img.length > 15 * 1024 * 1024) return res.status(413).json({ erro: "Imagem excede o limite." }); }
 
         const { data: bl } = await supabase.from('lista_negra').select('cpf').eq('cpf', d.cpf).single();
@@ -322,6 +340,7 @@ app.post('/api/enviar-solicitacao', async (req, res) => {
         const uFrente = d.url_frente ? await fazerUploadNoSupabase(d.url_frente, `${d.cpf}_frente_${ts}.jpg`) : oldFrente;
         const uVerso = d.url_verso ? await fazerUploadNoSupabase(d.url_verso, `${d.cpf}_verso_${ts}.jpg`) : oldVerso;
         const uCasa = d.url_casa ? await fazerUploadNoSupabase(d.url_casa, `${d.cpf}_casa_${ts}.jpg`) : oldCasa;
+        const uRg = d.url_rg ? await fazerUploadNoSupabase(d.url_rg, `${d.cpf}_rg_${ts}.jpg`) : null;
 
         const parcelasMatematicas = Math.max(1, d.tipo_plano === '30DIAS' ? 1 : (parseInt(d.qtd_parcelas) || 1));
 
@@ -329,7 +348,7 @@ app.post('/api/enviar-solicitacao', async (req, res) => {
             nome: d.nome, cpf: d.cpf, whatsapp: d.whatsapp, valor: limparMoeda(d.valor),
             tipo_plano: d.tipo_plano || '30DIAS', frequencia: d.frequencia || 'MENSAL',
             qtd_parcelas: parcelasMatematicas, indicado_por: d.indicado_por || 'DIRETO',
-            url_selfie: uSelfie, url_frente: uFrente, url_verso: uVerso, url_residencia: uResidencia, url_casa: uCasa,
+            url_selfie: uSelfie, url_frente: uFrente, url_verso: uVerso, url_residencia: uResidencia, url_casa: uCasa, url_rg: uRg,
             referencia1_nome: d.referencia1_nome, referencia1_tel: d.referencia1_tel, status: 'PENDENTE'
         }]);
         
@@ -602,7 +621,7 @@ app.get('/api/solicitacoes-pendentes', async (req, res) => {
 });
 
 app.post('/api/aprovar-solicitacao', async (req, res) => {
-    const { id, juros, observacao, novoValor, novaFreq, novasParcelas, cobrarSoEmDinheiro, isContraProposta, isentoMulta } = req.body;
+    const { id, juros, observacao, novoValor, novaFreq, novasParcelas, cobrarSoEmDinheiro, isContraProposta, isentoMulta, vencimento1, valorParcela1 } = req.body;
     
     const lockKey = `aprovar_${id}`;
     if (travasAtivasPainel.has(lockKey)) return res.status(429).json({ erro: "Operação em andamento." });
@@ -623,9 +642,15 @@ app.post('/api/aprovar-solicitacao', async (req, res) => {
         let taxaAplicada = parcelasFinais > 1 ? (jurosDecimal * parcelasFinais) : jurosDecimal;
         const valorTotal = Math.round((valorFinal * (1 + taxaAplicada)) * 100) / 100;
         
-        const momentBRT = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
-        momentBRT.setDate(momentBRT.getDate() + (freqFinal === 'SEMANAL' ? 7 : 30));
-        const dtVencimentoProjetado = momentBRT.toISOString().split('T')[0];
+        // Vencimento da 1ª parcela: usa o informado pelo admin ou calcula o padrão
+        let dtVencimentoProjetado;
+        if (vencimento1 && vencimento1.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            dtVencimentoProjetado = vencimento1;
+        } else {
+            const momentBRT = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+            momentBRT.setDate(momentBRT.getDate() + (freqFinal === 'SEMANAL' ? 7 : 30));
+            dtVencimentoProjetado = momentBRT.toISOString().split('T')[0];
+        }
         
         const cpfLimpo = String(sol.cpf || '').replace(/\D/g, '');
         const { data: exDevs } = await supabase.from('devedores').select('id, uuid, status').eq('cpf', cpfLimpo).order('created_at', { ascending: false }).limit(1);
@@ -636,7 +661,7 @@ app.post('/api/aprovar-solicitacao', async (req, res) => {
             nome: sol.nome, telefone: sol.whatsapp || sol.telefone || 'N/A', valor_emprestado: valorFinal, valor_total: valorTotal,
             frequencia: freqFinal, qtd_parcelas: parcelasFinais, status: 'APROVADO_AGUARDANDO_ACEITE', data_vencimento: dtVencimentoProjetado, 
             taxa_juros: jurosDecimal * 100, observacoes: observacao || '', url_selfie: sol.url_selfie, url_frente: sol.url_frente, 
-            url_verso: sol.url_verso, url_residencia: sol.url_residencia, url_casa: sol.url_casa, referencia1_nome: sol.referencia1_nome, 
+            url_verso: sol.url_verso, url_residencia: sol.url_residencia, url_casa: sol.url_casa, url_rg: sol.url_rg, referencia1_nome: sol.referencia1_nome, 
             referencia1_tel: sol.referencia1_tel, indicado_por: sol.indicado_por, pago: false, 
             cobrar_so_em_dinheiro: cobrarSoEmDinheiro || false, isento_multa: isentoMulta || false
         };
@@ -651,7 +676,8 @@ app.post('/api/aprovar-solicitacao', async (req, res) => {
             if (iE) throw iE; devId = i.id; devUuid = i.uuid;
         }
 
-        await gerarParcelasNoBanco(devId, valorTotal, parcelasFinais, dtVencimentoProjetado, freqFinal);
+        // Gera parcelas com vencimento customizado e valor diferenciado na 1ª parcela
+        await gerarParcelasComPersonalizacao(devId, valorTotal, parcelasFinais, dtVencimentoProjetado, freqFinal, valorParcela1);
         await supabase.from('solicitacoes').update({ status: 'APROVADO_CP', observacoes: observacao }).eq('id', id);
         // NÃO grava log de Empréstimo Liberado aqui — o dinheiro só sai do caixa
         // quando o cliente assinar. Gravar aqui causava -R$X no caixa mesmo em aprovações
@@ -1372,12 +1398,13 @@ app.post('/api/cadastrar-cliente-manual', async (req, res) => {
         const uV = d.img_verso ? await fazerUploadNoSupabase(d.img_verso, `${cpfLimpo}_v_${Date.now()}.jpg`) : (oldDev?.url_verso || null);
         const uR = d.img_residencia ? await fazerUploadNoSupabase(d.img_residencia, `${cpfLimpo}_r_${Date.now()}.jpg`) : (oldDev?.url_residencia || null);
         const uC = d.img_casa ? await fazerUploadNoSupabase(d.img_casa, `${cpfLimpo}_c_${Date.now()}.jpg`) : (oldDev?.url_casa || null);
+        const uRgM = d.img_rg ? await fazerUploadNoSupabase(d.img_rg, `${cpfLimpo}_rg_${Date.now()}.jpg`) : (oldDev?.url_rg || null);
         
         let db = { 
                 nome: d.nome, cpf: cpfLimpo, telefone: d.whatsapp, 
                 observacoes: d.observacoes ? `[Manual] ${d.observacoes}` : "[Via Cadastro Manual de Balcão]", 
                 cobrar_so_em_dinheiro: d.cobrar_so_em_dinheiro || false, isento_multa: d.isento_multa || false,
-                url_selfie: uS, url_frente: uF, url_verso: uV, url_residencia: uR, url_casa: uC, indicado_por: d.indicado_por || 'DIRETO'
+                url_selfie: uS, url_frente: uF, url_verso: uV, url_residencia: uR, url_casa: uC, url_rg: uRgM, indicado_por: d.indicado_por || 'DIRETO'
             };
 
         if (!d.is_precadastro) {

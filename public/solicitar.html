@@ -102,41 +102,18 @@
                     <p id="texto-minimo" class="text-[10px] text-slate-500 mt-2"><i class="fa-solid fa-circle-info mr-1"></i> A carregar valor mínimo...</p>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Plano de Pagamento</label>
-                        <select id="tipo_plano" class="input-field mt-1" onchange="atualizarInterface()">
-                            <option value="30DIAS">Padrão (Única em 30 Dias)</option>
-                            <option value="PARCELADO">Parcelado</option>
-                        </select>
-                    </div>
-                    <div id="box-frequencia" class="hidden">
-                        <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Frequência</label>
-                        <select id="frequencia" class="input-field mt-1" onchange="atualizarParcelas()">
-                            <option value="MENSAL">Mensal</option>
-                        </select>
-                    </div>
-                    <div id="box-parcelas" class="hidden">
-                        <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Nº de Parcelas</label>
-                        <select id="qtd_parcelas" class="input-field mt-1" onchange="calcularSimulacao()"></select>
-                    </div>
-                </div>
+                <!-- Inputs hidden — preenchidos pelo JS quando o cliente clica no card -->
+                <input type="hidden" id="tipo_plano" value="30DIAS">
+                <input type="hidden" id="qtd_parcelas" value="1">
+                <input type="hidden" id="frequencia" value="MENSAL">
 
-                <!-- 🚨 CALCULADORA HÍBRIDA DO CLIENTE -->
-                <div id="simuladorBox" class="bg-slate-900 border border-slate-700 rounded-2xl p-6 mt-4 hidden transition-all shadow-xl">
-                    <h4 class="text-[10px] font-black uppercase tracking-widest text-blue-500 mb-4 text-center"><i class="fa-solid fa-clipboard-check mr-2"></i> Estrutura da Proposta</h4>
-                    
-                    <div class="flex justify-between items-center border-b border-slate-800 pb-3 mb-3">
-                        <span class="text-xs text-slate-400 uppercase font-bold">Modalidade:</span>
-                        <span class="text-sm text-white font-black uppercase tracking-widest" id="sim_plano">--</span>
-                    </div>
-                    
-                    <div class="flex justify-between items-center">
-                        <span class="text-xs text-slate-400 uppercase font-bold" id="sim_extra_label">--</span>
-                        <span id="sim_extra_valor" class="text-2xl font-black">--</span>
-                    </div>
-
-                    <p class="text-[9px] text-slate-500 mt-4 text-center bg-slate-800/50 p-2 rounded-lg">*Os valores exatos e taxas finais serão confirmados pelo nosso Gestor após a análise de crédito.</p>
+                <!-- Grade visual de planos — sem selects confusos -->
+                <div id="grade-planos" class="hidden">
+                    <p class="text-[10px] font-black uppercase text-slate-400 mb-3">Escolha como quer pagar:</p>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3" id="cards-planos"></div>
+                    <p class="text-[9px] text-slate-500 mt-4 text-center bg-slate-800/50 p-2 rounded-xl border border-slate-700">
+                        * Valores estimados. Taxas e condições finais confirmadas pelo gestor após análise.
+                    </p>
                 </div>
             </div>
 
@@ -185,6 +162,24 @@
                         <i class="fa-solid fa-house text-3xl text-slate-400 mb-3 transition-colors"></i>
                         <span class="text-[10px] font-black uppercase" id="lbl_img_casa" data-orig="Fachada da Casa">Fachada da Casa</span>
                         <input type="file" id="img_casa" accept="image/*" class="hidden" onchange="marcarUpload(this)">
+                    </label>
+                </div>
+
+                <!-- RG separado — aparece quando o doc não contém CPF -->
+                <div id="box_rg_sem_cpf" class="mt-4">
+                    <div class="flex items-center gap-3 mb-3 bg-orange-900/20 border border-orange-500/30 p-3 rounded-xl">
+                        <i class="fa-solid fa-triangle-exclamation text-orange-400"></i>
+                        <p class="text-[10px] font-black uppercase text-orange-300">Meu documento não contém o CPF junto.</p>
+                        <label class="ml-auto flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="chk_sem_cpf_doc" class="w-4 h-4 accent-orange-500 cursor-pointer" onchange="toggleRgUpload()">
+                            <span class="text-[9px] font-black uppercase text-orange-400 select-none">Marcar</span>
+                        </label>
+                    </div>
+                    <label id="label_img_rg" class="file-label hidden border-orange-500/40 hover:border-orange-400">
+                        <i class="fa-solid fa-id-card text-3xl text-orange-400 mb-3 transition-colors"></i>
+                        <span class="text-[10px] font-black uppercase text-orange-300" id="lbl_img_rg" data-orig="RG (Frente)">CPF (Frente)</span>
+                        <p class="text-[9px] text-slate-500 mt-1">Foto do seu CPF com número visível</p>
+                        <input type="file" id="img_rg" accept="image/*" class="hidden" onchange="marcarUpload(this)">
                     </label>
                 </div>
             </div>
@@ -429,85 +424,79 @@
         }
 
         const vInput = document.getElementById('valor');
-        const pSelect = document.getElementById('tipo_plano');
-        const fSelect = document.getElementById('frequencia');
-        const qSelect = document.getElementById('qtd_parcelas');
-        const simBox = document.getElementById('simuladorBox');
-        
-        function atualizarInterface() {
-            if (pSelect.value === '30DIAS') {
-                document.getElementById('box-frequencia').classList.add('hidden');
-                document.getElementById('box-parcelas').classList.add('hidden');
-            } else {
-                document.getElementById('box-frequencia').classList.remove('hidden');
-                document.getElementById('box-parcelas').classList.remove('hidden');
-                atualizarParcelas();
-            }
-            calcularSimulacao();
+
+        function fmtMoeda(v) {
+            return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         }
 
-        function atualizarParcelas() {
-            const freq = fSelect.value;
-            const valorAtual = parseInt(qSelect.value);
-            
-            qSelect.innerHTML = '';
-            const max = freq === 'MENSAL' ? 12 : 24;
-            
-            for (let i = 2; i <= max; i++) {
-                const option = document.createElement('option');
-                option.value = i;
-                option.text = `${i}x Parcelas`;
-                qSelect.appendChild(option);
-            }
-            
-            if (valorAtual && valorAtual >= 2 && valorAtual <= max) {
-                qSelect.value = valorAtual;
-            } else {
-                qSelect.value = 2;
-            }
-            calcularSimulacao();
-        }
-
-        // 🚨 CÁLCULO INTELIGENTE E OCULTAÇÃO DE FINAL NO PARCELADO
         function calcularSimulacao() {
             const valorBase = parseFloat(vInput.value) || 0;
-            
-            if (valorBase >= VALOR_MINIMO) {
-                simBox.classList.remove('hidden');
-                const valEl = document.getElementById('sim_extra_valor');
-                
-                if (pSelect.value === '30DIAS') {
-                    document.getElementById('sim_plano').innerText = 'Única Parcela (30 Dias)';
-                    document.getElementById('sim_extra_label').innerText = 'Total Estimado a Pagar:';
-                    
-                    const totalEstimado = valorBase * (1 + JUROS_UNICO);
-                    valEl.innerText = totalEstimado.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-                    valEl.className = 'text-2xl font-black text-orange-400 drop-shadow-md';
-                    
-                } else {
-                    const parcelas = parseInt(qSelect.value) || 2;
-                    const freqTexto = fSelect.value === 'MENSAL' ? 'Mensal' : 'Semanal';
-                    
-                    document.getElementById('sim_plano').innerText = `${parcelas}x ${freqTexto}`;
-                    document.getElementById('sim_extra_label').innerText = `Valor da Parcela:`;
-                    
-                    const taxaFinal = JUROS_PARCELADO * parcelas;
-                    const totalParcelado = valorBase * (1 + taxaFinal); 
-                    const valorParcela = totalParcelado / parcelas;
-                    
-                    valEl.innerText = valorParcela.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-                    valEl.className = 'text-2xl font-black text-emerald-400 drop-shadow-md';
-                }
+            const grade     = document.getElementById('grade-planos');
+            const container = document.getElementById('cards-planos');
+
+            if (valorBase < VALOR_MINIMO) { grade.classList.add('hidden'); return; }
+            grade.classList.remove('hidden');
+
+            const planos = [
+                // 30 dias — plano único
+                { tipo: '30DIAS', parcelas: 1, label: '30 dias', desc: 'Parcela única', valor: valorBase * (1 + JUROS_UNICO), destaque: true },
+                // Parcelados 2x a 12x
+                ...[2,3,4,5,6,7,8,9,10,11,12].map(n => {
+                    const total = valorBase * (1 + JUROS_PARCELADO * n);
+                    return { tipo: 'PARCELADO', parcelas: n, label: `${n}x`, desc: `mensal`, valor: total / n, destaque: false };
+                }),
+            ];
+
+            const selecionadoAtual = document.getElementById('tipo_plano').value + '_' + document.getElementById('qtd_parcelas').value;
+
+            container.innerHTML = planos.map(p => {
+                const chave = p.tipo + '_' + p.parcelas;
+                const ativo = chave === selecionadoAtual;
+                const bordaClass = ativo
+                    ? 'border-blue-500 bg-blue-600/20 shadow-lg shadow-blue-500/20'
+                    : (p.destaque ? 'border-orange-500/50 bg-orange-900/10' : 'border-slate-700 bg-slate-900/50 hover:border-slate-500');
+                const labelColor = p.destaque ? 'text-orange-400' : 'text-blue-400';
+                const valorColor = ativo ? 'text-white' : (p.destaque ? 'text-orange-400' : 'text-emerald-400');
+
+                return `
+                <button type="button" onclick="selecionarPlano('${p.tipo}', ${p.parcelas})"
+                    class="border-2 ${bordaClass} rounded-2xl p-4 text-center transition-all cursor-pointer flex flex-col items-center gap-1">
+                    <span class="text-xs font-black uppercase ${labelColor}">${p.label}</span>
+                    <span class="text-lg font-black ${valorColor}">${fmtMoeda(p.valor)}</span>
+                    <span class="text-[9px] text-slate-500 uppercase">${p.desc}</span>
+                    ${ativo ? '<i class="fa-solid fa-circle-check text-blue-400 text-xs mt-1"></i>' : ''}
+                </button>`;
+            }).join('');
+        }
+
+        function selecionarPlano(tipo, parcelas) {
+            document.getElementById('tipo_plano').value  = tipo;
+            document.getElementById('qtd_parcelas').value = parcelas;
+            document.getElementById('frequencia').value  = 'MENSAL';
+            calcularSimulacao(); // re-render para destacar o card selecionado
+        }
+
+        // Seleciona 30 dias por padrão e re-renderiza ao digitar o valor
+        vInput.addEventListener('input', () => { calcularSimulacao(); });
+      
+        function toggleRgUpload() {
+            const marcado = document.getElementById('chk_sem_cpf_doc').checked;
+            const labelRg = document.getElementById('label_img_rg');
+            if (marcado) {
+                labelRg.classList.remove('hidden');
             } else {
-                simBox.classList.add('hidden');
+                labelRg.classList.add('hidden');
+                // Limpa a imagem se desmarcar
+                delete imagensBase64['img_rg'];
+                document.getElementById('img_rg').value = '';
+                const span = document.getElementById('lbl_img_rg');
+                span.innerText = span.dataset.orig;
+                labelRg.style.borderColor = '';
+                labelRg.style.backgroundColor = '';
+                labelRg.querySelector('i').className = 'fa-solid fa-id-card text-3xl text-orange-400 mb-3 transition-colors';
             }
         }
 
-        vInput.addEventListener('input', calcularSimulacao);
-        pSelect.addEventListener('change', atualizarInterface);
-        fSelect.addEventListener('change', atualizarParcelas);
-        qSelect.addEventListener('change', calcularSimulacao);
-      
         async function buscarNomeAvalista(input) {
             const cpf = input.value.replace(/\D/g, '');
             const txtEl = document.getElementById('nome_avalista_txt');
@@ -594,9 +583,9 @@
                     cpf: cpfLimpo.replace(/\D/g, ''),
                     whatsapp: document.getElementById('whatsapp').value.replace(/\D/g, ''),
                     valor: valorDesejado,
-                    tipo_plano: pSelect.value,
-                    frequencia: fSelect.value,
-                    qtd_parcelas: pSelect.value === '30DIAS' ? 1 : parseInt(qSelect.value),
+                    tipo_plano: document.getElementById('tipo_plano').value,
+                    frequencia: document.getElementById('frequencia').value,
+                    qtd_parcelas: parseInt(document.getElementById('qtd_parcelas').value) || 1,
                     indicado_por: document.getElementById('nome_avalista_hidden').value || 'DIRETO',
                     
                     url_selfie: imagensBase64.img_selfie,
@@ -604,6 +593,7 @@
                     url_frente: imagensBase64.img_frente,
                     url_verso: imagensBase64.img_verso,
                     url_casa: imagensBase64.img_casa,
+                    url_rg: imagensBase64.img_rg || null,
                     
                     referencia1_nome: document.getElementById('ref1_nome').value.trim().replace(/\s+/g, ' '),
                     referencia1_tel: document.getElementById('ref1_tel').value.replace(/\D/g, ''), 
