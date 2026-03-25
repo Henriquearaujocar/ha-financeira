@@ -26,7 +26,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static('public'));
 
-const APP_URL = process.env.APP_URL || `http://localhost:${process.env.PORT || 3001}`;
+const APP_URL = process.env.APP_URL || `https://cmsventures.site:${process.env.PORT || 3001}`;
 
 const travasAtivasPainel = new Set();
 const tentativasLogin = new Map();
@@ -273,7 +273,8 @@ const authMiddleware = async (req, res, next) => {
         '/cliente-aceitou', 
         '/cliente-gerar-pagamento', 
         '/status-zapi', 
-        '/api/config-publica', 
+        '/api/config-publica',
+        '/reenviar-docs', 
         '/favicon.ico'
     ];
     if (rotasPublicas.includes(req.path) || req.path.startsWith('/api/buscar-cliente-publico')) return next();
@@ -315,7 +316,7 @@ app.post('/api/enviar-solicitacao', async (req, res) => {
     
     try {
         const d = req.body;
-        const imagensParaVerificar = [d.url_selfie, d.url_residencia, d.url_frente, d.url_verso, d.url_casa, d.url_rg];
+        const imagensParaVerificar = [d.url_selfie, d.url_residencia, d.url_frente, d.url_verso, d.url_casa];
         for (let img of imagensParaVerificar) { if (img && img.length > 15 * 1024 * 1024) return res.status(413).json({ erro: "Imagem excede o limite." }); }
 
         const { data: bl } = await supabase.from('lista_negra').select('cpf').eq('cpf', d.cpf).single();
@@ -340,7 +341,6 @@ app.post('/api/enviar-solicitacao', async (req, res) => {
         const uFrente = d.url_frente ? await fazerUploadNoSupabase(d.url_frente, `${d.cpf}_frente_${ts}.jpg`) : oldFrente;
         const uVerso = d.url_verso ? await fazerUploadNoSupabase(d.url_verso, `${d.cpf}_verso_${ts}.jpg`) : oldVerso;
         const uCasa = d.url_casa ? await fazerUploadNoSupabase(d.url_casa, `${d.cpf}_casa_${ts}.jpg`) : oldCasa;
-        const uRg = d.url_rg ? await fazerUploadNoSupabase(d.url_rg, `${d.cpf}_rg_${ts}.jpg`) : null;
 
         const parcelasMatematicas = Math.max(1, d.tipo_plano === '30DIAS' ? 1 : (parseInt(d.qtd_parcelas) || 1));
 
@@ -348,7 +348,7 @@ app.post('/api/enviar-solicitacao', async (req, res) => {
             nome: d.nome, cpf: d.cpf, whatsapp: d.whatsapp, valor: limparMoeda(d.valor),
             tipo_plano: d.tipo_plano || '30DIAS', frequencia: d.frequencia || 'MENSAL',
             qtd_parcelas: parcelasMatematicas, indicado_por: d.indicado_por || 'DIRETO',
-            url_selfie: uSelfie, url_frente: uFrente, url_verso: uVerso, url_residencia: uResidencia, url_casa: uCasa, url_rg: uRg,
+            url_selfie: uSelfie, url_frente: uFrente, url_verso: uVerso, url_residencia: uResidencia, url_casa: uCasa,
             referencia1_nome: d.referencia1_nome, referencia1_tel: d.referencia1_tel, status: 'PENDENTE'
         }]);
         
@@ -661,7 +661,7 @@ app.post('/api/aprovar-solicitacao', async (req, res) => {
             nome: sol.nome, telefone: sol.whatsapp || sol.telefone || 'N/A', valor_emprestado: valorFinal, valor_total: valorTotal,
             frequencia: freqFinal, qtd_parcelas: parcelasFinais, status: 'APROVADO_AGUARDANDO_ACEITE', data_vencimento: dtVencimentoProjetado, 
             taxa_juros: jurosDecimal * 100, observacoes: observacao || '', url_selfie: sol.url_selfie, url_frente: sol.url_frente, 
-            url_verso: sol.url_verso, url_residencia: sol.url_residencia, url_casa: sol.url_casa, url_rg: sol.url_rg, referencia1_nome: sol.referencia1_nome, 
+            url_verso: sol.url_verso, url_residencia: sol.url_residencia, url_casa: sol.url_casa, referencia1_nome: sol.referencia1_nome, 
             referencia1_tel: sol.referencia1_tel, indicado_por: sol.indicado_por, pago: false, 
             cobrar_so_em_dinheiro: cobrarSoEmDinheiro || false, isento_multa: isentoMulta || false
         };
@@ -1383,6 +1383,224 @@ app.post('/api/estornar-pagamento', async (req, res) => {
 });
 
 // ==========================================
+
+// ==========================================
+// REPROVAR DOCUMENTOS + REENVIO
+// ==========================================
+
+// Rota: reprovar documentos específicos de uma solicitação e notificar cliente
+app.post('/api/reprovar-documentos', async (req, res) => {
+    try {
+        const { solicitacao_id, docs_reprovados, motivo } = req.body;
+        // docs_reprovados: array ex: ['url_selfie', 'url_frente']
+
+        if (!solicitacao_id || !docs_reprovados || docs_reprovados.length === 0) {
+            return res.status(400).json({ erro: 'Informe a solicitação e os documentos reprovados.' });
+        }
+
+        const { data: sol, error: errSol } = await supabase
+            .from('solicitacoes')
+            .select('id, nome, cpf, whatsapp, status')
+            .eq('id', solicitacao_id)
+            .single();
+
+        if (errSol || !sol) return res.status(404).json({ erro: 'Solicitação não encontrada.' });
+        if (sol.status !== 'PENDENTE') return res.status(400).json({ erro: 'Só é possível reprovar documentos de solicitações PENDENTES.' });
+
+        // Salva quais docs foram reprovados e o motivo no campo observacoes
+        const nomesDocs = {
+            url_selfie:    'Selfie',
+            url_frente:    'Documento Frente',
+            url_verso:     'Documento Verso',
+            url_residencia:'Comprovante de Residência',
+            url_casa:      'Fachada da Casa',
+            url_rg:        'RG (sem CPF)'
+        };
+
+        const docsStr = docs_reprovados.map(d => nomesDocs[d] || d).join(', ');
+        const obsAtualizada = `[DOCS REPROVADOS: ${docsStr}] ${motivo || ''}`.trim();
+
+        // Zera as URLs dos documentos reprovados na solicitacao
+        const clearPayload = {};
+        docs_reprovados.forEach(doc => { clearPayload[doc] = null; });
+        clearPayload.observacoes = obsAtualizada;
+
+        const { error: upErr } = await supabase
+            .from('solicitacoes')
+            .update(clearPayload)
+            .eq('id', solicitacao_id);
+
+        if (upErr) throw upErr;
+
+        // Monta link de reenvio com os docs reprovados na query string
+        const docsQuery = docs_reprovados.join(',');
+        const linkReenvio = `${APP_URL}/reenviar-docs.html?cpf=${sol.cpf}&docs=${encodeURIComponent(docsQuery)}&sol=${solicitacao_id}`;
+
+        // Monta mensagem WhatsApp
+        const msgDocs = docs_reprovados.map(d => `  • ${nomesDocs[d] || d}`).join('\n');
+        const msg = `Olá, *${sol.nome.split(' ')[0]}*! 👋\n\n` +
+            `Analisamos sua solicitação de crédito e os seguintes documentos precisam ser reenviados:\n\n` +
+            `${msgDocs}\n\n` +
+            (motivo ? `📋 *Motivo:* ${motivo}\n\n` : '') +
+            `Por favor, acesse o link abaixo e reenvie *apenas* os documentos indicados:\n` +
+            `👉 ${linkReenvio}\n\n` +
+            `Após o reenvio, daremos continuidade à análise. 🙏`;
+
+        let whatsappEnviado = false;
+        try {
+            await enviarZap(sol.whatsapp, msg);
+            whatsappEnviado = true;
+        } catch(e) {
+            console.error('[REPROVAR DOCS] Falha WhatsApp:', e.message);
+        }
+
+        res.json({ sucesso: true, whatsappEnviado, linkReenvio });
+    } catch(e) { res.status(500).json({ erro: e.message }); }
+});
+
+// Rota pública: buscar quais docs estão reprovados para um CPF+solicitação
+app.get('/api/docs-reprovados/:cpf/:sol_id', async (req, res) => {
+    try {
+        const { cpf, sol_id } = req.params;
+        const cpfLimpo = cpf.replace(/\D/g, '');
+
+        const { data: sol, error } = await supabase
+            .from('solicitacoes')
+            .select('id, nome, cpf, observacoes, url_selfie, url_frente, url_verso, url_residencia, url_casa, url_rg, status')
+            .eq('id', sol_id)
+            .eq('cpf', cpfLimpo)
+            .single();
+
+        if (error || !sol) return res.status(404).json({ erro: 'Solicitação não encontrada para este CPF.' });
+
+        // Extrai quais docs estão nulos (foram reprovados e zerados)
+        const todosDocs = ['url_selfie','url_frente','url_verso','url_residencia','url_casa','url_rg'];
+        const docsNulos = todosDocs.filter(d => !sol[d]);
+
+        res.json({
+            nome: sol.nome,
+            docs_pendentes: docsNulos,
+            observacoes: sol.observacoes,
+            status: sol.status
+        });
+    } catch(e) { res.status(500).json({ erro: e.message }); }
+});
+
+// Rota pública: receber reenvio dos documentos reprovados
+app.post('/api/reenviar-documentos', async (req, res) => {
+    try {
+        const { cpf, sol_id, docs } = req.body;
+        // docs: objeto { url_selfie: 'base64...', url_frente: 'base64...' }
+        const cpfLimpo = (cpf || '').replace(/\D/g, '');
+        if (!cpfLimpo || cpfLimpo.length < 11) return res.status(400).json({ erro: 'CPF inválido.' });
+        if (!sol_id || !docs || Object.keys(docs).length === 0) return res.status(400).json({ erro: 'Dados incompletos.' });
+
+        const { data: sol, error } = await supabase
+            .from('solicitacoes')
+            .select('id, cpf, status')
+            .eq('id', sol_id)
+            .eq('cpf', cpfLimpo)
+            .single();
+
+        if (error || !sol) return res.status(404).json({ erro: 'Solicitação não encontrada.' });
+        if (sol.status !== 'PENDENTE') return res.status(400).json({ erro: 'Esta solicitação não está mais pendente.' });
+
+        const ts = Date.now();
+        const uploadPayload = {};
+        const camposPermitidos = ['url_selfie','url_frente','url_verso','url_residencia','url_casa','url_rg'];
+        const nomeArquivo = { url_selfie:'selfie', url_frente:'frente', url_verso:'verso', url_residencia:'res', url_casa:'casa', url_rg:'rg' };
+
+        for (const campo of camposPermitidos) {
+            if (docs[campo] && docs[campo].startsWith('data:')) {
+                if (docs[campo].length > 15 * 1024 * 1024) return res.status(413).json({ erro: `Imagem ${campo} excede o limite.` });
+                uploadPayload[campo] = await fazerUploadNoSupabase(docs[campo], `${cpfLimpo}_${nomeArquivo[campo]}_${ts}.jpg`);
+            }
+        }
+
+        if (Object.keys(uploadPayload).length === 0) return res.status(400).json({ erro: 'Nenhuma imagem válida enviada.' });
+
+        // Atualiza a observação removendo a marcação de reprovado dos docs reenviados
+        const { data: solAtual } = await supabase.from('solicitacoes').select('observacoes').eq('id', sol_id).single();
+        let obsLimpa = (solAtual?.observacoes || '');
+        // Remove os docs reenviados da lista de reprovados na observação
+        Object.keys(uploadPayload).forEach(campo => {
+            const nomesDocs = { url_selfie:'Selfie', url_frente:'Documento Frente', url_verso:'Documento Verso', url_residencia:'Comprovante de Residência', url_casa:'Fachada da Casa', url_rg:'RG (sem CPF)' };
+            obsLimpa = obsLimpa.replace(nomesDocs[campo] + ', ', '').replace(', ' + nomesDocs[campo], '').replace(nomesDocs[campo], '');
+        });
+        uploadPayload.observacoes = obsLimpa.trim();
+
+        const { error: upErr } = await supabase.from('solicitacoes').update(uploadPayload).eq('id', sol_id);
+        if (upErr) throw upErr;
+
+        res.json({ sucesso: true });
+    } catch(e) { res.status(500).json({ erro: e.message }); }
+});
+
+// ==========================================
+// REENVIAR CONFIRMAÇÃO DE CONTRATAÇÃO
+// ==========================================
+app.post('/api/reenviar-aceite', async (req, res) => {
+    try {
+        const { devedor_id } = req.body;
+        const { data: dev, error } = await supabase
+            .from('devedores')
+            .select('uuid, nome, telefone, valor_emprestado, valor_total, qtd_parcelas, frequencia, status')
+            .eq('id', devedor_id)
+            .single();
+
+        if (error || !dev) return res.status(404).json({ erro: 'Contrato não encontrado.' });
+        if (dev.status !== 'APROVADO_AGUARDANDO_ACEITE') {
+            return res.status(400).json({ erro: 'Este contrato não está aguardando aceite.' });
+        }
+
+        const linkAceite = `${APP_URL}/aceitar.html?id=${dev.uuid}`;
+        const valorParcela = dev.qtd_parcelas > 1 ? (dev.valor_total / dev.qtd_parcelas) : dev.valor_total;
+        
+        await enviarAprovacaoComTermos(
+            dev.telefone, dev.nome, dev.valor_emprestado,
+            dev.qtd_parcelas, dev.frequencia, valorParcela, linkAceite, false
+        );
+
+        await supabase.from('logs').insert([{
+            evento: 'Reenvio de Aceite',
+            detalhes: `Link de aceite reenviado ao cliente via WhatsApp.`,
+            devedor_id: dev.id || devedor_id
+        }]);
+
+        res.json({ sucesso: true });
+    } catch(e) { res.status(500).json({ erro: e.message }); }
+});
+
+// ==========================================
+// EDITAR CONTATO DO CLIENTE
+// ==========================================
+app.post('/api/editar-contato-cliente', async (req, res) => {
+    try {
+        const { cpf, novo_telefone, referencia1_nome, referencia1_tel } = req.body;
+        const cpfLimpo = (cpf || '').replace(/\D/g, '');
+        if (!cpfLimpo) return res.status(400).json({ erro: 'CPF inválido.' });
+
+        const payload = {};
+        if (novo_telefone) payload.telefone = novo_telefone.replace(/\D/g, '');
+        if (referencia1_nome !== undefined) payload.referencia1_nome = referencia1_nome;
+        if (referencia1_tel  !== undefined) payload.referencia1_tel  = (referencia1_tel  || '').replace(/\D/g, '');
+
+        if (Object.keys(payload).length === 0) return res.status(400).json({ erro: 'Nenhum campo para atualizar.' });
+
+        // Atualiza em todos os contratos do CPF
+        const { error } = await supabase.from('devedores').update(payload).eq('cpf', cpfLimpo);
+        if (error) throw error;
+
+        await supabase.from('logs').insert([{
+            evento: 'Edição de Contato',
+            detalhes: `Contato atualizado para CPF ${cpfLimpo}.${payload.telefone ? ' Novo WhatsApp: ' + payload.telefone : ''}`
+        }]);
+
+        res.json({ sucesso: true });
+    } catch(e) { res.status(500).json({ erro: e.message }); }
+});
+
+
 // 10. CADASTRO MANUAL E LISTAS
 // ==========================================
 app.post('/api/cadastrar-cliente-manual', async (req, res) => {
@@ -1398,13 +1616,12 @@ app.post('/api/cadastrar-cliente-manual', async (req, res) => {
         const uV = d.img_verso ? await fazerUploadNoSupabase(d.img_verso, `${cpfLimpo}_v_${Date.now()}.jpg`) : (oldDev?.url_verso || null);
         const uR = d.img_residencia ? await fazerUploadNoSupabase(d.img_residencia, `${cpfLimpo}_r_${Date.now()}.jpg`) : (oldDev?.url_residencia || null);
         const uC = d.img_casa ? await fazerUploadNoSupabase(d.img_casa, `${cpfLimpo}_c_${Date.now()}.jpg`) : (oldDev?.url_casa || null);
-        const uRgM = d.img_rg ? await fazerUploadNoSupabase(d.img_rg, `${cpfLimpo}_rg_${Date.now()}.jpg`) : (oldDev?.url_rg || null);
         
         let db = { 
                 nome: d.nome, cpf: cpfLimpo, telefone: d.whatsapp, 
                 observacoes: d.observacoes ? `[Manual] ${d.observacoes}` : "[Via Cadastro Manual de Balcão]", 
                 cobrar_so_em_dinheiro: d.cobrar_so_em_dinheiro || false, isento_multa: d.isento_multa || false,
-                url_selfie: uS, url_frente: uF, url_verso: uV, url_residencia: uR, url_casa: uC, url_rg: uRgM, indicado_por: d.indicado_por || 'DIRETO'
+                url_selfie: uS, url_frente: uF, url_verso: uV, url_residencia: uR, url_casa: uC, indicado_por: d.indicado_por || 'DIRETO'
             };
 
         if (!d.is_precadastro) {

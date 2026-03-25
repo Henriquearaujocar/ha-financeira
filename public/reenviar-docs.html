@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="color-scheme" content="light">
+    <title>Reenviar Documentos | CMS Ventures</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        :root { color-scheme: light only; }
+        html, body { background-color: #020617 !important; color: #f1f5f9 !important; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.05); }
+        .input-field { background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 1.25rem; padding: 1.25rem; width: 100%; outline: none; transition: 0.3s; }
+        .input-field:focus { border-color: #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.3); }
+        .file-label { display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(15, 23, 42, 0.8); border: 2px dashed rgba(255,255,255,0.15); border-radius: 1.25rem; padding: 2rem 1rem; cursor: pointer; transition: 0.3s; text-align: center; }
+        .file-label:hover { border-color: #3b82f6; background: rgba(59, 130, 246, 0.05); }
+        .file-label.reprovado { border-color: rgba(239, 68, 68, 0.5); background: rgba(239, 68, 68, 0.04); }
+        .file-label.reprovado:hover { border-color: #ef4444; }
+        input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 relative" onload="inicializar()">
+
+    <div class="fixed top-[-10%] left-[-10%] w-[300px] h-[300px] bg-red-600 rounded-full mix-blend-multiply filter blur-[100px] opacity-10 pointer-events-none"></div>
+    <div class="fixed bottom-[-10%] right-[-10%] w-[300px] h-[300px] bg-blue-600 rounded-full mix-blend-multiply filter blur-[100px] opacity-10 pointer-events-none"></div>
+
+    <div id="toast" class="fixed top-6 left-1/2 -translate-x-1/2 z-[200] hidden transition-all duration-300">
+        <div class="bg-slate-900 border border-white/10 px-6 py-4 rounded-full shadow-2xl flex items-center gap-3">
+            <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-500 text-xl"></i>
+            <p id="toastMsg" class="text-sm font-bold tracking-wide"></p>
+        </div>
+    </div>
+
+    <div id="loadingOverlay" class="fixed inset-0 bg-black/90 backdrop-blur-sm z-[150] hidden flex flex-col items-center justify-center">
+        <i class="fa-solid fa-circle-notch fa-spin text-6xl text-blue-500 mb-4"></i>
+        <h2 class="text-xl font-black uppercase tracking-widest text-white">A processar...</h2>
+        <p class="text-slate-400 text-sm mt-2">A verificar e enviar os documentos.</p>
+    </div>
+
+    <main class="glass-card w-full max-w-lg rounded-[2rem] p-8 md:p-10 relative z-10 my-8 shadow-2xl">
+
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <img src="/logo.png" alt="CMS Ventures" onerror="this.style.display='none'" class="h-16 mx-auto mb-4 object-contain">
+            <h1 class="text-2xl font-black italic text-blue-500 tracking-tighter uppercase">CMS Ventures</h1>
+            <p class="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] mt-1">Reenvio de Documentos</p>
+        </div>
+
+        <!-- ETAPA 1: Identificação por CPF -->
+        <div id="etapa-cpf">
+            <div class="bg-orange-900/20 border border-orange-500/30 rounded-2xl p-5 mb-6">
+                <div class="flex items-start gap-3">
+                    <i class="fa-solid fa-triangle-exclamation text-orange-400 text-xl mt-0.5"></i>
+                    <div>
+                        <p class="text-sm font-black text-orange-300 uppercase tracking-wide">Documento(s) Reprovado(s)</p>
+                        <p class="text-xs text-slate-400 mt-1">Um ou mais documentos precisam ser reenviados. Informe seu CPF para identificarmos sua solicitação.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Seu CPF</label>
+                    <input type="text" id="cpf_identificacao" placeholder="000.000.000-00" class="input-field mt-1 text-center text-lg font-black tracking-widest" maxlength="14" oninput="mascaraCPF(this)">
+                </div>
+                <button onclick="identificarCliente()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase py-4 rounded-[1.25rem] transition-all shadow-lg flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-magnifying-glass"></i> Identificar e Ver Documentos
+                </button>
+            </div>
+        </div>
+
+        <!-- ETAPA 2: Upload dos docs reprovados -->
+        <div id="etapa-upload" class="hidden space-y-6">
+
+            <div class="text-center bg-slate-800/60 border border-slate-700 rounded-2xl p-4">
+                <p class="text-[10px] font-black uppercase text-slate-500">Solicitação de</p>
+                <p id="nome-cliente" class="text-lg font-black text-white mt-1">...</p>
+                <p class="text-[10px] text-orange-400 font-bold mt-1" id="motivo-reprovacao"></p>
+            </div>
+
+            <div>
+                <p class="text-xs font-black uppercase text-red-400 mb-1 ml-1">
+                    <i class="fa-solid fa-circle-exclamation mr-1"></i>
+                    Documentos que precisam ser reenviados:
+                </p>
+                <p class="text-[10px] text-slate-400 ml-1 mb-4">Apenas os itens abaixo precisam ser substituídos. Envie fotos nítidas e bem iluminadas.</p>
+            </div>
+
+            <!-- Grid de uploads — preenchido dinamicamente pelo JS -->
+            <div id="grid-uploads" class="grid grid-cols-1 gap-4"></div>
+
+            <button onclick="enviarDocumentos()" id="btnEnviar" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase py-5 rounded-[1.25rem] transition-all shadow-lg flex items-center justify-center gap-3 mt-4">
+                <i class="fa-solid fa-paper-plane"></i> Enviar Documentos
+            </button>
+            <p id="erroGeral" class="text-red-400 text-xs font-bold text-center hidden mt-2"></p>
+        </div>
+
+        <!-- ETAPA 3: Sucesso -->
+        <div id="etapa-sucesso" class="hidden text-center py-8 space-y-4">
+            <i class="fa-solid fa-circle-check text-7xl text-emerald-500 mb-4 drop-shadow-[0_0_20px_rgba(16,185,129,0.5)]"></i>
+            <h2 class="text-2xl font-black text-white uppercase italic">Documentos Enviados!</h2>
+            <p class="text-slate-400">Recebemos seus documentos. Nossa equipe dará continuidade à análise em breve.</p>
+            <p class="text-sm text-slate-500 mt-4 bg-slate-800/50 p-4 rounded-xl border border-slate-700">Entraremos em contacto pelo WhatsApp assim que a análise for concluída. 🙏</p>
+        </div>
+
+    </main>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        // Pega parâmetros da URL: cpf, docs, sol (solicitacao_id)
+        const urlParams = new URLSearchParams(window.location.search);
+        const CPF_URL   = urlParams.get('cpf') || '';
+        const DOCS_URL  = urlParams.get('docs') || '';
+        const SOL_ID    = urlParams.get('sol')  || '';
+
+        let solicitacaoId  = SOL_ID;
+        let docsReprovados = DOCS_URL ? DOCS_URL.split(',') : [];
+        let imagensBase64  = {};
+        let uploadsEmAndamento = 0;
+        let isSubmitting   = false;
+
+        const NOMES_DOCS = {
+            url_selfie:    'Selfie',
+            url_frente:    'Documento — Frente',
+            url_verso:     'Documento — Verso',
+            url_residencia:'Comprovante de Residência',
+            url_casa:      'Fachada da Casa',
+            url_rg:        'RG (sem CPF)'
+        };
+
+        const ICONES_DOCS = {
+            url_selfie:    'fa-camera',
+            url_frente:    'fa-id-card',
+            url_verso:     'fa-id-card',
+            url_residencia:'fa-file-invoice',
+            url_casa:      'fa-house',
+            url_rg:        'fa-id-card'
+        };
+
+        function mascaraCPF(input) {
+            let x = input.value.replace(/\D/g, '').match(/(\d{0,3})(\d{0,3})(\d{0,3})(\d{0,2})/);
+            input.value = !x[2] ? x[1] : x[1] + '.' + x[2] + (x[3] ? '.' + x[3] : '') + (x[4] ? '-' + x[4] : '');
+        }
+
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            document.getElementById('toastIcon').className = type === 'success'
+                ? 'fa-solid fa-circle-check text-emerald-500 text-xl'
+                : 'fa-solid fa-triangle-exclamation text-red-500 text-xl';
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 5000);
+        }
+
+        function inicializar() {
+            // Se veio CPF na URL, preenche e já busca
+            if (CPF_URL) {
+                const cpfFormatado = CPF_URL.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+                const inputCpf = document.getElementById('cpf_identificacao');
+                if (inputCpf) inputCpf.value = cpfFormatado;
+
+                // Se também vieram docs e sol_id na URL, pula direto para o upload
+                if (docsReprovados.length > 0 && solicitacaoId) {
+                    buscarDocsReprovados(CPF_URL.replace(/\D/g,''), solicitacaoId);
+                }
+            }
+        }
+
+        async function identificarCliente() {
+            const cpfInput = document.getElementById('cpf_identificacao').value.replace(/\D/g, '');
+            if (cpfInput.length !== 11) return showToast('CPF inválido.', 'error');
+            if (!solicitacaoId) return showToast('Link inválido. Utilize o link enviado pelo WhatsApp.', 'error');
+
+            await buscarDocsReprovados(cpfInput, solicitacaoId);
+        }
+
+        async function buscarDocsReprovados(cpf, solId) {
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+            try {
+                const res = await fetch(`${API_BASE}/api/docs-reprovados/${cpf}/${solId}`);
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.erro || 'Solicitação não encontrada para este CPF.');
+                }
+                const data = await res.json();
+
+                document.getElementById('nome-cliente').innerText = data.nome;
+
+                // Extrai motivo da observação
+                const obsMatch = (data.observacoes || '').match(/\[DOCS REPROVADOS:[^\]]*\]\s*(.*)/);
+                const motivo = obsMatch ? obsMatch[1].trim() : '';
+                if (motivo) {
+                    document.getElementById('motivo-reprovacao').innerHTML =
+                        `<i class="fa-solid fa-circle-info mr-1"></i> ${motivo}`;
+                }
+
+                // Usa os docs vindos da URL ou os que estão nulos no banco
+                const docsParaUpload = docsReprovados.length > 0
+                    ? docsReprovados.filter(d => data.docs_pendentes.includes(d))
+                    : data.docs_pendentes;
+
+                if (docsParaUpload.length === 0) {
+                    showToast('Nenhum documento pendente encontrado. Sua solicitação pode já ter sido processada.', 'error');
+                    return;
+                }
+
+                renderizarUploads(docsParaUpload);
+
+                document.getElementById('etapa-cpf').classList.add('hidden');
+                document.getElementById('etapa-upload').classList.remove('hidden');
+
+            } catch(e) {
+                showToast(e.message, 'error');
+            } finally {
+                document.getElementById('loadingOverlay').classList.add('hidden');
+            }
+        }
+
+        function renderizarUploads(docs) {
+            const grid = document.getElementById('grid-uploads');
+            grid.innerHTML = '';
+
+            docs.forEach(doc => {
+                const nome  = NOMES_DOCS[doc]  || doc;
+                const icone = ICONES_DOCS[doc] || 'fa-upload';
+
+                grid.innerHTML += `
+                <label class="file-label reprovado" id="label_${doc}">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="bg-red-500/20 text-red-400 text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-red-500/30">
+                            <i class="fa-solid fa-xmark mr-1"></i>Reprovado
+                        </span>
+                    </div>
+                    <i class="fa-solid ${icone} text-3xl text-red-400 mb-3 transition-colors" id="icon_${doc}"></i>
+                    <span class="text-[11px] font-black uppercase text-slate-200" id="lbl_${doc}" data-orig="${nome}">${nome}</span>
+                    <span class="text-[9px] text-slate-500 mt-1">Toque para selecionar nova foto</span>
+                    <input type="file" id="input_${doc}" accept="image/*" class="hidden" onchange="processarUpload(this, '${doc}')">
+                </label>`;
+            });
+        }
+
+        function processarUpload(input, campo) {
+            const file = input.files[0];
+            const label = document.getElementById(`label_${campo}`);
+            const icon  = document.getElementById(`icon_${campo}`);
+            const lbl   = document.getElementById(`lbl_${campo}`);
+
+            if (!file) return;
+            if (file.size > 15 * 1024 * 1024) {
+                showToast('Imagem muito grande.', 'error');
+                input.value = '';
+                return;
+            }
+
+            label.style.opacity = '0.5';
+            icon.className = 'fa-solid fa-spinner fa-spin text-3xl mb-3 text-blue-500';
+            lbl.innerText  = 'A processar...';
+            uploadsEmAndamento++;
+            document.getElementById('btnEnviar').disabled = true;
+
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (e) => {
+                const img = new Image();
+                img.src = e.target.result;
+
+                img.onerror = () => {
+                    showToast('Ficheiro inválido.', 'error');
+                    label.style.opacity = '1';
+                    icon.className = 'fa-solid fa-triangle-exclamation text-3xl mb-3 text-red-500';
+                    lbl.innerText  = 'ERRO — Tente novamente';
+                    input.value = '';
+                    uploadsEmAndamento--;
+                    if (uploadsEmAndamento === 0) document.getElementById('btnEnviar').disabled = false;
+                    img.src = '';
+                };
+
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx    = canvas.getContext('2d');
+                    const MAX    = 800;
+                    const scale  = img.width > MAX ? MAX / img.width : 1;
+                    canvas.width  = img.width  * scale;
+                    canvas.height = img.height * scale;
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                    imagensBase64[campo] = canvas.toDataURL('image/jpeg', 0.5);
+
+                    label.style.opacity        = '1';
+                    label.style.borderColor    = '#10b981';
+                    label.style.backgroundColor = 'rgba(16,185,129,0.05)';
+                    icon.className  = 'fa-solid fa-check-circle text-3xl mb-3 text-emerald-500';
+                    lbl.style.color = '#10b981';
+                    lbl.innerText   = 'ANEXADO ✓';
+
+                    uploadsEmAndamento--;
+                    if (uploadsEmAndamento === 0) document.getElementById('btnEnviar').disabled = false;
+                    img.src = '';
+                };
+            };
+        }
+
+        async function enviarDocumentos() {
+            if (isSubmitting) return;
+            const cpfInput = document.getElementById('cpf_identificacao')?.value.replace(/\D/g,'') || CPF_URL.replace(/\D/g,'');
+            const erroEl   = document.getElementById('erroGeral');
+            erroEl.classList.add('hidden');
+
+            if (Object.keys(imagensBase64).length === 0) {
+                erroEl.innerText = 'Selecione pelo menos um documento para enviar.';
+                erroEl.classList.remove('hidden');
+                return;
+            }
+
+            isSubmitting = true;
+            document.getElementById('btnEnviar').disabled = true;
+            document.getElementById('btnEnviar').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> A enviar...';
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+
+            try {
+                const res = await fetch(`${API_BASE}/api/reenviar-documentos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        cpf: cpfInput,
+                        sol_id: solicitacaoId,
+                        docs: imagensBase64
+                    })
+                });
+
+                if (res.ok) {
+                    document.getElementById('etapa-upload').classList.add('hidden');
+                    document.getElementById('etapa-sucesso').classList.remove('hidden');
+                } else {
+                    const err = await res.json();
+                    throw new Error(err.erro || 'Erro ao enviar documentos.');
+                }
+            } catch(e) {
+                erroEl.innerText = e.message;
+                erroEl.classList.remove('hidden');
+                document.getElementById('btnEnviar').disabled = false;
+                document.getElementById('btnEnviar').innerHTML = '<i class="fa-solid fa-paper-plane"></i> Enviar Documentos';
+            } finally {
+                document.getElementById('loadingOverlay').classList.add('hidden');
+                isSubmitting = false;
+            }
+        }
+    </script>
+</body>
+</html>
