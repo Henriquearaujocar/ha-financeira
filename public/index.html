@@ -2655,11 +2655,24 @@ function renderizarAberto(lista) {
                             <i class="fa-solid fa-comment-dots mr-1"></i> <span class="font-bold">OBS:</span> ${escapeHTML(c.observacoes)}
                         </div>` : '';
 
+                    const qtdParc = parseInt(c.qtd_parcelas) || 1;
+                    const freqLabel = c.frequencia === 'SEMANAL' ? 'Semanal' : 'Mensal';
+                    const parcelaLabel = qtdParc > 1 ? `${qtdParc}x ${freqLabel}` : `Única (30 dias)`;
+                    const taxaLabel = c.taxa_juros ? `${parseFloat(c.taxa_juros).toFixed(1)}% ao mês` : '';
+
                     vContratos.innerHTML += `
                     <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700 mb-4">
                         <div class="flex justify-between items-start mb-2">
                             <p class="text-xs font-bold text-white leading-tight"><i class="fa-solid fa-file-signature text-blue-400 mr-1"></i> CT #${c.id} <br><span class="text-[9px] text-slate-400 font-normal">Início: ${c.created_at ? new Date(c.created_at).toLocaleDateString() : ''}</span> ${isentoBadge}</p>
                             <span class="text-[9px] font-black ${isActive ? 'text-red-400' : 'text-emerald-400'}">${c.status}</span>
+                        </div>
+                        <!-- Acordo: parcelas e frequência -->
+                        <div class="flex items-center gap-2 mb-2 flex-wrap">
+                            <span class="bg-blue-900/30 border border-blue-500/30 text-blue-300 text-[9px] font-black uppercase px-2 py-0.5 rounded-full">
+                                <i class="fa-solid fa-layer-group mr-1"></i>${parcelaLabel}
+                            </span>
+                            ${taxaLabel ? `<span class="bg-slate-900/60 border border-slate-600 text-slate-400 text-[9px] font-bold px-2 py-0.5 rounded-full">${taxaLabel}</span>` : ''}
+                            ${c.data_vencimento ? `<span class="bg-slate-900/60 border border-slate-600 text-slate-400 text-[9px] font-bold px-2 py-0.5 rounded-full"><i class="fa-regular fa-calendar mr-1"></i>Venc: ${new Date(c.data_vencimento + 'T12:00:00Z').toLocaleDateString('pt-BR')}</span>` : ''}
                         </div>
                         ${obsHtml}
                         <div class="grid grid-cols-3 gap-2 text-[9px] text-center mb-2">

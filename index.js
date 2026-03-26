@@ -26,7 +26,10 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static('public'));
 
-const APP_URL = process.env.APP_URL || `https://cmsventures.site:${process.env.PORT || 3001}`;
+const APP_URL = process.env.APP_URL || 'https://cmsventures.site';
+if (!process.env.APP_URL) {
+    console.warn('[CONFIG] ⚠️  Variável APP_URL não definida no .env — usando fallback: https://cmsventures.site');
+}
 
 const travasAtivasPainel = new Set();
 const tentativasLogin = new Map();
@@ -273,11 +276,14 @@ const authMiddleware = async (req, res, next) => {
         '/cliente-aceitou', 
         '/cliente-gerar-pagamento', 
         '/status-zapi', 
-        '/api/config-publica',
-        '/reenviar-docs', 
+        '/api/config-publica', 
         '/favicon.ico'
     ];
-    if (rotasPublicas.includes(req.path) || req.path.startsWith('/api/buscar-cliente-publico')) return next();
+    if (rotasPublicas.includes(req.path) 
+        || req.path.startsWith('/api/buscar-cliente-publico')
+        || req.path.startsWith('/api/docs-reprovados/')
+        || req.path === '/api/reenviar-documentos'
+    ) return next();
     
     const tokenHeader = req.headers['authorization'];
     if (!tokenHeader || !tokenHeader.startsWith('Bearer ')) return res.status(401).json({ erro: 'Acesso Restrito.' });
@@ -383,7 +389,7 @@ app.post('/api/enviar-solicitacao', async (req, res) => {
                 `💰 *Valor:* ${valorFmt}\n` +
                 `📋 *Plano:* ${planoFmt}` +
                 indicador + ref1 + obs + `\n\n` +
-                `👉 Acesse o painel para *aprovar ou rejeitar*:\n${process.env.APP_URL || 'http://localhost:3001'}`;
+                `👉 Acesse o painel para *aprovar ou rejeitar*:\n${APP_URL}`;
 
             // Envia para todos os números configurados (sem bloquear a resposta)
             numerosNotif.forEach(num => {
