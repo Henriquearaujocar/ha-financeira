@@ -446,10 +446,15 @@ app.post('/cliente-aceitou', async (req, res) => {
         await supabase.from('devedores').update({ status: 'ABERTO' }).eq('id', dev.id);
         await supabase.from('solicitacoes').update({ status: 'ASSINADO' }).eq('cpf', dev.cpf).eq('status', 'APROVADO_CP');
         // Só aqui o dinheiro sai do caixa — cliente assinou, contrato ativado
-        await supabase.from('logs').insert([
+        const { error: logErr } = await supabase.from('logs').insert([
             { evento: 'Empréstimo Liberado', detalhes: `Contrato assinado digitalmente. Vencimento: ${dev.data_vencimento}.`, devedor_id: dev.id, valor_fluxo: -Math.abs(dev.valor_emprestado) },
         ]);
-        res.json({ status: 'Assinado' }); 
+        if (logErr) {
+            console.error('[ASSINAR] Falha ao registrar log de empréstimo no caixa:', logErr.message);
+            // Contrato foi assinado mas log de saída falhou — retornar erro para que o admin saiba
+            return res.status(500).json({ erro: 'Contrato assinado, mas falha ao registrar saída no caixa: ' + logErr.message });
+        }
+        res.json({ status: 'Assinado' });
     } catch(e) { res.status(500).json({ erro: e.message }); } 
 });
 
@@ -600,14 +605,21 @@ app.get(['/api/dashboard', '/api/dashboard-master'], async (req, res) => {
         const lucroEstimadoReal = Math.round((totalAReceberReal - capitalNaRuaReal) * 100) / 100;
         // ─────────────────────────────────────────────────────────────────────
 
-        res.json({ 
+        // CORREÇÃO: calcula caixa diretamente dos logs (soma todos valor_fluxo positivos e negativos).
+        // O RPC obter_resumo_dashboard pode não incluir saídas negativas (empréstimos liberados),
+        // por isso a caixa ficava estática mesmo após contratos assinados.
+        const { data: logsFluxo } = await supabase.from('logs').select('valor_fluxo');
+        const fluxoLiquidoTotal = (logsFluxo || []).reduce((s, l) => s + (parseFloat(l.valor_fluxo) || 0), 0);
+        const caixaDisponivel = Math.round((caixaGeral + fluxoLiquidoTotal) * 100) / 100;
+
+        res.json({
             totalAReceber: totalAReceberReal,
             lucroEstimado: lucroEstimadoReal,
-            recebidoHoje: resumoSeguro.recebidoHoje || 0, 
-            pendencias: resumoSeguro.pendencias || 0, 
+            recebidoHoje: resumoSeguro.recebidoHoje || 0,
+            pendencias: resumoSeguro.pendencias || 0,
             finalizados: resumoSeguro.finalizados || 0,
             capitalNaRua: capitalNaRuaReal,
-            caixaDisponivel: caixaGeral + (parseFloat(resumoSeguro.fluxoLiquidoTotal) || 0),
+            caixaDisponivel,
             caixaConfigurado,
             valor_inadimplencia: valorInadimplenciaReal
         });
@@ -1672,6 +1684,51 @@ app.get('/api/extrato-caixa', async (req, res) => {
 
 app.post('/api/saida-caixa', async (req, res) => {
     try { await supabase.from('logs').insert([{ evento: "SAÍDA DE CAIXA", detalhes: req.body.motivo, valor_fluxo: -Math.abs(limparMoeda(req.body.valor)) }]); res.json({ sucesso: true }); } catch(e) { res.status(500).json({ erro: e.message }); }
+});
+
+// REPARO: cria os logs de "Empréstimo Liberado" faltantes para contratos ativos sem lançamento no caixa.
+// Seguro: verifica existência antes de inserir, nunca duplica. Usa a data original do contrato.
+app.post('/api/admin/reparar-logs-emprestimos', async (req, res) => {
+    try {
+        const { data: devedores } = await supabase
+            .from('devedores')
+            .select('id, nome, valor_emprestado, status, created_at')
+            .in('status', ['ABERTO', 'ATRASADO', 'QUITADO', 'CALOTE'])
+            .gt('valor_emprestado', 0);
+
+        if (!devedores?.length) return res.json({ reparados: 0, detalhes: [] });
+
+        const reparados = [];
+        const falhas = [];
+
+        for (const dev of devedores) {
+            const { count } = await supabase
+                .from('logs')
+                .select('id', { count: 'exact', head: true })
+                .eq('devedor_id', dev.id)
+                .eq('evento', 'Empréstimo Liberado');
+
+            if (count === 0) {
+                const { error } = await supabase.from('logs').insert([{
+                    evento: 'Empréstimo Liberado',
+                    detalhes: `Lançamento reparado — contrato ativo sem log de liberação. Cliente: ${dev.nome}.`,
+                    devedor_id: dev.id,
+                    valor_fluxo: -Math.abs(dev.valor_emprestado),
+                    created_at: dev.created_at,
+                }]);
+                if (!error) {
+                    reparados.push({ nome: dev.nome, valor: dev.valor_emprestado });
+                } else {
+                    console.error(`[REPAIR] Falha ao criar log para ${dev.nome}:`, error.message);
+                    falhas.push({ nome: dev.nome, erro: error.message });
+                }
+            }
+        }
+
+        res.json({ reparados: reparados.length, detalhes: reparados, falhas });
+    } catch (err) {
+        res.status(500).json({ erro: err.message });
+    }
 });
 
 app.get('/api/lista-negra', async (req, res) => {

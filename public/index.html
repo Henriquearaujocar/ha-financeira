@@ -805,6 +805,7 @@
                     </div>
                 </div>
                 <button onclick="carregarRelatorios()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-xl transition-all shadow-lg"><i class="fa-solid fa-list text-xs mr-2"></i> Listar Movimentações</button>
+                <button onclick="repararLogsEmprestimos()" class="bg-amber-700 hover:bg-amber-600 text-white font-bold px-6 py-3 rounded-xl transition-all shadow-lg" title="Cria lançamentos faltantes no caixa para contratos sem registro"><i class="fa-solid fa-wrench text-xs mr-2"></i> Reparar Lançamentos</button>
             </div>
 
             <div class="glass-card rounded-3xl overflow-hidden border border-slate-700 mt-6">
@@ -3175,24 +3176,36 @@ function renderizarAberto(lista) {
         // RELATÓRIOS E CAIXA 
         // =====================================
         async function carregarRelatorios() {
+            const tbody = document.getElementById('lista-relatorio-detalhado');
             try {
-                const i = document.getElementById('data_inicio_rel').value || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]; 
+                const i = document.getElementById('data_inicio_rel').value || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
                 const f = document.getElementById('data_fim_rel').value || new Date().toISOString().split('T')[0];
-                
-                const res = await fetchSeguro(`${API_BASE}/api/relatorio-periodo`, { 
-                    method: 'POST', 
-                    headers: headersAuth, 
-                    body: JSON.stringify({ dataInicio: i, dataFim: f }) 
+
+                const res = await fetchSeguro(`${API_BASE}/api/relatorio-periodo`, {
+                    method: 'POST',
+                    headers: headersAuth,
+                    body: JSON.stringify({ dataInicio: i, dataFim: f })
                 });
-                
-                const dados = await res.json(); 
-                const tbody = document.getElementById('lista-relatorio-detalhado'); 
+
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.erro || `Erro ${res.status} ao carregar movimentações`);
+                }
+
+                const dados = await res.json();
                 tbody.innerHTML = '';
-                
-                (dados.movimentacoes || []).forEach(m => {
-                    const v = parseFloat(m.valor_fluxo); 
-                    const isE = v > 0 && m.evento !== "SAÍDA DE CAIXA"; 
-                    
+
+                const movs = dados.movimentacoes || [];
+
+                if (movs.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-slate-500 text-sm">Nenhuma movimentação encontrada no período selecionado.</td></tr>`;
+                    return;
+                }
+
+                movs.forEach(m => {
+                    const v = parseFloat(m.valor_fluxo);
+                    const isE = v > 0 && m.evento !== "SAÍDA DE CAIXA";
+
                     // Botão de estorno só aparece para entradas positivas e que não sejam o próprio estorno
                     let btnEstorno = '';
                     if (isE && !m.evento.includes('Estorno')) {
@@ -3210,7 +3223,32 @@ function renderizarAberto(lista) {
                         </tr>
                     `;
                 });
-            } catch(e) {}
+            } catch(e) {
+                tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-red-400 text-sm"><i class="fa-solid fa-circle-exclamation mr-2"></i>${e.message}</td></tr>`;
+            }
+        }
+
+        async function repararLogsEmprestimos() {
+            if (!confirm('Isso vai criar os lançamentos de "Empréstimo Liberado" faltantes para contratos sem registro no caixa.\n\nNenhum dado existente será apagado ou alterado. Continuar?')) return;
+            showToast('Verificando e reparando lançamentos...');
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/admin/reparar-logs-emprestimos`, {
+                    method: 'POST',
+                    headers: headersAuth,
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.erro || 'Erro ao reparar');
+                if (data.reparados === 0) {
+                    showToast('Nenhum lançamento faltante encontrado. Tudo está correto!');
+                } else {
+                    showToast(`${data.reparados} lançamento(s) criado(s) com sucesso!`);
+                    carregarDashboard();
+                    carregarRelatorios();
+                    carregarDash();
+                }
+            } catch(e) {
+                showToast(e.message, 'error');
+            }
         }
 
         async function estornarPagamento(logId) {
