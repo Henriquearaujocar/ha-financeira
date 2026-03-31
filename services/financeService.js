@@ -343,6 +343,30 @@ const recalcularDivida = async (devedorId, valorPago, transactionId = null, data
 
         const falha = await executarNoBanco(rpcPayload);
         if (falha) return falha;
+
+        // SINCRONIZA A TABELA PARCELAS após a rolagem.
+        // O RPC atualiza devedores.data_vencimento, mas a parcela em aberto fica com
+        // a data antiga — o robô de cobrança leria essa data velha e mandaria lembrete errado.
+        try {
+            const { data: parcRolar } = await supabase
+                .from('parcelas')
+                .select('id')
+                .eq('devedor_id', dev.id)
+                .in('status', ['PENDENTE', 'ATRASADO', 'PARCIAL'])
+                .order('numero_parcela', { ascending: true })
+                .limit(1)
+                .maybeSingle();
+
+            if (parcRolar) {
+                await supabase
+                    .from('parcelas')
+                    .update({ data_vencimento: rpcPayload.p_novo_vencimento, status: 'PENDENTE' })
+                    .eq('id', parcRolar.id);
+            }
+        } catch (errSync) {
+            console.warn(`[ROLAGEM] Aviso: falha ao sincronizar parcela do devedor ${dev.id}:`, errSync.message);
+        }
+
         return { sucesso: true, status: 'rolado', novoVencimento: rpcPayload.p_novo_vencimento };
     } else {
         rpcPayload.p_evento = "Pagamento Incompleto";

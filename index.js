@@ -428,34 +428,34 @@ app.post('/validar-extrato', async (req, res) => {
     } catch(e) { res.status(500).json({ erro: e.message }); } 
 });
 
-app.post('/cliente-aceitou', async (req, res) => { 
-    try { 
+app.post('/cliente-aceitou', async (req, res) => {
+    // Trava por UUID para evitar race condition (duplo-clique / dois requests simultâneos)
+    // que causaria duplicação do log "Empréstimo Liberado" e caixa incorreto.
+    const lockKey = `aceite_${req.body.id}`;
+    if (travasAtivasPainel.has(lockKey)) return res.status(429).json({ erro: "Operação em andamento." });
+    travasAtivasPainel.add(lockKey);
+    try {
         const { data: dev } = await supabase.from('devedores').select('*').eq('uuid', req.body.id).single();
         if (!dev) return res.status(404).json({ erro: "Contrato não encontrado." });
-        
-        // CORREÇÃO: a lógica anterior aceitava contratos ABERTO/ATRASADO como "já assinados",
-        // o que permitia qualquer UUID ativo passar sem validação.
-        // Agora apenas contratos em APROVADO_AGUARDANDO_ACEITE podem ser assinados.
+
         if (dev.status === 'ABERTO' || dev.status === 'ATRASADO') {
             return res.status(400).json({ erro: "Este contrato já se encontra ativo no sistema." });
         }
         if (dev.status !== 'APROVADO_AGUARDANDO_ACEITE') {
             return res.status(400).json({ erro: "Este contrato não está disponível para assinatura." });
         }
-        
+
         await supabase.from('devedores').update({ status: 'ABERTO' }).eq('id', dev.id);
         await supabase.from('solicitacoes').update({ status: 'ASSINADO' }).eq('cpf', dev.cpf).eq('status', 'APROVADO_CP');
-        // Só aqui o dinheiro sai do caixa — cliente assinou, contrato ativado
         const { error: logErr } = await supabase.from('logs').insert([
             { evento: 'Empréstimo Liberado', detalhes: `Contrato assinado digitalmente. Vencimento: ${dev.data_vencimento}.`, devedor_id: dev.id, valor_fluxo: -Math.abs(dev.valor_emprestado) },
         ]);
         if (logErr) {
             console.error('[ASSINAR] Falha ao registrar log de empréstimo no caixa:', logErr.message);
-            // Contrato foi assinado mas log de saída falhou — retornar erro para que o admin saiba
             return res.status(500).json({ erro: 'Contrato assinado, mas falha ao registrar saída no caixa: ' + logErr.message });
         }
         res.json({ status: 'Assinado' });
-    } catch(e) { res.status(500).json({ erro: e.message }); } 
+    } catch(e) { res.status(500).json({ erro: e.message }); } finally { travasAtivasPainel.delete(lockKey); }
 });
 
 app.post('/cliente-gerar-pagamento', async (req, res) => {
@@ -1860,11 +1860,13 @@ app.post('/api/relatorio-periodo', async (req, res) => {
 
         console.log(`[API] A gerar Relatório Analítico: ${inicio} a ${fim}`);
 
+        // Limite explícito de 5000 para evitar o cap silencioso de 1000 do PostgREST.
         const { data: logs, error: errLogs } = await supabase.from('logs')
             .select('id, valor_fluxo, valor_capital, valor_juros, evento, detalhes, created_at, devedor_id, devedores(nome, status)')
             .gte('created_at', inicio)
             .lte('created_at', fim)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .limit(5000);
 
         if (errLogs) {
             console.error("ERRO SUPABASE:", errLogs);
@@ -2011,18 +2013,22 @@ app.post('/api/relatorio-periodo', async (req, res) => {
             is_estorno: (m.evento || '').includes('Estorno'),
         }));
 
+        // Avisa o frontend se o resultado foi truncado pelo limite de 5000 registros.
+        const truncado = (logs || []).length >= 5000;
+
         res.json({
             totalEmprestado,
-            totalRecebido,         // entradas brutas menos estornos
+            totalRecebido,
             totalDespesas,
             lucro:              lucroLiquidoReal,
-            jurosAtrasoGerado,     // multa de atraso RECEBIDA no período
+            jurosAtrasoGerado,
             jurosMensalidade:   jurosMensalidadeFix,
-            multasAcumuladas:   Math.round(multasAcumuladas * 100) / 100, // multa gerada mas ainda não paga
+            multasAcumuladas:   Math.round(multasAcumuladas * 100) / 100,
             qtdCadastros,
             qtdQuitados,
             totalGarantias,
             valor_inadimplencia: valorTotalAtrasadoReal,
+            truncado,            // true = período tem mais de 5000 registros (use período menor)
             estornos: {
                 quantidade:      qtdEstornos,
                 total_revertido: Math.round(totalEstornado * 100) / 100,

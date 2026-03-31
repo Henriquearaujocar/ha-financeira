@@ -1467,15 +1467,39 @@
         // Verifica renovação a cada 2 minutos
         setInterval(renovarTokenSeNecessario, 2 * 60 * 1000);
 
+        // Força o refresh do token diretamente — ignora o guarda de _tokenExpiraEm
+        // para cobrir sessões antigas que não tinham token_expira_em no localStorage.
+        const _forcarRenovacaoToken = async () => {
+            if (!_refreshToken) return false;
+            try {
+                const res = await fetch(`${API_BASE}/api/refresh-session`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refresh_token: _refreshToken })
+                });
+                if (!res.ok) return false;
+                const data = await res.json();
+                _token = data.token;
+                _refreshToken = data.refresh_token;
+                _tokenExpiraEm = Date.now() + ((data.expires_in || 3600) * 1000);
+                localStorage.setItem('token', _token);
+                localStorage.setItem('refresh_token', _refreshToken);
+                localStorage.setItem('token_expira_em', String(_tokenExpiraEm));
+                return true;
+            } catch (e) {
+                return false;
+            }
+        };
+
         const fetchSeguro = async (url, options = {}) => {
             await renovarTokenSeNecessario();
             // Injeta sempre o token mais recente
             options.headers = { ...getHeadersAuth(), ...(options.headers || {}) };
             const response = await fetch(url, options);
             if (response.status === 401 || response.status === 403) {
-                // Tenta renovar uma vez antes de deslogar
-                if (_refreshToken) {
-                    await renovarTokenSeNecessario();
+                // Token expirado — força renovação direta (não depende de _tokenExpiraEm)
+                const renovado = await _forcarRenovacaoToken();
+                if (renovado) {
                     options.headers = { ...getHeadersAuth(), ...(options.headers || {}) };
                     const retry = await fetch(url, options);
                     if (retry.status === 401 || retry.status === 403) {
@@ -1522,20 +1546,20 @@
             }
         }
 
-        function showToast(msg, type = 'success') {
+        function showToast(msg, type = 'success', duracaoMs = 4000) {
             const toast = document.getElementById('toast');
             document.getElementById('toastMsg').innerText = msg;
-            
+
             if(type === 'success') {
                 document.getElementById('toastIcon').className = 'fa-solid fa-circle-check text-emerald-500';
             } else {
                 document.getElementById('toastIcon').className = 'fa-solid fa-triangle-exclamation text-red-500';
             }
-            
+
             toast.classList.remove('hidden');
             setTimeout(() => {
                 toast.classList.add('hidden');
-            }, 4000);
+            }, duracaoMs);
         }
 
         function mudarAba(aba) {
@@ -3173,13 +3197,34 @@ function renderizarAberto(lista) {
         }
         
         // =====================================
-        // RELATÓRIOS E CAIXA 
+        // RELATÓRIOS E CAIXA
         // =====================================
+
+        // Mostra/oculta os campos de data personalizada conforme o filtro selecionado.
+        // ATENÇÃO: esta função é chamada pelo onchange do select #filtro-relatorio.
+        function verificarFiltroData() {
+            const filtro = document.getElementById('filtro-relatorio').value;
+            const datasCustom = document.getElementById('datas-customizadas');
+            if (filtro === 'custom') {
+                datasCustom.classList.remove('hidden');
+            } else {
+                datasCustom.classList.add('hidden');
+                document.getElementById('data_inicio_rel').value = '';
+                document.getElementById('data_fim_rel').value = '';
+            }
+        }
+
         async function carregarRelatorios() {
             const tbody = document.getElementById('lista-relatorio-detalhado');
             try {
-                const i = document.getElementById('data_inicio_rel').value || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-                const f = document.getElementById('data_fim_rel').value || new Date().toISOString().split('T')[0];
+                // Usa fuso horário de Brasília para não calcular "hoje" em UTC
+                // (sem isso, depois das 21h o "hoje" virava amanhã para usuários de BRT/UTC-3)
+                const formatarDataBRT = (d) =>
+                    new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(d);
+                const hoje = new Date();
+                const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+                const i = document.getElementById('data_inicio_rel').value || formatarDataBRT(primeiroDiaMes);
+                const f = document.getElementById('data_fim_rel').value || formatarDataBRT(hoje);
 
                 const res = await fetchSeguro(`${API_BASE}/api/relatorio-periodo`, {
                     method: 'POST',
@@ -3194,6 +3239,11 @@ function renderizarAberto(lista) {
 
                 const dados = await res.json();
                 tbody.innerHTML = '';
+
+                // Avisa se o banco retornou o máximo de registros (período muito longo)
+                if (dados.truncado) {
+                    showToast('Atenção: o período tem mais de 5.000 registros. Os totais do DRE estão corretos, mas a tabela mostra apenas os últimos 5.000. Use um período menor para ver tudo.', 'error', 10000);
+                }
 
                 const movs = dados.movimentacoes || [];
 
