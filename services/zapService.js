@@ -53,9 +53,9 @@ const enviarAprovacaoComTermos = async (numero, nome, valor, parcelas, frequenci
     let msg = '';
     
     if (isContraProposta) {
-        msg = `Olá, ${nome.split(' ')[0]}! 🤝\n\nA sua análise na *CMS Ventures* foi concluída. Não conseguimos liberar as condições originais, mas temos uma *CONTRAPROPOSTA* aprovada para você:\n\n`;
+        msg = `Olá, ${nome}! 🤝\n\nA sua análise na *CMS Ventures* foi concluída. Não conseguimos liberar as condições originais, mas temos uma *CONTRAPROPOSTA* aprovada para você:\n\n`;
     } else {
-        msg = `🎉 *Boas notícias, ${nome.split(' ')[0]}!*\n\nA sua análise na *CMS Ventures* foi concluída e temos uma proposta aprovada para você:\n\n`;
+        msg = `🎉 *Boas notícias, ${nome}!*\n\nA sua análise na *CMS Ventures* foi concluída e temos uma proposta aprovada para você:\n\n`;
     }
 
     msg += `💰 *Valor Liberado:* R$ ${Number(valor).toFixed(2)}\n`;
@@ -76,13 +76,12 @@ const enviarAprovacaoComTermos = async (numero, nome, valor, parcelas, frequenci
  */
 const enviarLembreteVencimento = async (numero, nome, valor, dataVenc, pixDados, saudacaoExtra = null) => {
     const dataFormatada = new Date(dataVenc + 'T12:00:00Z').toLocaleDateString('pt-BR');
-    const nomeCurto = nome.split(' ')[0];
     const valorTexto = Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    
+
     // Se não for enviada uma saudação específica, usa a padrão
     let introducao = saudacaoExtra || `Lembramos que sua fatura de *R$ ${valorTexto}* vence em *${dataFormatada}*.`;
 
-    let msg = `⏰ *CMS VENTURES - LEMBRETE*\n\nOlá ${nomeCurto}, tudo bem?\n\n${introducao}\n\n`;
+    let msg = `⏰ *CMS VENTURES - LEMBRETE*\n\nOlá ${nome}, tudo bem?\n\n${introducao}\n\n`;
 
     if (pixDados && pixDados.chave) {
         msg += `🏦 *DADOS PARA PAGAMENTO (PIX)*\n`;
@@ -116,7 +115,6 @@ const enviarLembreteVencimento = async (numero, nome, valor, dataVenc, pixDados,
  *   Dia 25+   → Aviso de acionamento de referências + risco de calote
  */
 const enviarReguaCobranca = async (numero, nome, valorAtualizado, capitalOriginal, diasAtraso, pixDados, referencia1Nome = null, multaAcumulada = null) => {
-    const nomeCurto   = nome.split(' ')[0];
     const valorFmt    = formatarMoedaZap(valorAtualizado);
     const capitalFmt  = formatarMoedaZap(capitalOriginal);
     // Usa multaAcumulada se fornecida (só multa de atraso).
@@ -134,7 +132,7 @@ const enviarReguaCobranca = async (numero, nome, valorAtualizado, capitalOrigina
     // ── DIA 1 a 4: gentil ──────────────────────────────────────────────
     if (diasAtraso <= 4) {
         msg  = `⏰ *CMS VENTURES — FATURA EM ABERTO*\n\n`;
-        msg += `Olá ${nomeCurto}, tudo bem?\n\n`;
+        msg += `Olá ${nome}, tudo bem?\n\n`;
         msg += `Identificamos que sua fatura está em atraso há *${diasAtraso} dia${diasAtraso > 1 ? 's' : ''}*.\n\n`;
         msg += `📌 *Saldo atualizado (com multa):* R$ *${valorFmt}*\n\n`;
         msg += blocoPix;
@@ -143,7 +141,7 @@ const enviarReguaCobranca = async (numero, nome, valorAtualizado, capitalOrigina
     // ── DIA 5 a 14: mais firme ─────────────────────────────────────────
     } else if (diasAtraso <= 14) {
         msg  = `⚠️ *CMS VENTURES — ATRASO: ${diasAtraso} DIAS*\n\n`;
-        msg += `${nomeCurto}, sua fatura segue em aberto e *a dívida cresce a cada dia*.\n\n`;
+        msg += `${nome}, sua fatura segue em aberto e *a dívida cresce a cada dia*.\n\n`;
         msg += `📌 Saldo atual (com multas): R$ *${valorFmt}*\n`;
         msg += `📌 Capital emprestado: R$ ${capitalFmt}\n`;
         msg += `📌 Multas acumuladas: R$ *${multaFmt}*\n\n`;
@@ -154,7 +152,7 @@ const enviarReguaCobranca = async (numero, nome, valorAtualizado, capitalOrigina
     // ── DIA 15 a 24: sério ─────────────────────────────────────────────
     } else if (diasAtraso <= 24) {
         msg  = `🚨 *CMS VENTURES — COBRANÇA URGENTE (${diasAtraso} DIAS)*\n\n`;
-        msg += `${nomeCurto}, sua situação está se agravando.\n\n`;
+        msg += `${nome}, sua situação está se agravando.\n\n`;
         msg += `Você está *${diasAtraso} dias* em atraso e até o momento não houve nenhum contato ou pagamento.\n\n`;
         msg += `💰 *Valor total devido (com multas):* R$ *${valorFmt}*\n`;
         msg += `📈 Multas acumuladas: R$ *${multaFmt}* — e continuam crescendo diariamente.\n\n`;
@@ -165,7 +163,7 @@ const enviarReguaCobranca = async (numero, nome, valorAtualizado, capitalOrigina
     // ── DIA 25+: acionamento de referências ───────────────────────────
     } else {
         msg  = `🔴 *CMS VENTURES — NOTIFICAÇÃO FINAL (${diasAtraso} DIAS)*\n\n`;
-        msg += `${nomeCurto}, esta é uma notificação formal.\n\n`;
+        msg += `${nome}, esta é uma notificação formal.\n\n`;
         msg += `Sua dívida de R$ *${valorFmt}* está há *${diasAtraso} dias* em aberto sem qualquer retorno.\n\n`;
         msg += `⚠️ *Caso não haja pagamento ou acordo até hoje:*\n`;
         if (referencia1Nome) {
@@ -184,14 +182,13 @@ const enviarReguaCobranca = async (numero, nome, valorAtualizado, capitalOrigina
  * Confirmação de pagamento recebido — disparada após cada baixa manual
  */
 const enviarConfirmacaoBaixa = async (numero, nome, valorPago, novoSaldo, proximoVencimento, formaPagamento = 'PIX') => {
-    const nomeCurto  = nome.split(' ')[0];
     const tagPgto    = formaPagamento === 'DINHEIRO' ? 'dinheiro em espécie' : 'PIX/transferência';
     const valorFmt   = formatarMoedaZap(valorPago);
     const saldoFmt   = formatarMoedaZap(novoSaldo);
     const dataHoje   = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 
     let msg  = `✅ *CMS VENTURES — PAGAMENTO CONFIRMADO*\n\n`;
-    msg += `Olá ${nomeCurto}! Recebemos seu pagamento.\n\n`;
+    msg += `Olá ${nome}! Recebemos seu pagamento.\n\n`;
     msg += `📋 *Recibo:*\n`;
     msg += `• Valor recebido: R$ *${valorFmt}* (${tagPgto})\n`;
     msg += `• Data: ${dataHoje}\n`;
@@ -247,7 +244,6 @@ const enviarResumoDiarioAdmin = async (numeroAdmin, dados) => {
  * para o restante — informa o cliente do que foi recebido e o que está pendente.
  */
 const enviarAgendamentoParcial = async (numero, nome, valorPago, valorRestante, dataAgendada, formaPagamento = 'PIX') => {
-    const nomeCurto   = nome.split(' ')[0];
     const tagPgto     = formaPagamento === 'DINHEIRO' ? 'dinheiro em espécie' : 'PIX/transferência';
     const valorPagoFmt = formatarMoedaZap(valorPago);
     const restanteFmt  = formatarMoedaZap(valorRestante);
@@ -255,7 +251,7 @@ const enviarAgendamentoParcial = async (numero, nome, valorPago, valorRestante, 
     const dataAgFmt    = new Date(dataAgendada + 'T12:00:00Z').toLocaleDateString('pt-BR');
 
     let msg  = `✅ *CMS VENTURES — PAGAMENTO PARCIAL CONFIRMADO*\n\n`;
-    msg += `Olá ${nomeCurto}! Recebemos parte do seu pagamento.\n\n`;
+    msg += `Olá ${nome}! Recebemos parte do seu pagamento.\n\n`;
     msg += `📋 *Recibo parcial:*\n`;
     msg += `• Valor recebido hoje: R$ *${valorPagoFmt}* (${tagPgto})\n`;
     msg += `• Data: ${dataHoje}\n`;
