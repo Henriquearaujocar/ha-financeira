@@ -176,22 +176,31 @@
                     body: JSON.stringify({ id: idReal })
                 });
 
-                if (res.ok) {
+                // Lê o corpo da resposta (seja sucesso ou erro)
+                const dadosRetorno = await res.json().catch(() => ({}));
+
+                // Trata como sucesso se:
+                // - resposta 200 OK, OU
+                // - 400 com "já se encontra ativo" (contrato foi assinado numa tentativa anterior;
+                //   o cliente pode ter sofrido timeout de rede e tentou de novo)
+                const jaAssinado = res.status === 400 && (dadosRetorno.erro || '').includes('já se encontra ativo');
+
+                if (res.ok || jaAssinado) {
                     document.getElementById('step-contrato').classList.add('hidden');
                     document.getElementById('step-sucesso').classList.remove('hidden');
 
                     const valorFormatado = document.getElementById('valorLiberado').innerText;
-                    
+
                     // Redireciona para o WhatsApp após 3 segundos
                     setTimeout(() => {
                         const textoZap = `Olá, acabei de assinar meu contrato de ${valorFormatado}. No aguardo da liberação do meu PIX! 🚀`;
                         // 🚨 ATENÇÃO: Substitua este número pelo WhatsApp oficial da sua empresa
-                        const numeroAdmin = "5587981400369"; 
+                        const numeroAdmin = "5587981400369";
                         window.location.href = `https://wa.me/${numeroAdmin}?text=${encodeURIComponent(textoZap)}`;
                     }, 3000);
 
                 } else {
-                    throw new Error("Falha ao registrar aceite.");
+                    throw new Error(dadosRetorno.erro || "Falha ao registrar aceite.");
                 }
             } catch (error) {
                 alert("Ocorreu um erro ao assinar. Tente novamente.");

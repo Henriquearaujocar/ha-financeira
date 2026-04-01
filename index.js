@@ -916,10 +916,9 @@ app.post('/api/enviar-cobranca-manual', async (req, res) => {
                 multaTotalManual   // multa real acumulada, não diferença total - capital
             );
         } else {
-            const nomeCurto = dev.nome.split(' ')[0];
             const valorFmt  = valorCobranca.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             const dtFmt     = dataVenc.toLocaleDateString('pt-BR');
-            let msg = `⏰ *CMS VENTURES — LEMBRETE DE PAGAMENTO*\n\nOlá ${nomeCurto}!\n\nSua fatura de *${valorFmt}* vence em *${dtFmt}*.\n\n`;
+            let msg = `⏰ *CMS VENTURES — LEMBRETE DE PAGAMENTO*\n\nOlá ${dev.nome}!\n\nSua fatura de *${valorFmt}* vence em *${dtFmt}*.\n\n`;
             if (pixDados?.chave) {
                 msg += `🏦 *PAGUE VIA PIX:*\nFavorecido: *${pixDados.nome}*\nInstituição: *${pixDados.banco}*\n\nChave PIX:\n*${pixDados.chave}*\n\n`;
             } else if (dev.cobrar_so_em_dinheiro) {
@@ -1456,7 +1455,7 @@ app.post('/api/reprovar-documentos', async (req, res) => {
 
         // Monta mensagem WhatsApp
         const msgDocs = docs_reprovados.map(d => `  • ${nomesDocs[d] || d}`).join('\n');
-        const msg = `Olá, *${sol.nome.split(' ')[0]}*! 👋\n\n` +
+        const msg = `Olá, *${sol.nome}*! 👋\n\n` +
             `Analisamos sua solicitação de crédito e os seguintes documentos precisam ser reenviados:\n\n` +
             `${msgDocs}\n\n` +
             (motivo ? `📋 *Motivo:* ${motivo}\n\n` : '') +

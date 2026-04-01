@@ -789,8 +789,11 @@
             <div class="glass-card p-6 rounded-3xl border border-slate-700 mb-6 flex flex-wrap gap-4 items-end">
                 <div>
                     <label class="text-[10px] font-black uppercase text-slate-500 ml-2 block mb-1">Período de Extração</label>
-                    <select id="filtro-relatorio" class="input-dark w-48 text-sm" onchange="verificarFiltroData()">
+                    <select id="filtro-relatorio" class="input-dark w-52 text-sm" onchange="verificarFiltroData()">
                         <option value="mes">Este Mês</option>
+                        <option value="mes-passado">Mês Passado</option>
+                        <option value="semestre">Semestre Atual</option>
+                        <option value="anual">Ano Atual</option>
                         <option value="custom">Personalizado</option>
                     </select>
                 </div>
@@ -3209,8 +3212,6 @@ function renderizarAberto(lista) {
                 datasCustom.classList.remove('hidden');
             } else {
                 datasCustom.classList.add('hidden');
-                document.getElementById('data_inicio_rel').value = '';
-                document.getElementById('data_fim_rel').value = '';
             }
         }
 
@@ -3222,9 +3223,25 @@ function renderizarAberto(lista) {
                 const formatarDataBRT = (d) =>
                     new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(d);
                 const hoje = new Date();
-                const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-                const i = document.getElementById('data_inicio_rel').value || formatarDataBRT(primeiroDiaMes);
-                const f = document.getElementById('data_fim_rel').value || formatarDataBRT(hoje);
+                const filtro = document.getElementById('filtro-relatorio').value;
+                let i, f;
+                if (filtro === 'custom') {
+                    i = document.getElementById('data_inicio_rel').value || formatarDataBRT(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+                    f = document.getElementById('data_fim_rel').value || formatarDataBRT(hoje);
+                } else if (filtro === 'mes-passado') {
+                    i = formatarDataBRT(new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1));
+                    f = formatarDataBRT(new Date(hoje.getFullYear(), hoje.getMonth(), 0));
+                } else if (filtro === 'semestre') {
+                    const s = Math.floor(hoje.getMonth() / 6);
+                    i = formatarDataBRT(new Date(hoje.getFullYear(), s * 6, 1));
+                    f = formatarDataBRT(new Date(hoje.getFullYear(), (s + 1) * 6, 0));
+                } else if (filtro === 'anual') {
+                    i = formatarDataBRT(new Date(hoje.getFullYear(), 0, 1));
+                    f = formatarDataBRT(new Date(hoje.getFullYear(), 11, 31));
+                } else { // 'mes' (padrão)
+                    i = formatarDataBRT(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+                    f = formatarDataBRT(hoje);
+                }
 
                 const res = await fetchSeguro(`${API_BASE}/api/relatorio-periodo`, {
                     method: 'POST',

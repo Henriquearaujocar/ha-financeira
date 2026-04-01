@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node -e \":*)"
+      "Bash(node -e \":*)",
+      "Bash(grep -r \"obter_relatorio_safras\\\\|obter_resumo_dashboard\" 'C:\\\\Users\\\\Erpo Araujo\\\\Documents\\\\sistema-cobranca' --include=*.js --include=*.ts --include=*.tsx --include=*.jsx --include=*.html)",
+      "Bash(grep -r \"relatorio-periodo\\\\|relatorio.*analitico\" 'C:\\\\Users\\\\Erpo Araujo\\\\Documents\\\\sistema-cobranca' --include=*.js --include=*.ts --include=*.tsx --include=*.jsx --include=*.html)",
+      "Bash(grep -r /api/safras 'C:\\\\Users\\\\Erpo Araujo\\\\Documents\\\\sistema-cobranca' --include=*.js --include=*.ts --include=*.tsx --include=*.jsx --include=*.html)"
     ]
   }
 }
