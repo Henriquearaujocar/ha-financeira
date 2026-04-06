@@ -77,7 +77,8 @@
                     </div>
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-500 ml-2">CPF</label>
-                        <input type="text" id="cpf" placeholder="000.000.000-00" class="input-field mt-1" maxlength="14" oninput="mascaraCPF(this)" required>
+                        <input type="text" id="cpf" placeholder="000.000.000-00" class="input-field mt-1" maxlength="14" oninput="mascaraCPF(this); tentarConsultarCPF(this.value)" required>
+                        <p id="badge-cpf-lookup" class="hidden text-[10px] font-bold ml-2 mt-1 flex items-center gap-1"></p>
                     </div>
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-500 ml-2">WhatsApp</label>
@@ -217,6 +218,56 @@
             if (resto === 10 || resto === 11) resto = 0;
             if (resto !== parseInt(str.substring(10, 11))) return false;
             return true;
+        }
+
+        // ── Consulta automática de CPF ──────────────────────────────────────
+        let _cpfLookupTimer = null;
+        let _cpfUltimoConsultado = '';
+
+        async function tentarConsultarCPF(rawValue) {
+            const cpf = rawValue.replace(/\D/g, '');
+            if (cpf.length !== 11 || !validarCPFReal(cpf)) return;
+            if (cpf === _cpfUltimoConsultado) return; // já consultou este CPF
+            if (isClienteRecorrente) return;          // dados já preenchidos pela busca manual
+
+            clearTimeout(_cpfLookupTimer);
+            _cpfLookupTimer = setTimeout(async () => {
+                const badge = document.getElementById('badge-cpf-lookup');
+                badge.className = 'text-[10px] font-bold ml-2 mt-1 flex items-center gap-1 text-blue-400';
+                badge.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> A consultar CPF...';
+                badge.classList.remove('hidden');
+
+                try {
+                    const res = await fetch(`${API_BASE}/api/consultar-cpf/${cpf}`);
+                    if (!res.ok) { badge.classList.add('hidden'); return; }
+
+                    const d = await res.json();
+                    _cpfUltimoConsultado = cpf;
+
+                    let preencheu = false;
+
+                    if (d.nome && !document.getElementById('nome').value.trim()) {
+                        document.getElementById('nome').value = d.nome;
+                        preencheu = true;
+                    }
+                    if (d.telefone && d.telefone.length >= 10 && !document.getElementById('whatsapp').value.trim()) {
+                        document.getElementById('whatsapp').value = d.telefone;
+                        preencheu = true;
+                    }
+
+                    if (preencheu) {
+                        badge.className = 'text-[10px] font-bold ml-2 mt-1 flex items-center gap-1 text-emerald-400';
+                        badge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Dados preenchidos automaticamente!';
+                    } else {
+                        badge.className = 'text-[10px] font-bold ml-2 mt-1 flex items-center gap-1 text-slate-400';
+                        badge.innerHTML = '<i class="fa-solid fa-circle-info"></i> CPF válido. Preencha os dados manualmente.';
+                    }
+                    setTimeout(() => badge.classList.add('hidden'), 5000);
+
+                } catch(e) {
+                    badge.classList.add('hidden');
+                }
+            }, 600); // debounce 600ms após terminar de digitar
         }
 
         async function inicializarFormulario() {
@@ -626,11 +677,23 @@
                     }
                     throw new Error(errObj.details || errObj.erro || "Falha ao processar a solicitação.");
                 }
-            } catch (err) { 
+            } catch (err) {
                 console.error(err);
-                erroEl.innerText = err.message;
+
+                if (err.message.includes('já possui uma solicitação') || err.message.includes('em análise')) {
+                    erroEl.innerHTML = `
+                        <div class="bg-orange-900/30 border border-orange-500/50 rounded-2xl p-4 text-left space-y-2">
+                            <p class="font-black text-orange-300 text-sm uppercase"><i class="fa-solid fa-triangle-exclamation mr-2"></i>Já tens uma solicitação em análise!</p>
+                            <p class="text-slate-400 text-xs">Para fazer um novo pedido usa a secção <strong class="text-blue-400">"Já é nosso cliente?"</strong> no topo — digita o teu CPF e os teus dados serão preenchidos automaticamente.</p>
+                            <button type="button" onclick="document.getElementById('cpf_busca').focus(); window.scrollTo({top:0,behavior:'smooth'})" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase px-4 py-2 rounded-xl transition-all">
+                                <i class="fa-solid fa-arrow-up mr-1"></i> Ir para "Já sou cliente"
+                            </button>
+                        </div>`;
+                } else {
+                    erroEl.innerText = err.message;
+                }
                 erroEl.classList.remove('hidden');
-                
+
                 btnEnviar.disabled = false;
                 btnEnviar.innerHTML = originalBtnHtml;
             } finally {

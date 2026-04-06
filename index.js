@@ -1,7 +1,8 @@
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
-const cron = require('node-cron');
+const cors    = require('cors');
+const cron    = require('node-cron');
+const axios   = require('axios');
 
 const { supabase } = require('./database');
 const { 
@@ -279,9 +280,10 @@ const authMiddleware = async (req, res, next) => {
         '/api/config-publica', 
         '/favicon.ico'
     ];
-    if (rotasPublicas.includes(req.path) 
+    if (rotasPublicas.includes(req.path)
         || req.path.startsWith('/api/buscar-cliente-publico')
         || req.path.startsWith('/api/docs-reprovados/')
+        || req.path.startsWith('/api/consultar-cpf/')
         || req.path === '/api/reenviar-documentos'
     ) return next();
     
@@ -303,6 +305,58 @@ app.get('/api/verify-session', (req, res) => res.json({ autenticado: true, email
 // ==========================================
 // 2. ROTAS PÚBLICAS E SOLICITAÇÃO
 // ==========================================
+
+// ─── Consulta de CPF via API externa ────────────────────────────────────────
+// Rate-limit: 10 consultas por IP por hora
+const tentativasConsultaCPF = new Map();
+
+app.get('/api/consultar-cpf/:cpf', async (req, res) => {
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const hits = tentativasConsultaCPF.get(ip) || 0;
+    if (hits >= 10) return res.status(429).json({ erro: 'Muitas consultas. Aguarde.' });
+
+    const cpf = req.params.cpf.replace(/\D/g, '');
+    if (cpf.length !== 11) return res.status(400).json({ erro: 'CPF inválido.' });
+
+    const apiUrl = process.env.CPF_API_URL;
+    const apiKey = process.env.CPF_API_KEY;
+    if (!apiUrl || !apiKey) return res.status(503).json({ erro: 'API de CPF não configurada.' });
+
+    tentativasConsultaCPF.set(ip, hits + 1);
+    setTimeout(() => tentativasConsultaCPF.delete(ip), 60 * 60 * 1000);
+
+    try {
+        const { data: d } = await axios.get(`${apiUrl}${cpf}`, {
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'x-api-key': apiKey,
+                'Content-Type': 'application/json'
+            },
+            timeout: 8000
+        });
+
+        // Normaliza campos comuns de diferentes providers (BigBoost, CPFcerto, Serpro, genérico)
+        const nome     = d.nome     || d.name      || d.NomePF     || d.nome_pf    || d.data?.nome     || '';
+        const nascimento = d.data_nascimento || d.dataNascimento || d.birthDate
+                         || d.DataNascimento || d.data?.data_nascimento || '';
+        const situacao = d.situacao || d.status     || d.situacaoCadastral || d.data?.situacao || '';
+
+        // Telefone: tenta vários formatos de response
+        const telRaw = d.telefone || d.phone || d.celular || d.fone
+                     || d.telefones?.[0]?.numero || d.phones?.[0]?.number
+                     || d.data?.telefone || '';
+        const telefone = telRaw ? telRaw.toString().replace(/\D/g, '') : '';
+
+        res.json({ nome, nascimento, situacao, telefone });
+    } catch(e) {
+        const status = e.response?.status;
+        if (status === 404) return res.status(404).json({ erro: 'CPF não encontrado.' });
+        if (status === 401 || status === 403) return res.status(503).json({ erro: 'Credenciais inválidas na API de CPF.' });
+        console.error('[CPF API]', e.message);
+        res.status(503).json({ erro: 'Serviço de consulta temporariamente indisponível.' });
+    }
+});
+
 app.get('/status-zapi', async (req, res) => { try { const status = await verificarStatusZapi(); res.json(status); } catch(e) { res.json({ connected: false }); } });
 app.get('/api/config-publica', async (req, res) => { try { const { data } = await supabase.from('config').select('*').in('chave', ['valor_minimo', 'juros_unico', 'juros_parcelado', 'pix_avancado', 'multa_diaria']); res.json(data || []); } catch(e) { res.json([]); } });
 
@@ -638,6 +692,27 @@ app.get('/api/solicitacoes-pendentes', async (req, res) => {
     } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
+// Editar dados pessoais de uma solicitação (nome, whatsapp, referências)
+app.post('/api/editar-dados-solicitacao', async (req, res) => {
+    try {
+        const { id, nome, whatsapp, referencia1_nome, referencia1_tel } = req.body;
+        if (!id) return res.status(400).json({ erro: 'ID da solicitação obrigatório.' });
+
+        const payload = {};
+        if (nome && nome.trim()) payload.nome = nome.trim();
+        if (whatsapp !== undefined) payload.whatsapp = (whatsapp || '').replace(/\D/g, '');
+        if (referencia1_nome !== undefined) payload.referencia1_nome = referencia1_nome;
+        if (referencia1_tel !== undefined) payload.referencia1_tel = (referencia1_tel || '').replace(/\D/g, '');
+
+        if (Object.keys(payload).length === 0) return res.status(400).json({ erro: 'Nenhum dado para actualizar.' });
+
+        const { error } = await supabase.from('solicitacoes').update(payload).eq('id', id);
+        if (error) throw error;
+
+        res.json({ sucesso: true });
+    } catch(e) { res.status(500).json({ erro: e.message }); }
+});
+
 app.post('/api/aprovar-solicitacao', async (req, res) => {
     const { id, juros, observacao, novoValor, novaFreq, novasParcelas, cobrarSoEmDinheiro, isContraProposta, isentoMulta, vencimento1, valorParcela1 } = req.body;
     
@@ -759,7 +834,7 @@ app.get('/api/devedores-ativos', async (req, res) => {
         const primeiraPorDevedor = {};
 
         (data || []).forEach(p => {
-            if (p.status_contrato !== 'ATRASADO') return;
+            if (p.status_contrato !== 'ATRASADO' || p.isento_multa) return;
             const did = p.devedor_id;
 
             if (!multasPorDevedor[did]) {
@@ -2117,10 +2192,14 @@ const rodarRoboCobranca = async () => {
                     const capitalBase     = parseFloat(devAtualizado?.valor_emprestado || dev.valor_emprestado);
 
                     // Multa total acumulada: capital × taxa × dias totais em atraso
+                    // Zerada para clientes isentos de multa
                     const taxaRobo = await buscarTaxaMultaDiaria();
                     const dtVencRobo = new Date((devAtualizado?.data_vencimento || dev.data_vencimento) + 'T00:00:00-03:00');
                     const diasTotaisAtraso = Math.max(1, Math.floor((hojeDate - dtVencRobo) / (1000 * 60 * 60 * 24)));
-                    const multaTotalAcum = Math.round(capitalBase * taxaRobo * diasTotaisAtraso * 100) / 100;
+                    const isento = devAtualizado?.isento_multa || dev.isento_multa || false;
+                    const multaTotalAcum = (!isento && diasTotaisAtraso > 0)
+                        ? Math.round(capitalBase * taxaRobo * diasTotaisAtraso * 100) / 100
+                        : 0;
 
                     // VALOR DA MENSAGEM:
                     // Parcelado → soma só as parcelas vencidas + multa total sobre o capital

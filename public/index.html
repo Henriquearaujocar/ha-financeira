@@ -1116,7 +1116,7 @@
                     <div class="snap-center shrink-0 w-36 md:w-auto space-y-1"><p class="text-[9px] font-black uppercase text-center text-slate-400">Doc. Verso</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgVerso" class="w-36 md:w-full h-28 object-contain cursor-pointer" onerror="this.src='https://via.placeholder.com/300x200?text=Sem+Foto'" onclick="zoomImg(this.src)"></div></div>
                     <div class="snap-center shrink-0 w-36 md:w-auto space-y-1"><p class="text-[9px] font-black uppercase text-center text-slate-400">Residência</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgResidencia" class="w-36 md:w-full h-28 object-contain cursor-pointer" onerror="this.src='https://via.placeholder.com/300x200?text=Sem+Foto'" onclick="zoomImg(this.src)"></div></div>
                     <div class="snap-center shrink-0 w-36 md:w-auto space-y-1"><p class="text-[9px] font-black uppercase text-center text-slate-400">Fachada</p><div class="bg-slate-900/50 rounded-xl border border-slate-600 hover:border-blue-500 p-1"><img id="imgCasa" class="w-36 md:w-full h-28 object-contain cursor-pointer" onerror="this.src='https://via.placeholder.com/300x200?text=Sem+Foto'" onclick="zoomImg(this.src)"></div></div>
-                    <div class="snap-center shrink-0 w-36 md:w-auto space-y-1"><p class="text-[9px] font-black uppercase text-center text-orange-400">RG (sem CPF)</p><div class="bg-slate-900/50 rounded-xl border border-orange-500/30 hover:border-orange-400 p-1"><img id="imgRg" class="w-36 md:w-full h-28 object-contain cursor-pointer" style="display:none" onclick="if(this.src && this.style.display!='none') zoomImg(this.src)"></div></div>
+                    <div id="boxImgRg" class="snap-center shrink-0 w-36 md:w-auto space-y-1" style="display:none"><p class="text-[9px] font-black uppercase text-center text-orange-400">RG (sem CPF)</p><div class="bg-slate-900/50 rounded-xl border border-orange-500/30 hover:border-orange-400 p-1"><img id="imgRg" class="w-36 md:w-full h-28 object-contain cursor-pointer" onclick="zoomImg(this.src)"></div></div>
                 </div>
 
                 <!-- Grid de 2 colunas no mobile, 3 no desktop -->
@@ -1225,6 +1225,9 @@
 
             <!-- Botões fixos no bottom — sempre visíveis no mobile -->
             <div class="sticky bottom-0 bg-slate-900/95 backdrop-blur border-t border-slate-800 p-4 grid grid-cols-2 gap-2 shrink-0">
+                <button onclick="abrirEditarDadosSol()" class="col-span-2 bg-slate-700 hover:bg-blue-700 text-slate-300 hover:text-white py-2.5 rounded-xl font-black uppercase text-[10px] transition-all flex items-center justify-center gap-1 border border-slate-600">
+                    <i class="fa-solid fa-pen-to-square"></i> Editar Dados Pessoais
+                </button>
                 <button onclick="aprovarSolicitacao(false)" id="btnAprovarOriginal" class="bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-black uppercase text-[10px] shadow-lg transition-all flex items-center justify-center gap-1">
                     <i class="fa-solid fa-check-double"></i> <span class="hidden sm:inline">Aprovar</span> Original
                 </button>
@@ -1975,15 +1978,15 @@
             // Esconde o botão de editar contato (só aparece no dossié)
             const boxAcoesSol = document.getElementById('box-acoes-dossie');
             if (boxAcoesSol) boxAcoesSol.classList.add('hidden');
-            // RG — esconde por padrão em solicitações
+            // RG — só mostra o contentor inteiro se existir imagem
+            const boxRgSol = document.getElementById('boxImgRg');
             const imgRgSol = document.getElementById('imgRg');
-            if (imgRgSol) {
-                if (s.url_rg && s.url_rg.trim() !== "") {
-                    imgRgSol.src = s.url_rg;
-                    imgRgSol.style.display = 'block';
-                } else {
-                    imgRgSol.style.display = 'none';
-                }
+            if (s.url_rg && s.url_rg.trim() !== "") {
+                imgRgSol.src = s.url_rg;
+                if (boxRgSol) boxRgSol.style.display = '';
+            } else {
+                imgRgSol.src = '';
+                if (boxRgSol) boxRgSol.style.display = 'none';
             }
             document.getElementById('modalDocumentos').classList.remove('hidden');
         }
@@ -2359,8 +2362,8 @@ function renderizarAberto(lista) {
     const valOriginal  = parseFloat(parc.valor_original  || parc.valor_atual);
     const jaPago       = parseFloat(parc.valor_pago      || 0);
 
-    // Multa total sobre o capital do contrato (inteira na primeira parcela vencida)
-    const multaTotal   = diasAtraso > 0 ? Math.round(capital * taxaDiaria * diasAtraso * 100) / 100 : 0;
+    // Multa total sobre o capital do contrato — zero se cliente isento
+    const multaTotal   = (diasAtraso > 0 && !parc.isento_multa) ? Math.round(capital * taxaDiaria * diasAtraso * 100) / 100 : 0;
     // Valor a pagar nesta parcela = original restante + multa total do contrato
     const faltaNestaParcela = Math.max(0, Math.round((valOriginal - jaPago + multaTotal) * 100) / 100);
 
@@ -2890,14 +2893,16 @@ function renderizarAberto(lista) {
                     imgElement.src = (foto.url && foto.url.trim() !== "") ? foto.url : imgPlaceholder;}
                     });
 
-            // RG separado — mostra só se existir
-            const imgRg = document.getElementById('imgRg');
-            if (imgRg) {
+            // RG separado — só mostra o contentor inteiro se existir imagem
+            const boxRgDoss = document.getElementById('boxImgRg');
+            const imgRgDoss = document.getElementById('imgRg');
+            if (imgRgDoss) {
                 if (c.url_rg && c.url_rg.trim() !== "") {
-                    imgRg.src = c.url_rg;
-                    imgRg.style.display = 'block';
+                    imgRgDoss.src = c.url_rg;
+                    if (boxRgDoss) boxRgDoss.style.display = '';
                 } else {
-                    imgRg.style.display = 'none';
+                    imgRgDoss.src = '';
+                    if (boxRgDoss) boxRgDoss.style.display = 'none';
                 }
             }
 
@@ -4047,6 +4052,69 @@ function renderizarAberto(lista) {
         });
     
         // ══════════════════════════════════════════════════════
+        // EDITAR DADOS PESSOAIS DA SOLICITAÇÃO
+        // ══════════════════════════════════════════════════════
+        function abrirEditarDadosSol() {
+            if (!solicitacaoAtualId) return showToast('Nenhuma solicitação aberta.', 'error');
+            const s = listaSolicitacoesAtuais.find(x => x.id === solicitacaoAtualId);
+            if (!s) return;
+            document.getElementById('editSolNome').value = s.nome || '';
+            document.getElementById('editSolWhatsapp').value = s.whatsapp || '';
+            document.getElementById('editSolRef1Nome').value = s.referencia1_nome || '';
+            document.getElementById('editSolRef1Tel').value = s.referencia1_tel || '';
+            document.getElementById('erroEditarDadosSol').classList.add('hidden');
+            document.getElementById('modalEditarDadosSol').classList.remove('hidden');
+        }
+
+        async function salvarEditarDadosSol() {
+            const btn   = document.getElementById('btnSalvarDadosSol');
+            const erroEl = document.getElementById('erroEditarDadosSol');
+            erroEl.classList.add('hidden');
+
+            const nome       = document.getElementById('editSolNome').value.trim();
+            const whatsapp   = document.getElementById('editSolWhatsapp').value.replace(/\D/g, '');
+            const ref1Nome   = document.getElementById('editSolRef1Nome').value.trim();
+            const ref1Tel    = document.getElementById('editSolRef1Tel').value.replace(/\D/g, '');
+
+            if (!nome || nome.split(' ').length < 2) {
+                erroEl.innerText = 'Nome completo é obrigatório (nome e apelido).';
+                erroEl.classList.remove('hidden');
+                return;
+            }
+
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> A guardar...';
+
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/editar-dados-solicitacao`, {
+                    method: 'POST',
+                    headers: headersAuth,
+                    body: JSON.stringify({ id: solicitacaoAtualId, nome, whatsapp, referencia1_nome: ref1Nome, referencia1_tel: ref1Tel })
+                });
+                if (!res.ok) {
+                    const e = await res.json();
+                    throw new Error(e.erro || 'Erro ao guardar.');
+                }
+                // Actualiza cache local
+                const s = listaSolicitacoesAtuais.find(x => x.id === solicitacaoAtualId);
+                if (s) { s.nome = nome; s.whatsapp = whatsapp; s.referencia1_nome = ref1Nome; s.referencia1_tel = ref1Tel; }
+                // Actualiza campos visíveis no modal de documentos
+                document.getElementById('docNomeCliente').textContent = nome;
+                document.getElementById('docZap').textContent = whatsapp || 'Não informado';
+                document.getElementById('docRef1').textContent = `${ref1Nome || 'N/A'} - ${ref1Tel || ''}`;
+                fecharModal('modalEditarDadosSol');
+                showToast('Dados pessoais actualizados!');
+            } catch(e) {
+                erroEl.innerText = e.message;
+                erroEl.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+
+        // ══════════════════════════════════════════════════════
         // REPROVAR DOCUMENTOS
         // ══════════════════════════════════════════════════════
         function abrirModalReprovarDocs() {
@@ -4160,6 +4228,44 @@ function renderizarAberto(lista) {
         }
 
 </script>
+
+    <!-- ═══════════════════════════════════════════════════════
+         MODAL: EDITAR DADOS PESSOAIS DA SOLICITAÇÃO
+    ═══════════════════════════════════════════════════════ -->
+    <div id="modalEditarDadosSol" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden z-[250] flex items-center justify-center p-4">
+        <div class="glass-card w-full max-w-md rounded-3xl border border-blue-500/30 p-8 relative shadow-[0_0_40px_rgba(59,130,246,0.1)]">
+            <button onclick="fecharModal('modalEditarDadosSol')" class="absolute top-6 right-6 text-slate-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+            <h2 class="text-xl font-black uppercase text-blue-400 mb-1"><i class="fa-solid fa-pen-to-square mr-2"></i> Editar Dados Pessoais</h2>
+            <p class="text-[10px] text-slate-400 mb-6">Corrija dados introduzidos incorrectamente pelo cliente. O CPF não pode ser alterado.</p>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] font-black uppercase text-slate-400 ml-1 block mb-1">Nome Completo</label>
+                    <input type="text" id="editSolNome" class="input-dark rounded-xl" maxlength="100" placeholder="Nome e apelido">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black uppercase text-slate-400 ml-1 block mb-1">WhatsApp</label>
+                    <input type="tel" id="editSolWhatsapp" class="input-dark rounded-xl" maxlength="15" placeholder="(00) 00000-0000">
+                </div>
+                <div class="border-t border-slate-700 pt-4">
+                    <p class="text-[9px] font-black uppercase text-slate-500 mb-3">Referência Pessoal</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-[10px] font-black uppercase text-slate-400 ml-1 block mb-1">Nome</label>
+                            <input type="text" id="editSolRef1Nome" class="input-dark rounded-xl" maxlength="100" placeholder="Ex: Maria (Mãe)">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black uppercase text-slate-400 ml-1 block mb-1">Telefone</label>
+                            <input type="tel" id="editSolRef1Tel" class="input-dark rounded-xl" maxlength="15" placeholder="(00) 00000-0000">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <button onclick="salvarEditarDadosSol()" id="btnSalvarDadosSol" class="mt-6 w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase py-4 rounded-xl transition-all flex items-center justify-center gap-2">
+                <i class="fa-solid fa-floppy-disk"></i> Guardar Alterações
+            </button>
+            <p id="erroEditarDadosSol" class="text-red-400 text-xs font-bold text-center mt-3 hidden"></p>
+        </div>
+    </div>
 
     <!-- ═══════════════════════════════════════════════════════
          MODAL: REPROVAR DOCUMENTOS
