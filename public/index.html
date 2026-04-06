@@ -1237,7 +1237,7 @@
 
             <!-- Botões fixos no bottom — sempre visíveis no mobile -->
             <div class="sticky bottom-0 bg-slate-900/95 backdrop-blur border-t border-slate-800 p-4 grid grid-cols-2 gap-2 shrink-0">
-                <button onclick="abrirEditarDadosSol()" class="col-span-2 bg-slate-700 hover:bg-blue-700 text-slate-300 hover:text-white py-2.5 rounded-xl font-black uppercase text-[10px] transition-all flex items-center justify-center gap-1 border border-slate-600">
+                <button id="btn-editar-dados-sol" onclick="abrirEditarDadosSol()" class="col-span-2 bg-slate-700 hover:bg-blue-700 text-slate-300 hover:text-white py-2.5 rounded-xl font-black uppercase text-[10px] transition-all flex items-center justify-center gap-1 border border-slate-600">
                     <i class="fa-solid fa-pen-to-square"></i> Editar Dados Pessoais
                 </button>
                 <button onclick="aprovarSolicitacao(false)" id="btnAprovarOriginal" class="bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-black uppercase text-[10px] shadow-lg transition-all flex items-center justify-center gap-1">
@@ -1995,6 +1995,9 @@
             // Esconde o botão de editar contato (só aparece no dossié)
             const boxAcoesSol = document.getElementById('box-acoes-dossie');
             if (boxAcoesSol) boxAcoesSol.classList.add('hidden');
+            // Mostra o botão de editar dados pessoais (só disponível em solicitações)
+            const btnEditarDados = document.getElementById('btn-editar-dados-sol');
+            if (btnEditarDados) btnEditarDados.classList.remove('hidden');
             // RG — só mostra o contentor inteiro se existir imagem
             const boxRgSol = document.getElementById('boxImgRg');
             const imgRgSol = document.getElementById('imgRg');
@@ -2926,6 +2929,10 @@ function renderizarAberto(lista) {
             // Mostra botão de editar contato (visível só no dossié, não em solicitações)
             const boxAcoes = document.getElementById('box-acoes-dossie');
             if (boxAcoes) boxAcoes.classList.remove('hidden');
+            // Esconde editar dados pessoais (exclusivo de solicitações pendentes)
+            solicitacaoAtualId = null;
+            const btnEditarDadosDoss = document.getElementById('btn-editar-dados-sol');
+            if (btnEditarDadosDoss) btnEditarDadosDoss.classList.add('hidden');
 
             document.getElementById('modalDocumentos').classList.remove('hidden');
         }
