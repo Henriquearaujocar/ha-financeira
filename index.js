@@ -1198,7 +1198,7 @@ app.get('/api/estatisticas-pagamento/:id', async (req, res) => {
 
 app.post('/api/baixar-manual', async (req, res) => {
     try {
-        const { id, parcelaId, valorPago, formaPagamento, observacoes, dataRecebimento, novoVencimento } = req.body;
+        const { id, parcelaId, valorPago, formaPagamento, observacoes, dataRecebimento, novoVencimento, modoBaixa } = req.body;
         if (!parcelaId) throw new Error("ID da parcela não foi enviado.");
 
         const { data: parc } = await supabase.from('parcelas').select('*').eq('id', parcelaId).single();
@@ -1208,6 +1208,42 @@ app.post('/api/baixar-manual', async (req, res) => {
         const valPago     = Math.round((parseFloat(valorPago) || 0) * 100) / 100;
         let totalAtual    = Math.round((parseFloat(dev.valor_total)      || 0) * 100) / 100;
         let capitalAtual  = Math.round((parseFloat(dev.valor_emprestado) || 0) * 100) / 100;
+
+        // ── MODO ACORDO: Encerrar contrato pelo valor negociado ───────────────
+        if (modoBaixa === 'ACORDO') {
+            const dataEnvioAcordo = dataRecebimento
+                ? (dataRecebimento.includes('T') ? dataRecebimento : `${dataRecebimento}T12:00:00-03:00`)
+                : new Date().toISOString();
+            const desconto = Math.max(0, Math.round((totalAtual - valPago) * 100) / 100);
+
+            // Registra o recebimento no extrato
+            await supabase.from('logs').insert([{
+                devedor_id:    parseInt(id),
+                evento:        'Quitação por Acordo',
+                detalhes:      `[ACORDO] Recebido R$ ${valPago.toFixed(2)} de R$ ${totalAtual.toFixed(2)} total. Desconto concedido: R$ ${desconto.toFixed(2)}.${observacoes ? ' OBS: ' + observacoes : ''}`,
+                valor_fluxo:   valPago,
+                valor_capital: Math.min(capitalAtual, valPago),
+                valor_juros:   Math.max(0, Math.round((valPago - capitalAtual) * 100) / 100),
+                created_at:    dataEnvioAcordo
+            }]);
+
+            // Encerra o contrato definitivamente
+            await supabase.from('devedores')
+                .update({ valor_total: 0, valor_emprestado: 0, status: 'QUITADO', pago: true })
+                .eq('id', parseInt(id));
+
+            // Marca todas as parcelas abertas como PAGA
+            await supabase.from('parcelas')
+                .update({ status: 'PAGA' })
+                .eq('devedor_id', parseInt(id))
+                .in('status', ['PENDENTE', 'ATRASADO', 'PARCIAL']);
+
+            enviarConfirmacaoBaixa(dev.telefone, dev.nome, valPago, 0, null, formaPagamento || 'PIX')
+                .catch(e => console.warn('[ACORDO] Falha WhatsApp:', e.message));
+
+            return res.json({ sucesso: true });
+        }
+        // ─────────────────────────────────────────────────────────────────────
 
         // ── APLICAR MULTAS PENDENTES ANTES DO PAGAMENTO ──────────────────────
         const taxa = await buscarTaxaMultaDiaria();
@@ -2348,6 +2384,117 @@ cron.schedule('0 9 * * *',    rodarRoboLembretes,     { scheduled: true, timezon
 app.get('/api/forcar-robo',         async (req, res) => res.json(await rodarRoboCobranca()      || { status: "OK" }));
 app.get('/api/forcar-lembretes',    async (req, res) => res.json(await rodarRoboLembretes()     || { status: "OK" }));
 app.get('/api/forcar-resumo-admin', async (req, res) => res.json(await rodarResumoDiarioAdmin() || { status: "OK" }));
+
+// ==========================================
+// REVERTER MULTAS INDEVIDAS (CLIENTES ISENTOS)
+// ==========================================
+app.post('/api/reverter-multas-isentos', async (req, res) => {
+    try {
+        // Busca todos os devedores isentos de multa com contratos ativos
+        const { data: isentos, error: errIsentos } = await supabase
+            .from('devedores')
+            .select('id, nome, cpf, valor_total, valor_emprestado, qtd_parcelas, data_vencimento')
+            .eq('isento_multa', true)
+            .neq('status', 'QUITADO');
+
+        if (errIsentos) throw errIsentos;
+        if (!isentos || isentos.length === 0) {
+            return res.json({ sucesso: true, revertidos: 0, mensagem: 'Nenhum cliente isento com contrato ativo.' });
+        }
+
+        let totalRevertidos = 0;
+        const relatorio = [];
+
+        for (const dev of isentos) {
+            // Busca logs de multa aplicados a este devedor
+            const { data: logsMulta } = await supabase
+                .from('logs')
+                .select('id, valor_juros')
+                .eq('devedor_id', dev.id)
+                .eq('evento', 'Juros de Atraso')
+                .ilike('detalhes', '%[MULTA]%');
+
+            if (!logsMulta || logsMulta.length === 0) continue;
+
+            // Verifica quais logs já foram estornados anteriormente
+            const { data: estornosExistentes } = await supabase
+                .from('logs')
+                .select('detalhes')
+                .eq('devedor_id', dev.id)
+                .eq('evento', 'Estorno de Multa (Isento)');
+
+            const idsJaEstornados = new Set();
+            (estornosExistentes || []).forEach(l => {
+                const matches = [...(l.detalhes || '').matchAll(/Log #(\d+)/g)];
+                matches.forEach(m => idsJaEstornados.add(parseInt(m[1])));
+            });
+
+            const logsPendentes = logsMulta.filter(l => !idsJaEstornados.has(l.id));
+            if (logsPendentes.length === 0) continue;
+
+            const multaTotal = Math.round(
+                logsPendentes.reduce((acc, l) => acc + (parseFloat(l.valor_juros) || 0), 0) * 100
+            ) / 100;
+            if (multaTotal <= 0) continue;
+
+            const totalAtual  = Math.round(parseFloat(dev.valor_total    || 0) * 100) / 100;
+            const capitalAtual = Math.round(parseFloat(dev.valor_emprestado || 0) * 100) / 100;
+            const novoTotal   = Math.max(0, Math.round((totalAtual - multaTotal) * 100) / 100);
+            const idsStr      = logsPendentes.map(l => `Log #${l.id}`).join(', ');
+
+            // Atualiza o saldo do devedor
+            const { error: errUpd } = await supabase
+                .from('devedores')
+                .update({ valor_total: novoTotal })
+                .eq('id', dev.id);
+
+            if (errUpd) {
+                console.error(`[ESTORNO MULTA ISENTO] Devedor ${dev.id} (${dev.nome}): ${errUpd.message}`);
+                continue;
+            }
+
+            // Registra o estorno no extrato
+            await supabase.from('logs').insert([{
+                devedor_id:    dev.id,
+                evento:        'Estorno de Multa (Isento)',
+                detalhes:      `Revertido R$ ${multaTotal.toFixed(2)} em multas indevidas. Cliente isento de multa. ${idsStr}.`,
+                valor_fluxo:   0,
+                valor_capital: 0,
+                valor_juros:   -multaTotal
+            }]);
+
+            // Ajusta a parcela em aberto
+            const { data: parcAtual } = await supabase
+                .from('parcelas')
+                .select('id, valor_atual')
+                .eq('devedor_id', dev.id)
+                .in('status', ['PENDENTE', 'ATRASADO', 'PARCIAL'])
+                .order('numero_parcela', { ascending: true })
+                .limit(1)
+                .maybeSingle();
+
+            if (parcAtual) {
+                const novoValorParcela = Math.max(0, Math.round((parseFloat(parcAtual.valor_atual) - multaTotal) * 100) / 100);
+                await supabase.from('parcelas').update({ valor_atual: novoValorParcela }).eq('id', parcAtual.id);
+            }
+
+            totalRevertidos++;
+            relatorio.push({ nome: dev.nome, cpf: dev.cpf, multaRevertida: multaTotal });
+        }
+
+        res.json({
+            sucesso: true,
+            revertidos: totalRevertidos,
+            relatorio,
+            mensagem: totalRevertidos === 0
+                ? 'Nenhuma multa pendente encontrada para clientes isentos.'
+                : `${totalRevertidos} cliente(s) tiveram multas revertidas com sucesso.`
+        });
+    } catch(e) {
+        console.error('[REVERTER MULTAS ISENTOS]', e.message);
+        res.status(500).json({ erro: e.message });
+    }
+});
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`🚀 Plataforma CMS Ventures operando na porta ${PORT}`));
