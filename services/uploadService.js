@@ -22,13 +22,17 @@ const fazerUploadNoSupabase = async (imagem, nomeArquivo) => {
         const base64Data = imagem.replace(/^data:[^;]+;base64,/, "");
         const buffer = Buffer.from(base64Data, 'base64');
 
-        // Sobe para o bucket 'documentos'
-        const { error } = await supabase.storage
+        // Sobe para o bucket 'documentos' com timeout de 120s por arquivo
+        const uploadPromise = supabase.storage
             .from('documentos')
             .upload(nomeComExtensao, buffer, {
                 contentType: mimeType,
                 upsert: true
             });
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Timeout no upload do arquivo. Conexão lenta ou instável.')), 120000)
+        );
+        const { error } = await Promise.race([uploadPromise, timeoutPromise]);
 
         if (error) throw error;
 

@@ -619,10 +619,20 @@
                 }
             }
 
-            isSubmitting = true; 
+            isSubmitting = true;
             const originalBtnHtml = btnEnviar.innerHTML;
             btnEnviar.disabled = true;
-            btnEnviar.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> A ENVIAR DADOS...';
+
+            // Detecta conexão lenta
+            const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+            const isSlowConn = conn && (conn.effectiveType === 'slow-2g' || conn.effectiveType === '2g' || conn.effectiveType === '3g' || conn.saveData);
+
+            if (isSlowConn) {
+                btnEnviar.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> CONEXÃO LENTA, AGUARDE...';
+                showToast("⚠️ Conexão lenta detectada. O envio pode demorar mais que o normal.");
+            } else {
+                btnEnviar.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> A ENVIAR DADOS...';
+            }
 
             const loading = document.getElementById('loadingOverlay');
             loading.classList.remove('hidden');
@@ -651,11 +661,29 @@
                     status: 'PENDENTE'
                 };
 
+                // Timeout: 3 min em conexão lenta, 2 min em conexão normal
+                const TIMEOUT_MS = isSlowConn ? 180000 : 120000;
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+                // Aviso de progresso para conexões lentas após 30s
+                let slowWarningId = null;
+                if (!isSlowConn) {
+                    slowWarningId = setTimeout(() => {
+                        btnEnviar.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> CONEXÃO LENTA, AGUARDE...';
+                        showToast("⚠️ O envio está demorando mais que o normal. Aguarde, os seus documentos estão sendo enviados.");
+                    }, 30000);
+                }
+
                 const res = await fetch(`${API_BASE}/api/enviar-solicitacao`, {
-                    method: 'POST', 
+                    method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(dados)
+                    body: JSON.stringify(dados),
+                    signal: controller.signal
                 });
+
+                clearTimeout(timeoutId);
+                if (slowWarningId) clearTimeout(slowWarningId);
 
                 if (res.ok) {
                     showToast("SOLICITAÇÃO ENVIADA COM SUCESSO!");
@@ -679,6 +707,21 @@
                 }
             } catch (err) {
                 console.error(err);
+
+                // Trata timeout / abort por conexão lenta
+                if (err.name === 'AbortError' || err.message.includes('Timeout')) {
+                    erroEl.innerHTML = `
+                        <div class="bg-yellow-900/30 border border-yellow-500/50 rounded-2xl p-4 text-left space-y-2">
+                            <p class="font-black text-yellow-300 text-sm uppercase"><i class="fa-solid fa-wifi mr-2"></i>Conexão muito lenta ou instável</p>
+                            <p class="text-slate-400 text-xs">O envio dos seus documentos demorou mais do que o esperado. Verifica a tua ligação à internet e tenta de novo.</p>
+                        </div>`;
+                    erroEl.classList.remove('hidden');
+                    btnEnviar.disabled = false;
+                    btnEnviar.innerHTML = originalBtnHtml;
+                    loading.classList.add('hidden');
+                    isSubmitting = false;
+                    return;
+                }
 
                 if (err.message.includes('já possui uma solicitação') || err.message.includes('em análise')) {
                     erroEl.innerHTML = `
