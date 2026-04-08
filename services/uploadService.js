@@ -1,7 +1,11 @@
 const { createClient } = require('@supabase/supabase-js');
 
-// Inicializa o Supabase com as variáveis de ambiente
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+// Usa a service_role key para bypassar RLS no bucket de documentos.
+// A anon key falha em buckets com políticas de acesso — use sempre a service key no backend.
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY
+);
 
 /**
  * Processa o upload de fotos em Base64 para o Supabase Storage

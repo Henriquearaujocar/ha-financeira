@@ -1561,12 +1561,14 @@
             // Tenta renovar o token se estiver prestes a expirar antes de qualquer requisição
             await renovarTokenSeNecessario();
             mudarAba('dashboard');
-            carregarConfig(); 
+            carregarConfig();
             try {
                 await fetchSeguro(`${API_BASE}/api/verify-session`, { headers: getHeadersAuth() });
-            } catch (error) { 
-                console.warn("Servidor offline ou sessão inválida."); 
+            } catch (error) {
+                console.warn("Servidor offline ou sessão inválida.");
             }
+            // Avisa sobre cadastros com CPF inválido (assíncrono, não bloqueia)
+            setTimeout(verificarCpfsInvalidos, 1500);
         }
 
         function showToast(msg, type = 'success', duracaoMs = 4000) {
@@ -2102,12 +2104,20 @@
         // =====================================
         // COBRANÇA ATIVA
         // =====================================
-        async function carregarAberto() { 
-            try { 
-                const res = await fetchSeguro(`${API_BASE}/api/devedores-ativos`, { headers: headersAuth }); 
-                listaDevedoresAtuais = await res.json(); 
-                filtrarAberto(); 
-            } catch(e) {} 
+        async function carregarAberto() {
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/devedores-ativos`, { headers: headersAuth });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.erro || `Erro ${res.status} ao carregar cobrança`);
+                }
+                listaDevedoresAtuais = await res.json();
+                filtrarAberto();
+            } catch(e) {
+                showToast(e.message || 'Erro ao carregar lista de cobrança.', 'error');
+                const tbody = document.getElementById('lista-aberto');
+                if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-red-400 text-sm"><i class="fa-solid fa-circle-exclamation mr-2"></i>${e.message}</td></tr>`;
+            }
         }
 
         let filtroStatusAberto = 'TODOS';
@@ -2412,11 +2422,19 @@ function renderizarAberto(lista) {
     elAtraso.innerText   = diasAtraso > 0 ? `${diasAtraso} Dias` : 'Em Dia';
     elAtraso.className   = diasAtraso > 0 ? 'text-sm font-black text-red-500 mt-1' : 'text-sm font-black text-emerald-500 mt-1';
 
-    document.getElementById('pgtoObs').value = ''; 
-    document.getElementById('pgtoAjuste').value = ''; 
-    document.getElementById('pgtoNovaTaxa').value = ''; 
+    document.getElementById('pgtoObs').value = '';
+    document.getElementById('pgtoAjuste').value = '';
+    document.getElementById('pgtoNovaTaxa').value = '';
     document.getElementById('pgtoNovoParcelamento').value = '';
     document.getElementById('pgtoTratamento').value = 'AMORTIZAR';
+
+    // Garante que o botão esteja sempre limpo ao abrir o modal para qualquer cliente
+    const btnBaixa = document.getElementById('btnConfirmarBaixa');
+    if (btnBaixa) {
+        btnBaixa.disabled = false;
+        btnBaixa.innerHTML = `<i class="fa-solid fa-check-double mr-2"></i> Confirmar Baixa e Recalcular Contrato`;
+    }
+
     document.getElementById('modalPagamento').classList.remove('hidden');
 
     // Traz estatísticas adicionais do servidor (capital original, total pago)
@@ -2481,6 +2499,9 @@ function renderizarAberto(lista) {
     if (!v && v !== 0 && !document.getElementById('pgtoAjuste').value && !document.getElementById('pgtoNovaTaxa').value) {
         return showToast("Preencha um valor recebido ou um ajuste de estrutura.", "error");
     }
+    if (v < 0) {
+        return showToast("O valor recebido não pode ser negativo.", "error");
+    }
 
     // Bloqueia o botão imediatamente
     const oldText = btn.innerHTML; 
@@ -2520,17 +2541,12 @@ function renderizarAberto(lista) {
             const eBody = await res.json().catch(() => ({}));
             throw new Error(eBody.erro || "Erro ao processar baixa."); 
         }
-    } catch(e) { 
-        showToast(e.message, "error"); 
-        // Em caso de erro, reativa o botão para o utilizador tentar novamente
-        btn.disabled = false; 
-        btn.innerHTML = `<i class="fa-solid fa-rotate-right mr-2"></i> Tentar Novamente`;
-    } finally { 
-        // Se correu bem, o modal fecha, se não, o botão volta ao normal pelo catch ou após o tempo de resposta
-        if (!document.getElementById('modalPagamento').classList.contains('hidden')) {
-            btn.innerHTML = oldText; 
-            btn.disabled = false;
-        }
+    } catch(e) {
+        showToast(e.message, "error");
+    } finally {
+        // Sempre reativa o botão — independente de o modal estar aberto ou fechado
+        btn.innerHTML = oldText;
+        btn.disabled = false;
     }
 }
         function abrirEdicaoContrato(idDevedor) {
@@ -4112,6 +4128,67 @@ function renderizarAberto(lista) {
         });
     
         // ══════════════════════════════════════════════════════
+        // GESTÃO DE CADASTROS COM CPF INVÁLIDO
+        // ══════════════════════════════════════════════════════
+        let _cpfInvalidoIds = [];
+
+        async function verificarCpfsInvalidos() {
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/admin/devedores-cpf-invalido`, { headers: headersAuth });
+                if (!res.ok) return;
+                const lista = await res.json();
+                if (!lista || lista.length === 0) return;
+
+                _cpfInvalidoIds = lista.map(d => d.id);
+
+                const container = document.getElementById('listaCpfInvalido');
+                container.innerHTML = lista.map(d => `
+                    <label class="flex items-center gap-3 bg-slate-800/60 border border-red-500/20 rounded-xl px-4 py-3 cursor-pointer hover:border-red-400/40 transition-all">
+                        <input type="checkbox" class="chk-cpf-invalido w-4 h-4 accent-red-500 shrink-0" value="${d.id}" checked>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-bold text-white truncate">${d.nome || '(sem nome)'}</p>
+                            <p class="text-[10px] text-slate-400">CPF: <span class="text-red-400 font-mono">${d.cpf || 'vazio'}</span>
+                            &nbsp;·&nbsp; Status: <span class="text-slate-300">${d.status}</span>
+                            &nbsp;·&nbsp; Valor: <span class="text-slate-300">${formatMoney(d.valor_emprestado || 0)}</span></p>
+                        </div>
+                    </label>
+                `).join('');
+
+                document.getElementById('modalCpfInvalido').classList.remove('hidden');
+            } catch(e) {
+                // silencioso — não interrompe o fluxo normal
+            }
+        }
+
+        async function cancelarSelecionadosCpfInvalido() {
+            const checks = document.querySelectorAll('.chk-cpf-invalido:checked');
+            const ids = Array.from(checks).map(c => parseInt(c.value));
+            if (ids.length === 0) return showToast('Selecione ao menos um cadastro.', 'error');
+
+            const btn = document.getElementById('btnCancelarCpfInvalido');
+            const orig = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Cancelando...`;
+
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/admin/cancelar-devedores-cpf-invalido`, {
+                    method: 'POST',
+                    headers: { ...headersAuth, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.erro || 'Erro ao cancelar.');
+                showToast(`${data.cancelados} cadastro(s) cancelado(s) com sucesso.`, 'success');
+                fecharModal('modalCpfInvalido');
+                if (typeof carregarDevedores === 'function') carregarDevedores();
+            } catch(e) {
+                showToast(e.message, 'error');
+                btn.disabled = false;
+                btn.innerHTML = orig;
+            }
+        }
+
+        // ══════════════════════════════════════════════════════
         // EDITAR DADOS PESSOAIS DA SOLICITAÇÃO
         // ══════════════════════════════════════════════════════
         function abrirEditarDadosSol() {
@@ -4416,6 +4493,36 @@ function renderizarAberto(lista) {
          BOX BOTÃO EDITAR CONTATO — dentro do modal de documentos
          (fica escondido em solicitações, aparece só no dossié)
     ═══════════════════════════════════════════════════════ -->
+
+    <!-- ═══════════════════════════════════════════════════════
+         MODAL — CADASTROS COM CPF INVÁLIDO
+    ═══════════════════════════════════════════════════════ -->
+    <div id="modalCpfInvalido" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden z-[300] flex items-center justify-center p-4">
+        <div class="glass-card w-full max-w-2xl rounded-3xl border border-red-500/30 p-8 relative shadow-[0_0_60px_rgba(239,68,68,0.15)] max-h-[90vh] flex flex-col">
+            <div class="flex items-center gap-3 mb-2">
+                <div class="w-12 h-12 rounded-2xl bg-red-500/20 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-triangle-exclamation text-red-400 text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl font-black uppercase text-red-400">Cadastros com CPF Inválido</h2>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Os registros abaixo foram cadastrados sem CPF e podem causar conflitos. Confirme o cancelamento antes de continuar.</p>
+                </div>
+            </div>
+
+            <div id="listaCpfInvalido" class="overflow-y-auto flex-1 mt-4 space-y-2 pr-1"></div>
+
+            <div class="mt-6 flex flex-col sm:flex-row gap-3">
+                <button onclick="cancelarSelecionadosCpfInvalido()" id="btnCancelarCpfInvalido"
+                    class="flex-1 bg-red-600 hover:bg-red-500 text-white py-3 rounded-xl font-black uppercase text-sm shadow-lg shadow-red-500/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                    <i class="fa-solid fa-trash-can mr-2"></i> Cancelar Selecionados
+                </button>
+                <button onclick="fecharModal('modalCpfInvalido')"
+                    class="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-black uppercase text-sm transition-all">
+                    <i class="fa-solid fa-circle-check mr-2"></i> Ignorar por Agora
+                </button>
+            </div>
+        </div>
+    </div>
 
 </body>
 </html>

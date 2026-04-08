@@ -531,7 +531,7 @@ app.get('/api/previsao-caixa', async (req, res) => {
     try {
         const dataApoio = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
         dataApoio.setHours(0,0,0,0);
-        const { data: devedores } = await supabase.from('devedores').select('nome, valor_total, qtd_parcelas, data_vencimento, status').in('status', ['ABERTO']).gte('data_vencimento', dataApoio.toISOString().split('T')[0]);
+        const { data: devedores } = await supabase.from('devedores').select('nome, valor_total, qtd_parcelas, data_vencimento, status').in('status', ['ABERTO', 'ATRASADO']).gte('data_vencimento', dataApoio.toISOString().split('T')[0]);
         const previsao = {};
         (devedores || []).forEach(d => {
             const dataVenc = d.data_vencimento;
@@ -1251,7 +1251,7 @@ app.post('/api/baixar-manual', async (req, res) => {
         if (projecao.diasPendentes > 0 && projecao.multaPendente > 0) {
             const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
             if (financeService?.aplicarMultaDiaria) {
-                await financeService.aplicarMultaDiaria(dev, hoje);
+                await financeService.aplicarMultaDiaria(dev, hoje, taxa); // taxa já buscada acima
             }
             const { data: devAtualizado } = await supabase
                 .from('devedores').select('valor_total, valor_emprestado').eq('id', id).single();
@@ -1353,7 +1353,7 @@ app.post('/api/baixar-manual', async (req, res) => {
             p_status:          null,
             p_novo_vencimento: dataVencGlobal,
             p_novas_parcelas:  dev.qtd_parcelas,
-            p_limpar_atraso:   estaAtrasado,          // limpa flag de atraso se pagou
+            p_limpar_atraso:   estaAtrasado && novoStatusParcela === 'PAGA', // só limpa se a parcela foi totalmente quitada
             p_evento:          eventoLog,
             p_detalhes:        detalhesLog,
             p_data_pagamento:  dataEnvioFinal,
@@ -1490,19 +1490,23 @@ app.post('/api/estornar-pagamento', async (req, res) => {
             : `Estorno (Ref. Log #${logId}). Valores devolvidos.${tagMulta}`;
 
         const { error: errEstorno } = await supabase.rpc('processar_transacao_financeira', {
-            p_devedor_id:    logOriginal.devedor_id,
-            p_pago:          -Math.abs(valorEstornarBruto),
-            p_novo_total:    0,
-            p_capital:       0,
-            p_status:        'ABERTO',
-            p_evento:        'Estorno de Pagamento',
-            p_detalhes:      detalheEstorno,
-            p_valor_capital: -Math.abs(parseFloat(logOriginal.valor_capital || 0)),
-            p_valor_juros:   -Math.abs(parseFloat(logOriginal.valor_juros   || 0)),
-            p_limpar_atraso: false,
-            p_parcela_id:    p_parcela_id,
-            p_parcela_pago:  p_parcela_pago_negativo,
-            p_parcela_status: p_parcela_status
+            p_devedor_id:      logOriginal.devedor_id,
+            p_pago:            -Math.abs(valorEstornarBruto),
+            p_novo_total:      0,
+            p_capital:         0,
+            p_status:          'ABERTO',
+            p_novo_vencimento: null,
+            p_novas_parcelas:  null,
+            p_evento:          'Estorno de Pagamento',
+            p_detalhes:        detalheEstorno,
+            p_valor_capital:   -Math.abs(parseFloat(logOriginal.valor_capital || 0)),
+            p_valor_juros:     -Math.abs(parseFloat(logOriginal.valor_juros   || 0)),
+            p_limpar_atraso:   false,
+            p_transaction_id:  `ESTORNO_${logId}`,  // idempotência: impede estorno duplo
+            p_data_pagamento:  null,
+            p_parcela_id:      p_parcela_id,
+            p_parcela_pago:    p_parcela_pago_negativo,
+            p_parcela_status:  p_parcela_status
         });
 
         if (errEstorno) throw errEstorno;
@@ -1890,7 +1894,90 @@ app.post('/api/cancelar-contrato', async (req, res) => {
 });
 
 app.post('/api/adicionar-promotor', async (req, res) => {
-    try { await supabase.from('promotores').insert([{ nome: req.body.nome, cpf: req.body.cpf }]); await supabase.from('logs').insert([{ evento: "Novo Parceiro", detalhes: `Promotor ${req.body.nome} integrado.` }]); res.json({ sucesso: true }); } catch (e) { res.status(500).json({ erro: e.message }); }
+    try {
+        await supabase.from('logs').insert([{ evento: "Novo Parceiro", detalhes: `Promotor ${req.body.nome} (CPF: ${req.body.cpf}) integrado.` }]);
+        res.json({ sucesso: true });
+    } catch (e) { res.status(500).json({ erro: e.message }); }
+});
+
+// ==========================================
+// GESTÃO DE CADASTROS COM CPF INVÁLIDO
+// ==========================================
+
+// Lista devedores com CPF nulo, vazio ou zerado (todos dígitos iguais a 0)
+app.get('/api/admin/devedores-cpf-invalido', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('devedores')
+            .select('id, nome, cpf, telefone, status, created_at, valor_emprestado, valor_total')
+            .not('status', 'eq', 'CANCELADO')
+            .or('cpf.is.null,cpf.eq.,cpf.eq.00000000000,cpf.eq.000.000.000-00');
+
+        if (error) throw error;
+
+        // Filtra também CPFs com todos os dígitos zero mas com formatação diferente
+        const invalidos = (data || []).filter(d => {
+            if (!d.cpf) return true;
+            const limpo = d.cpf.replace(/\D/g, '');
+            return limpo.length === 0 || /^0+$/.test(limpo);
+        });
+
+        res.json(invalidos);
+    } catch (e) { res.status(500).json({ erro: e.message }); }
+});
+
+// Cancela (soft-delete) um ou mais devedores com CPF inválido
+app.post('/api/admin/cancelar-devedores-cpf-invalido', async (req, res) => {
+    try {
+        const { ids } = req.body;
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ erro: 'Lista de IDs inválida.' });
+        }
+
+        // Valida que todos os IDs existem e têm CPF inválido antes de cancelar
+        const { data: devedores, error: errBusca } = await supabase
+            .from('devedores')
+            .select('id, nome, cpf')
+            .in('id', ids)
+            .not('status', 'eq', 'CANCELADO');
+
+        if (errBusca) throw errBusca;
+
+        const idsValidos = (devedores || [])
+            .filter(d => {
+                if (!d.cpf) return true;
+                const limpo = d.cpf.replace(/\D/g, '');
+                return limpo.length === 0 || /^0+$/.test(limpo);
+            })
+            .map(d => d.id);
+
+        if (idsValidos.length === 0) {
+            return res.status(400).json({ erro: 'Nenhum dos IDs informados possui CPF inválido.' });
+        }
+
+        // Cancela devedores
+        const { error: errDev } = await supabase
+            .from('devedores')
+            .update({ status: 'CANCELADO', valor_total: 0, valor_emprestado: 0, pago: true })
+            .in('id', idsValidos);
+        if (errDev) throw errDev;
+
+        // Cancela parcelas pendentes/atrasadas desses devedores
+        await supabase
+            .from('parcelas')
+            .update({ status: 'CANCELADA' })
+            .in('devedor_id', idsValidos)
+            .in('status', ['PENDENTE', 'ATRASADO']);
+
+        // Log de auditoria
+        const nomes = (devedores || []).filter(d => idsValidos.includes(d.id)).map(d => d.nome).join(', ');
+        await supabase.from('logs').insert([{
+            evento: 'Cancelamento CPF Inválido',
+            detalhes: `${idsValidos.length} cadastro(s) cancelado(s) por CPF inválido: ${nomes}`
+        }]);
+
+        res.json({ sucesso: true, cancelados: idsValidos.length });
+    } catch (e) { res.status(500).json({ erro: e.message }); }
 });
 
 app.get('/api/config', async (req, res) => {
@@ -2149,8 +2236,7 @@ app.post('/api/relatorio-periodo', async (req, res) => {
 
     } catch (e) {
         console.error("[CRÍTICO] Falha geral no relatorio-periodo:", e.message);
-        // Agora, o erro volta para o Chrome para você ver o que é!
-        res.status(500).json({ erro: "Erro interno: " + e.message, movimentacoes: [] });
+        res.status(500).json({ erro: "Erro interno ao gerar relatório. Tente novamente.", movimentacoes: [] });
     }
 });
 
@@ -2195,6 +2281,9 @@ const rodarRoboCobranca = async () => {
         }
         // ─────────────────────────────────────────────────────────────────────
 
+        // Busca a taxa UMA VEZ antes do loop (evita N queries idênticas ao banco)
+        const taxaRobo = await buscarTaxaMultaDiaria();
+
         // ── PASSO 2: BUSCAR TODOS OS ATRASADOS (incluindo os recém-marcados) ─
         const { data: devedores, error } = await supabase
             .from('devedores')
@@ -2210,9 +2299,9 @@ const rodarRoboCobranca = async () => {
         for (let i = 0; i < (devedores || []).length; i += LOTE) {
             await Promise.all(devedores.slice(i, i + LOTE).map(async (dev) => {
                 try {
-                    // 1. Aplica multa diária sobre o capital
+                    // 1. Aplica multa diária sobre o capital (passa taxaRobo para evitar N queries)
                     if (financeService?.aplicarMultaDiaria) {
-                        await financeService.aplicarMultaDiaria(dev, hoje);
+                        await financeService.aplicarMultaDiaria(dev, hoje, taxaRobo);
                     }
 
                     // 2. Calcula dias em atraso a partir do vencimento original
@@ -2229,7 +2318,6 @@ const rodarRoboCobranca = async () => {
 
                     // Multa total acumulada: capital × taxa × dias totais em atraso
                     // Zerada para clientes isentos de multa
-                    const taxaRobo = await buscarTaxaMultaDiaria();
                     const dtVencRobo = new Date((devAtualizado?.data_vencimento || dev.data_vencimento) + 'T00:00:00-03:00');
                     const diasTotaisAtraso = Math.max(1, Math.floor((hojeDate - dtVencRobo) / (1000 * 60 * 60 * 24)));
                     const isento = devAtualizado?.isento_multa || dev.isento_multa || false;
@@ -2336,13 +2424,13 @@ const rodarResumoDiarioAdmin = async () => {
         const ontemObj = new Date(); ontemObj.setDate(ontemObj.getDate() - 1);
         const ontemStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(ontemObj);
 
-        const [resumoDB, solPend, parcHoje, parcAmanha, atrasados, logsOntem, configs] = await Promise.all([
-            supabase.rpc('obter_resumo_dashboard', { p_inicio: null, p_fim: null }),
+        const [solPend, parcHoje, parcAmanha, atrasados, logsOntem, todosLogsFluxo, configs] = await Promise.all([
             supabase.from('solicitacoes').select('id', { count: 'exact', head: true }).eq('status', 'PENDENTE'),
             supabase.from('vw_cobranca_ativa_parcelas').select('devedor_id', { count: 'exact', head: true }).eq('vencimento_parcela', hojeStr),
             supabase.from('vw_cobranca_ativa_parcelas').select('devedor_id', { count: 'exact', head: true }).eq('vencimento_parcela', amanhaStr),
             supabase.from('devedores').select('valor_total').eq('status', 'ATRASADO'),
             supabase.from('logs').select('valor_fluxo').gte('created_at', ontemStr + 'T00:00:00-03:00').lte('created_at', ontemStr + 'T23:59:59-03:00').gt('valor_fluxo', 0),
+            supabase.from('logs').select('valor_fluxo'),  // fluxo total para calcular caixa real
             supabase.from('config').select('*'),
         ]);
 
@@ -2351,8 +2439,9 @@ const rodarResumoDiarioAdmin = async () => {
 
         const recebidoOntem  = (logsOntem.data || []).reduce((s, l) => s + (parseFloat(l.valor_fluxo) || 0), 0);
         const valorAtrasado  = (atrasados.data || []).reduce((s, d) => s + (parseFloat(d.valor_total) || 0), 0);
-        const resumo         = resumoDB.data || {};
-        const caixaDisponivel = caixaGeral + (parseFloat(resumo.fluxoLiquidoTotal) || 0);
+        // Caixa real = capital inicial + soma de todos os fluxos (entradas positivas, saídas/empréstimos negativos)
+        const fluxoLiquidoTotal = (todosLogsFluxo.data || []).reduce((s, l) => s + (parseFloat(l.valor_fluxo) || 0), 0);
+        const caixaDisponivel = Math.round((caixaGeral + fluxoLiquidoTotal) * 100) / 100;
 
         await enviarResumoDiarioAdmin(adminNum, {
             vencenteHoje:          parcHoje.count || 0,
