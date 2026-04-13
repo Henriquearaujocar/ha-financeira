@@ -5,7 +5,19 @@
       "Bash(grep -r \"obter_relatorio_safras\\\\|obter_resumo_dashboard\" 'C:\\\\Users\\\\Erpo Araujo\\\\Documents\\\\sistema-cobranca' --include=*.js --include=*.ts --include=*.tsx --include=*.jsx --include=*.html)",
       "Bash(grep -r \"relatorio-periodo\\\\|relatorio.*analitico\" 'C:\\\\Users\\\\Erpo Araujo\\\\Documents\\\\sistema-cobranca' --include=*.js --include=*.ts --include=*.tsx --include=*.jsx --include=*.html)",
       "Bash(grep -r /api/safras 'C:\\\\Users\\\\Erpo Araujo\\\\Documents\\\\sistema-cobranca' --include=*.js --include=*.ts --include=*.tsx --include=*.jsx --include=*.html)",
-      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\(p.dependencies, null, 2\\)\\)\")"
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\(p.dependencies, null, 2\\)\\)\")",
+      "WebSearch",
+      "WebFetch(domain:docs.bigdatacorp.com.br)",
+      "WebFetch(domain:infosimples.com)",
+      "WebFetch(domain:www.apicpf.com)",
+      "WebFetch(domain:cpfhub.io)",
+      "WebFetch(domain:docs.consultar.io)",
+      "WebFetch(domain:www.cpfhub.io)",
+      "WebFetch(domain:nfe.io)",
+      "WebFetch(domain:cpf-brasil.org)",
+      "WebFetch(domain:loja.serpro.gov.br)",
+      "WebFetch(domain:blog.directd.com.br)",
+      "Bash(grep -E \"\\\\.js$|^d\")"
     ]
   }
 }

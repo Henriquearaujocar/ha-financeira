@@ -226,7 +226,24 @@
 
         async function tentarConsultarCPF(rawValue) {
             const cpf = rawValue.replace(/\D/g, '');
-            if (cpf.length !== 11 || !validarCPFReal(cpf)) return;
+            const badge = document.getElementById('badge-cpf-lookup');
+
+            // Limpa badge se apagou parte do CPF
+            if (cpf.length < 11) {
+                badge.classList.add('hidden');
+                clearTimeout(_cpfLookupTimer);
+                return;
+            }
+
+            // CPF com 11 dígitos mas inválido matematicamente
+            if (!validarCPFReal(cpf)) {
+                clearTimeout(_cpfLookupTimer);
+                badge.className = 'text-[10px] font-bold ml-2 mt-1 flex items-center gap-1 text-red-400';
+                badge.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> CPF inválido. Verifique os números.';
+                badge.classList.remove('hidden');
+                return;
+            }
+
             if (cpf === _cpfUltimoConsultado) return; // já consultou este CPF
             if (isClienteRecorrente) return;          // dados já preenchidos pela busca manual
 

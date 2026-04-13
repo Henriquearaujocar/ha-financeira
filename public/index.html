@@ -1266,9 +1266,15 @@
                     <h3 id="pgtoNome" class="text-xl font-black text-white uppercase tracking-tight">NOME DO CLIENTE</h3>
                     <p id="pgtoCpf" class="text-xs text-slate-400 font-mono mt-1">CPF: 000</p>
                 </div>
-                <div class="text-right">
-                    <p class="text-[9px] font-black uppercase text-slate-500">Data de Início do Contrato</p>
-                    <p id="pgtoData" class="text-sm font-bold text-white mt-1">--/--/----</p>
+                <div class="text-right space-y-2">
+                    <div>
+                        <p class="text-[9px] font-black uppercase text-orange-400">Vencimento da Parcela</p>
+                        <p id="pgtoVencimento" class="text-sm font-bold text-orange-300 mt-0.5">--/--/----</p>
+                    </div>
+                    <div>
+                        <p class="text-[9px] font-black uppercase text-slate-500">Data de Início do Contrato</p>
+                        <p id="pgtoData" class="text-sm font-bold text-white mt-0.5">--/--/----</p>
+                    </div>
                 </div>
             </div>
             
@@ -1357,9 +1363,14 @@
                     <div class="pt-2 border-t border-slate-700">
                         <p class="text-[9px] font-black uppercase text-blue-400 mb-2">Recálculo Manual de Estrutura</p>
                         <div class="grid grid-cols-2 gap-2">
-                            <input type="number" id="pgtoNovaTaxa" class="input-dark text-xs" placeholder="Nova Taxa (%)">
-                            <input type="number" id="pgtoNovoParcelamento" class="input-dark text-xs" placeholder="Novo nº Parcelas">
-                            <input type="number" id="pgtoAjuste" class="input-dark text-xs col-span-2" placeholder="Ajustar Saldo Restante (+ ou - R$)">
+                            <input type="number" id="pgtoNovaTaxa" class="input-dark text-xs" placeholder="Nova Taxa (%)" oninput="calcularPreviewRecalculo()">
+                            <input type="number" id="pgtoNovoParcelamento" class="input-dark text-xs" placeholder="Novo nº Parcelas" oninput="calcularPreviewRecalculo()">
+                            <input type="number" id="pgtoAjuste" class="input-dark text-xs col-span-2" placeholder="Ajustar Saldo Restante (+ ou - R$)" oninput="calcularPreviewRecalculo()">
+                        </div>
+                        <div id="previewRecalculo" class="hidden mt-2 bg-blue-900/20 border border-blue-500/30 rounded-xl p-3 text-center">
+                            <p class="text-[9px] font-black uppercase text-blue-400 mb-1">Previsão com Novos Termos</p>
+                            <p class="text-[10px] text-slate-300">Novo Saldo: <span id="previewNovoSaldo" class="font-bold text-white"></span></p>
+                            <p class="text-[10px] text-slate-300 mt-0.5">Próxima Parcela: <span id="previewNovaParcela" class="font-bold text-emerald-400 text-sm"></span></p>
                         </div>
                     </div>
                 </div>
@@ -1372,10 +1383,16 @@
     <div id="modalEditarContrato" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
         <div class="glass-card w-full max-w-lg rounded-3xl border border-slate-700 p-8 relative">
             <button onclick="fecharModal('modalEditarContrato')" class="absolute top-6 right-6 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-            <h2 class="text-xl font-black uppercase text-blue-500 mb-6 flex items-center">
-                <i class="fa-solid fa-pen-to-square mr-2"></i> Editar Contrato 
-                <span id="editCtLabel" class="text-slate-400 text-sm ml-2 font-mono bg-slate-900 px-2 py-1 rounded border border-slate-700"></span>
-            </h2>
+            <div class="flex items-start justify-between mb-6">
+                <h2 class="text-xl font-black uppercase text-blue-500 flex items-center flex-wrap gap-2">
+                    <i class="fa-solid fa-pen-to-square mr-1"></i> Editar Contrato
+                    <span id="editCtLabel" class="text-slate-400 text-sm font-mono bg-slate-900 px-2 py-1 rounded border border-slate-700"></span>
+                </h2>
+                <div class="text-right shrink-0 ml-4">
+                    <p class="text-[9px] font-black uppercase text-orange-400">Vencimento Atual</p>
+                    <p id="editVencimentoDisplay" class="text-sm font-bold text-orange-300 mt-0.5">--/--/----</p>
+                </div>
+            </div>
             
             <input type="hidden" id="editDevedorId">
             <input type="hidden" id="editJaPago">
@@ -2236,7 +2253,7 @@ function renderizarAberto(lista) {
                         <button onclick="cancelarContratoAtivo('${p.devedor_id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-red-400">
                             <i class="fa-solid fa-ban mr-2"></i> Cancelar / Estornar
                         </button>
-                        <button onclick="abrirExtratoListagem('${p.cpf}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-blue-400">
+                        <button onclick="abrirExtratoPorId(${p.devedor_id})" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-blue-400">
                             <i class="fa-solid fa-file-invoice mr-2"></i> Ver Extrato
                         </button>
                         <button onclick="marcarComoCalote('${p.devedor_id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-red-500">
@@ -2306,7 +2323,7 @@ function renderizarAberto(lista) {
                 <button onclick="enviarCobrancaManual('${p.devedor_id}')" class="flex-1 bg-green-600/20 text-green-400 hover:bg-green-600 hover:text-white py-2 rounded-lg text-[10px] font-black uppercase transition-all">
                     <i class="fa-brands fa-whatsapp mr-1"></i> Cobrar
                 </button>
-                <button onclick="abrirExtratoListagem('${p.cpf}')" class="bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white px-3 py-2 rounded-lg text-[10px] font-black uppercase transition-all">
+                <button onclick="abrirExtratoPorId(${p.devedor_id})" class="bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white px-3 py-2 rounded-lg text-[10px] font-black uppercase transition-all">
                     <i class="fa-solid fa-file-invoice"></i>
                 </button>
             </div>
@@ -2398,8 +2415,9 @@ function renderizarAberto(lista) {
     const faltaNestaParcela = Math.max(0, Math.round((valOriginal - jaPago + multaTotal) * 100) / 100);
 
     document.getElementById('pgtoValor').value = faltaNestaParcela.toFixed(2);
-    document.getElementById('pgtoNome').innerText = `${parc.nome} (CT #${parc.devedor_id} - Parc ${parc.numero_parcela})`; 
-    document.getElementById('pgtoCpf').innerText = parc.cpf; 
+    document.getElementById('pgtoNome').innerText = `${parc.nome} (CT #${parc.devedor_id} - Parc ${parc.numero_parcela})`;
+    document.getElementById('pgtoCpf').innerText = parc.cpf;
+    document.getElementById('pgtoVencimento').innerText = dtVencModal.toLocaleDateString('pt-BR');
     document.getElementById('pgtoDataRecebimento').value = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
 
     // Saldo total projetado = valor_total do banco + multa pendente do dia atual
@@ -2427,6 +2445,8 @@ function renderizarAberto(lista) {
     document.getElementById('pgtoNovaTaxa').value = '';
     document.getElementById('pgtoNovoParcelamento').value = '';
     document.getElementById('pgtoTratamento').value = 'AMORTIZAR';
+    document.getElementById('previewRecalculo').classList.add('hidden');
+    window._saldoParaRecalculo = saldoTotalProjetado;
 
     // Garante que o botão esteja sempre limpo ao abrir o modal para qualquer cliente
     const btnBaixa = document.getElementById('btnConfirmarBaixa');
@@ -2564,9 +2584,12 @@ function renderizarAberto(lista) {
     document.getElementById('editApenasDinheiro').checked = dev.cobrar_so_em_dinheiro || false; 
     document.getElementById('editIsentoMulta').checked = dev.isento_multa || false;
     document.getElementById('editParcelas').value = dev.qtd_parcelas || 1; 
-    document.getElementById('editTaxa').value = dev.taxa_juros || 30; 
+    document.getElementById('editTaxa').value = dev.taxa_juros ?? '';
     document.getElementById('editJaPago').value = dev.total_ja_pego || 0;
-    
+
+    const [ano, mes, dia] = (dev.data_vencimento || '----/--/--').split('-');
+    document.getElementById('editVencimentoDisplay').innerText = `${dia}/${mes}/${ano}`;
+
     document.getElementById('modalEditarContrato').classList.remove('hidden');
 }
 
@@ -2600,10 +2623,11 @@ function renderizarAberto(lista) {
                     }) 
                 });
                 
-                if (res.ok) { 
-                    showToast("Salvo!"); 
-                    fecharModal('modalEditarContrato'); 
-                    carregarAberto(); 
+                if (res.ok) {
+                    showToast("Salvo!");
+                    fecharModal('modalEditarContrato');
+                    carregarAberto();
+                    carregarDash();
                 } else {
                     const eBody = await res.json().catch(() => ({}));
                     throw new Error(eBody.erro || eBody.details || "Erro ao editar contrato."); 
@@ -2632,10 +2656,38 @@ function renderizarAberto(lista) {
         // =====================================
         // CLIENTES, EXTRATO E GARANTIAS
         // =====================================
+        function calcularPreviewRecalculo() {
+            const saldo = window._saldoParaRecalculo || 0;
+            const taxa = parseFloat(document.getElementById('pgtoNovaTaxa').value);
+            const parcelas = parseInt(document.getElementById('pgtoNovoParcelamento').value);
+            const ajuste = parseFloat(document.getElementById('pgtoAjuste').value) || 0;
+
+            if (!taxa && !parcelas && !ajuste) {
+                document.getElementById('previewRecalculo').classList.add('hidden');
+                return;
+            }
+
+            const novoSaldo = Math.max(0, saldo + ajuste);
+            const novasParcelas = parcelas || 1;
+            const novaTaxa = taxa || 0;
+            const novaParcela = (novoSaldo / novasParcelas) * (1 + novaTaxa / 100);
+
+            document.getElementById('previewNovoSaldo').innerText = formatMoney(novoSaldo);
+            document.getElementById('previewNovaParcela').innerText = formatMoney(novaParcela);
+            document.getElementById('previewRecalculo').classList.remove('hidden');
+        }
+
         function abrirExtratoListagem(cpfOuBusca) {
-            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show')); 
-            mudarAba('clientes'); 
-            document.getElementById('extrato-busca').value = cpfOuBusca; 
+            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+            mudarAba('clientes');
+            document.getElementById('extrato-busca').value = cpfOuBusca;
+            buscarExtrato();
+        }
+
+        function abrirExtratoPorId(devedorId) {
+            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+            mudarAba('clientes');
+            document.getElementById('extrato-busca').value = `#id:${devedorId}`;
             buscarExtrato();
         }
 
@@ -2644,17 +2696,25 @@ function renderizarAberto(lista) {
             if(busca.length < 3) return; 
             
             document.getElementById('container-lista-clientes').classList.add('hidden');
-            document.getElementById('box-extrato').classList.add('hidden'); 
+            document.getElementById('box-extrato').classList.add('hidden');
             window.clienteAtualExtrato = null;
-            
+
             try {
-                const res = await fetchSeguro(`${API_BASE}/api/cliente-extrato/${encodeURIComponent(busca)}`, { headers: headersAuth });
-                const data = await res.json(); 
-                
+                const isIdLookup = busca.startsWith('#id:');
+                const url = isIdLookup
+                    ? `${API_BASE}/api/cliente-extrato-id/${busca.replace('#id:', '')}`
+                    : `${API_BASE}/api/cliente-extrato/${encodeURIComponent(busca)}`;
+                const res = await fetchSeguro(url, { headers: headersAuth });
+                const data = await res.json();
+
                 window.clienteAtualExtrato = data.cliente;
-                
+
+                // Limpa o campo se foi uma busca por ID (não exibir "#id:123" para o usuário)
+                const buscaAtual = document.getElementById('extrato-busca').value;
+                if (buscaAtual.startsWith('#id:')) document.getElementById('extrato-busca').value = '';
+
                 document.getElementById('box-extrato').classList.remove('hidden');
-                document.getElementById('ext_nome').innerText = data.cliente.nome; 
+                document.getElementById('ext_nome').innerText = data.cliente.nome;
                 document.getElementById('ext_cpf').innerText = data.cliente.cpf;
 
                 if(data.cliente.indicado_por && data.cliente.indicado_por !== 'DIRETO') {
@@ -2998,7 +3058,7 @@ function renderizarAberto(lista) {
                 if (isCalote) statusIndicator = '<span class="w-2.5 h-2.5 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.8)]" title="Carteira Podre (Calote)"></span>';
 
                 grid.innerHTML += `
-                    <div onclick="abrirExtratoListagem('${c.cpf}')" class="bg-slate-800/40 hover:bg-slate-700/80 border border-slate-700/50 hover:border-blue-500 p-4 rounded-xl cursor-pointer transition-all flex items-center justify-between group shadow-sm hover:shadow-lg">
+                    <div onclick="abrirExtratoPorId(${c.id})" class="bg-slate-800/40 hover:bg-slate-700/80 border border-slate-700/50 hover:border-blue-500 p-4 rounded-xl cursor-pointer transition-all flex items-center justify-between group shadow-sm hover:shadow-lg">
                         <div class="overflow-hidden">
                             <p class="text-[11px] font-black text-white truncate group-hover:text-blue-400 transition-colors uppercase tracking-tight">${escapeHTML(c.nome)}</p>
                             <p class="text-[10px] text-slate-400 font-mono mt-1">${escapeHTML(c.cpf)}</p>
@@ -3584,7 +3644,7 @@ function renderizarAberto(lista) {
                             ${tagData}
                             <div class="mt-2 pt-2 border-t border-slate-700 flex justify-between gap-1">
                                 <a href="https://wa.me/${d.telefone}?text=Ol%C3%A1%20${encodeURIComponent(d.nome.split(' ')[0])},%20falamos%20da%20CMS%20Ventures." target="_blank" class="flex-1 bg-green-600/20 text-green-500 hover:bg-green-600 hover:text-white text-center py-1 rounded text-[10px] transition-colors"><i class="fa-brands fa-whatsapp"></i></a>
-                                <button onclick="abrirExtratoListagem('${d.cpf}')" class="flex-1 bg-blue-600/20 text-blue-500 hover:bg-blue-600 hover:text-white text-center py-1 rounded text-[10px] transition-colors"><i class="fa-solid fa-file-invoice"></i></button>
+                                <button onclick="abrirExtratoPorId(${d.id})" class="flex-1 bg-blue-600/20 text-blue-500 hover:bg-blue-600 hover:text-white text-center py-1 rounded text-[10px] transition-colors"><i class="fa-solid fa-file-invoice"></i></button>
                             </div>
                         `;
                         col.appendChild(div);

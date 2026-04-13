@@ -892,7 +892,7 @@ app.get('/api/clientes-lista', async (req, res) => {
     try {
         let todos = []; let buscar = true; let ptr = 0;
         while (buscar) {
-            const { data, error } = await supabase.from('devedores').select('cpf, nome, telefone, status').order('nome', { ascending: true }).range(ptr, ptr + 999);
+            const { data, error } = await supabase.from('devedores').select('id, cpf, nome, telefone, status').order('nome', { ascending: true }).range(ptr, ptr + 999);
             if (error || !data || data.length === 0) break;
             todos = todos.concat(data); if (data.length < 1000) buscar = false; ptr += 1000;
         }
@@ -1061,6 +1061,42 @@ app.get('/api/cliente-extrato/:busca', async (req, res) => {
     } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
+// Busca extrato diretamente pelo ID do devedor (evita problema de CPF=0000)
+app.get('/api/cliente-extrato-id/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (!id) return res.status(400).json({ erro: 'ID inválido.' });
+
+        const { data: clientePrincipal } = await supabase.from('devedores').select('*').eq('id', id).single();
+        if (!clientePrincipal) return res.status(404).json({ erro: 'Cliente não encontrado.' });
+
+        const { data: tds } = await supabase.from('devedores').select('*').eq('cpf', clientePrincipal.cpf).order('created_at', { ascending: false });
+        const tdsValidos = (tds || [clientePrincipal]).filter(c => c.status !== 'CANCELADO');
+
+        let scoreCalculado = 500;
+        const tdsComParcelas = tdsValidos.map(dev => {
+            dev = formatarContratoCarne(dev);
+            if (dev.status === 'QUITADO') scoreCalculado += 150;
+            if (dev.status === 'ATRASADO') {
+                const dtVenc = new Date(dev.data_vencimento + 'T12:00:00Z');
+                const hj = new Date(); hj.setHours(0,0,0,0);
+                if (dtVenc < hj) scoreCalculado -= (Math.floor((hj - dtVenc) / (1000*60*60*24)) * 5);
+            }
+            return dev;
+        });
+        scoreCalculado = Math.min(1000, Math.max(0, scoreCalculado));
+
+        const idsArray = tdsValidos.map(c => c.id);
+        let logs = [];
+        if (idsArray.length > 0) {
+            const { data: logsData } = await supabase.from('logs').select('*').in('devedor_id', idsArray).order('created_at', { ascending: false }).limit(300);
+            logs = logsData || [];
+        }
+
+        res.json({ cliente: tdsComParcelas[0] || clientePrincipal, todos_contratos: tdsComParcelas, logs, score: scoreCalculado });
+    } catch(e) { res.status(500).json({ erro: e.message }); }
+});
+
 app.get('/api/buscar-cliente-admin/:busca', async (req, res) => {
     try {
         const b = decodeURIComponent(req.params.busca); const hasNum = /\d/.test(b); 
@@ -1168,7 +1204,21 @@ app.post('/api/editar-contrato', async (req, res) => {
         await supabase.from('parcelas').delete().eq('devedor_id', id).in('status', ['PENDENTE', 'ATRASADO', 'PARCIAL']);
         await gerarParcelasNoBanco(id, limparMoeda(novoTotal), parseInt(novasParcelas) || 1, novoVencimento, novaFrequencia);
 
-        await supabase.from('logs').insert([{ evento: "Edição Manual", detalhes: `Novo Vencimento: ${novoVencimento}. Saldo Restante: R$ ${limparMoeda(novoTotal)}`, devedor_id: id }]);
+        const capitalAntigo = Math.round((parseFloat(devAntigo?.valor_emprestado) || 0) * 100) / 100;
+        const capitalNovo   = Math.round(limparMoeda(novoCapital) * 100) / 100;
+        const difCapital    = Math.round((capitalNovo - capitalAntigo) * 100) / 100;
+
+        const logsEditar = [{ evento: "Edição Manual", detalhes: `Novo Vencimento: ${novoVencimento}. Saldo Restante: R$ ${limparMoeda(novoTotal)}. Capital anterior: R$ ${capitalAntigo.toFixed(2)} → R$ ${capitalNovo.toFixed(2)}.`, devedor_id: id, valor_fluxo: 0 }];
+
+        if (difCapital > 0.01) {
+            // Novo capital liberado: aparece no relatório como saída de caixa (valor negativo)
+            logsEditar.push({ evento: "Empréstimo Liberado", detalhes: `[EDIÇÃO] Aditamento de contrato: +R$ ${difCapital.toFixed(2)} ao capital existente.`, devedor_id: id, valor_fluxo: -difCapital });
+        } else if (difCapital < -0.01) {
+            // Capital reduzido (correção): registra retorno proporcional de caixa
+            logsEditar.push({ evento: "Ajuste de Capital", detalhes: `[EDIÇÃO] Redução de capital: R$ ${Math.abs(difCapital).toFixed(2)} devolvido ao caixa.`, devedor_id: id, valor_fluxo: Math.abs(difCapital) });
+        }
+
+        await supabase.from('logs').insert(logsEditar);
         res.json({ sucesso: true });
     } catch(e) { res.status(500).json({ erro: e.message }); }
 });
@@ -1387,10 +1437,23 @@ app.post('/api/baixar-manual', async (req, res) => {
         if (saldoAtualizado <= 0.10) {
             await supabase.from('devedores').update({ valor_total: 0, valor_emprestado: 0, status: 'QUITADO', pago: true }).eq('id', id);
             await supabase.from('logs').insert([{ evento: 'Quitação Total', detalhes: 'Contrato liquidado com sucesso.', devedor_id: id }]);
-        } else if (proximoVencimentoReal && novoStatusParcela === 'PAGA') {
-            // Avança data_vencimento do contrato para a próxima parcela real
+        } else if (novoStatusParcela === 'PAGA') {
+            // Parcela paga mas contrato ainda tem saldo → avança vencimento e
+            // determina o novo status: ABERTO se a próxima parcela ainda não venceu,
+            // ATRASADO se já passou da data (ex: cliente tinha 2 parcelas vencidas e pagou só uma).
+            const dtProxima = proximoVencimentoReal
+                ? new Date(proximoVencimentoReal + 'T00:00:00-03:00')
+                : null;
+            const novoStatusContrato = (dtProxima && dtProxima > hojeCheck) ? 'ABERTO' : 'ATRASADO';
+            // valor_total reconciliado com a soma real das parcelas: garante que
+            // devedores.valor_total nunca diverge da tabela parcelas (ex: multa parcialmente
+            // coberta faz novoValorTotal != saldoAtualizado em edge cases).
             await supabase.from('devedores')
-                .update({ data_vencimento: proximoVencimentoReal })
+                .update({
+                    data_vencimento: proximoVencimentoReal || dev.data_vencimento,
+                    status: novoStatusContrato,
+                    valor_total: Math.round(saldoAtualizado * 100) / 100
+                })
                 .eq('id', id);
         }
 
@@ -2134,6 +2197,11 @@ app.post('/api/relatorio-periodo', async (req, res) => {
                 if (ev === 'Empréstimo Liberado') qtdCadastros++;
                 return;
             }
+            // Redução de capital via edição: reverte parte do emprestado, não é receita
+            if (ev === 'Ajuste de Capital' && v > 0) {
+                totalEmprestado = Math.max(0, totalEmprestado - v);
+                return;
+            }
             if (ev === 'SAÍDA DE CAIXA') {
                 totalDespesas += Math.abs(v);
                 return;
@@ -2313,6 +2381,12 @@ const rodarRoboCobranca = async () => {
                         .from('devedores')
                         .select('valor_total, valor_emprestado, ultima_cobranca_atraso, isento_multa, status, data_vencimento')
                         .eq('id', dev.id).single();
+
+                    // Guarda de segurança: o contrato pode ter sido pago enquanto o robô
+                    // processava o lote (race condition). Se status mudou para ABERTO/QUITADO,
+                    // não enviar cobrança.
+                    if (!devAtualizado || devAtualizado.status !== 'ATRASADO') return;
+
                     const saldoTotalAtual = parseFloat(devAtualizado?.valor_total   || dev.valor_total);
                     const capitalBase     = parseFloat(devAtualizado?.valor_emprestado || dev.valor_emprestado);
 
