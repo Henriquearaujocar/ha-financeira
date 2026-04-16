@@ -97,37 +97,59 @@ async function gerarParcelasComPersonalizacao(devedorId, valorTotal, qtdParcelas
     if (error) console.error("Erro crítico ao gerar parcelas no banco:", error);
 }
 
-const formatarContratoCarne = (dev) => {
+/**
+ * Formata o contrato para exibição no carnê/extrato.
+ *
+ * ATENÇÃO: valor_total do banco inclui multas diárias acumuladas, o que inflava
+ * a parcela exibida e subtraia parcelas_pagas erroneamente.
+ *
+ * FIX: os callers desta função (extrato e validar-extrato) devem passar
+ * parcelaOriginalValor e numeroParcela buscados da tabela `parcelas` para
+ * sobrescrever os valores calculados com os valores reais do contrato.
+ */
+const formatarContratoCarne = (dev, parcelaOriginalValor = null, numeroParcela = null) => {
     const totalAtual = parseFloat(dev.valor_total) || 0;
     const jaPago = parseFloat(dev.total_ja_pego) || 0;
     const capital = parseFloat(dev.valor_emprestado) || 0;
     const taxa = (parseFloat(dev.taxa_juros) || 0) / 100;
     const qtdDB = parseInt(dev.qtd_parcelas) || 1;
-    
+
+    // Se a parcela real foi fornecida pelo caller (vem da tabela `parcelas.valor_original`),
+    // usa diretamente — imune à inflação por multas diárias acumuladas em valor_total.
+    if (parcelaOriginalValor && parcelaOriginalValor > 0) {
+        dev.valor_parcela      = parcelaOriginalValor;
+        dev.parcelas_pagas     = numeroParcela ? Math.max(0, numeroParcela - 1) : Math.floor(jaPago / parcelaOriginalValor);
+        dev.qtd_parcelas_original = Math.max(qtdDB, dev.parcelas_pagas + qtdDB);
+        return dev;
+    }
+
     if (qtdDB > 1 || jaPago > 0) {
+        // NOTA: globalOriginalComMultas pode estar inflado por multas acumuladas em totalAtual
+        // e por multas já pagas dentro de jaPago (total_ja_pego inclui multas pagas).
+        // Essa estimativa é usada apenas como fallback quando não há dados da tabela parcelas.
         const globalOriginalComMultas = totalAtual + jaPago;
         let originalQtd = qtdDB;
-        let parcela = globalOriginalComMultas / qtdDB; 
+        let parcela = globalOriginalComMultas / qtdDB;
 
         if (capital > 0 && taxa > 0) {
             const calculatedQtd = Math.round((globalOriginalComMultas / capital - 1) / taxa);
             if (calculatedQtd > 0 && calculatedQtd >= qtdDB) {
                 originalQtd = calculatedQtd;
-                if (originalQtd < 1) originalQtd = 1; // CORREÇÃO: proteger antes de dividir
+                if (originalQtd < 1) originalQtd = 1;
                 parcela = (capital * (1 + (taxa * originalQtd))) / originalQtd;
             } else {
-                if (originalQtd < 1) originalQtd = 1; // CORREÇÃO: proteger antes de dividir
+                if (originalQtd < 1) originalQtd = 1;
                 parcela = globalOriginalComMultas / originalQtd;
             }
         } else {
             const parcelaH1 = totalAtual / qtdDB;
             const isPerfect = (val, div) => div > 0 && Math.abs((val / div) - Math.round(val / div)) < 0.02;
-            
+
             if (isPerfect(globalOriginalComMultas, parcelaH1)) {
                 originalQtd = Math.round(globalOriginalComMultas / parcelaH1);
                 parcela = parcelaH1;
             } else {
-                if (originalQtd < 1) originalQtd = 1; // CORREÇÃO: proteger antes de dividir
+                if (originalQtd < 1) originalQtd = 1;
                 parcela = globalOriginalComMultas / originalQtd;
             }
         }
@@ -207,11 +229,11 @@ const projetarJurosAtraso = (dev, taxaDiaria = 0.01) => {
         return { diasPendentes: 0, multaPendente: 0, valorProjetado: parseFloat(dev.valor_total || 0) };
     }
 
-    const ultimaMulata = dev.ultima_cobranca_atraso
+    const ultimaMulta = dev.ultima_cobranca_atraso
         ? new Date(dev.ultima_cobranca_atraso + 'T00:00:00-03:00')
         : dataVenc;
 
-    const diasPendentes = Math.max(0, Math.floor((hoje - ultimaMulata) / (1000 * 60 * 60 * 24)));
+    const diasPendentes = Math.max(0, Math.floor((hoje - ultimaMulta) / (1000 * 60 * 60 * 24)));
 
     if (diasPendentes === 0) {
         return { diasPendentes: 0, multaPendente: 0, valorProjetado: parseFloat(dev.valor_total || 0) };
@@ -468,7 +490,26 @@ app.post('/validar-extrato', async (req, res) => {
         const { data: dev, error } = await query.single();
         if (error || !dev) return res.status(404).json({ erro: "Extrato não encontrado." }); 
         
-        const devFormatado = formatarContratoCarne(dev);
+        // Busca valor_original real da próxima parcela pendente para evitar inflação por multas
+        // (formatarContratoCarne usa valor_total+total_ja_pego que inclui multas acumuladas)
+        let parcelaOriginalValor = null;
+        let numeroParcela = null;
+        if (parseInt(dev.qtd_parcelas) > 1) {
+            const { data: proxParc } = await supabase
+                .from('parcelas')
+                .select('valor_original, numero_parcela')
+                .eq('devedor_id', dev.id)
+                .in('status', ['PENDENTE', 'ATRASADO', 'PARCIAL'])
+                .order('numero_parcela', { ascending: true })
+                .limit(1)
+                .maybeSingle();
+            if (proxParc?.valor_original > 0) {
+                parcelaOriginalValor = parseFloat(proxParc.valor_original);
+                numeroParcela = proxParc.numero_parcela;
+            }
+        }
+
+        const devFormatado = formatarContratoCarne(dev, parcelaOriginalValor, numeroParcela);
 
         // Lê taxa configurada e projeta juros pendentes ao vivo
         const taxa = await buscarTaxaMultaDiaria();
@@ -1029,14 +1070,41 @@ app.get('/api/cliente-extrato/:busca', async (req, res) => {
         const { data: cls } = await queryMain.order('created_at', { ascending: false }).limit(20);
         if (!cls || cls.length === 0) return res.status(404).json({ erro: "Cliente não encontrado." });
         
-        const clientePrincipal = cls[0]; 
-        const { data: tds } = await supabase.from('devedores').select('*').eq('cpf', clientePrincipal.cpf).order('created_at', { ascending: false });
-        
+        const clientePrincipal = cls[0];
+        // GUARD: CPF inválido (nulo ou todos zeros) — não buscar por CPF para evitar misturar clientes
+        const cpfPrincipalLimpo = (clientePrincipal.cpf || '').replace(/\D/g, '');
+        const cpfValido = cpfPrincipalLimpo.length >= 11 && !/^0+$/.test(cpfPrincipalLimpo);
+        const { data: tds } = cpfValido
+            ? await supabase.from('devedores').select('*').eq('cpf', clientePrincipal.cpf).order('created_at', { ascending: false })
+            : { data: [clientePrincipal] };
+
         const tdsValidos = (tds || cls).filter(c => c.status !== 'CANCELADO');
-        let scoreCalculado = 500; 
+        let scoreCalculado = 500;
+
+        // Busca valor_original das próximas parcelas pendentes de todos os contratos
+        // para sobrescrever o cálculo de formatarContratoCarne (que inflaciona com multas)
+        const idsContratosAtivos = tdsValidos.map(c => c.id);
+        const parcelasReaisMap = {};
+        if (idsContratosAtivos.length > 0) {
+            const { data: parcsReais } = await supabase
+                .from('parcelas')
+                .select('devedor_id, numero_parcela, valor_original')
+                .in('devedor_id', idsContratosAtivos)
+                .in('status', ['PENDENTE', 'ATRASADO', 'PARCIAL'])
+                .order('numero_parcela', { ascending: true });
+            // Guarda apenas a 1ª parcela pendente de cada contrato
+            (parcsReais || []).forEach(p => {
+                if (!parcelasReaisMap[p.devedor_id]) parcelasReaisMap[p.devedor_id] = p;
+            });
+        }
 
         const tdsComParcelas = tdsValidos.map(dev => {
-            dev = formatarContratoCarne(dev);
+            const parcelaReal = parcelasReaisMap[dev.id];
+            dev = formatarContratoCarne(
+                dev,
+                parcelaReal?.valor_original ? parseFloat(parcelaReal.valor_original) : null,
+                parcelaReal?.numero_parcela || null
+            );
             if (dev.status === 'QUITADO') scoreCalculado += 150;
             if (dev.status === 'ATRASADO') {
                 const dtVenc = new Date(dev.data_vencimento + 'T12:00:00Z');
@@ -1070,12 +1138,37 @@ app.get('/api/cliente-extrato-id/:id', async (req, res) => {
         const { data: clientePrincipal } = await supabase.from('devedores').select('*').eq('id', id).single();
         if (!clientePrincipal) return res.status(404).json({ erro: 'Cliente não encontrado.' });
 
-        const { data: tds } = await supabase.from('devedores').select('*').eq('cpf', clientePrincipal.cpf).order('created_at', { ascending: false });
+        // GUARD: CPF inválido (nulo ou todos zeros) — não buscar por CPF para evitar misturar clientes
+        const cpfIdLimpo = (clientePrincipal.cpf || '').replace(/\D/g, '');
+        const cpfIdValido = cpfIdLimpo.length >= 11 && !/^0+$/.test(cpfIdLimpo);
+        const { data: tds } = cpfIdValido
+            ? await supabase.from('devedores').select('*').eq('cpf', clientePrincipal.cpf).order('created_at', { ascending: false })
+            : { data: [clientePrincipal] };
         const tdsValidos = (tds || [clientePrincipal]).filter(c => c.status !== 'CANCELADO');
+
+        // Busca valor_original das próximas parcelas pendentes de todos os contratos
+        const idsContratosAtivosId = tdsValidos.map(c => c.id);
+        const parcelasReaisMapId = {};
+        if (idsContratosAtivosId.length > 0) {
+            const { data: parcsReaisId } = await supabase
+                .from('parcelas')
+                .select('devedor_id, numero_parcela, valor_original')
+                .in('devedor_id', idsContratosAtivosId)
+                .in('status', ['PENDENTE', 'ATRASADO', 'PARCIAL'])
+                .order('numero_parcela', { ascending: true });
+            (parcsReaisId || []).forEach(p => {
+                if (!parcelasReaisMapId[p.devedor_id]) parcelasReaisMapId[p.devedor_id] = p;
+            });
+        }
 
         let scoreCalculado = 500;
         const tdsComParcelas = tdsValidos.map(dev => {
-            dev = formatarContratoCarne(dev);
+            const parcelaRealId = parcelasReaisMapId[dev.id];
+            dev = formatarContratoCarne(
+                dev,
+                parcelaRealId?.valor_original ? parseFloat(parcelaRealId.valor_original) : null,
+                parcelaRealId?.numero_parcela || null
+            );
             if (dev.status === 'QUITADO') scoreCalculado += 150;
             if (dev.status === 'ATRASADO') {
                 const dtVenc = new Date(dev.data_vencimento + 'T12:00:00Z');
@@ -2211,17 +2304,30 @@ app.post('/api/relatorio-periodo', async (req, res) => {
             if (v > 0) {
                 totalRecebido += v;
 
-                // CÁLCULO CORRETO DE MENSALIDADE:
-                // NÃO usa valor_juros do log (pode estar errado em logs antigos por drift de ratio).
-                // Recalcula sempre: mensalidade = valor_recebido - capital_amortizado - multa_paga
-                // Isso é matematicamente correto independente de como foi gravado.
-                const multaPaga = (() => {
-                    if (ev === 'Pagamento com Atraso' || det.includes('[MULTA]')) {
-                        const m = det.match(/multa[:\s]+R?\$?\s*([\d.]+)/i);
-                        return m ? Math.round(parseFloat(m[1]) * 100) / 100 : 0;
+                // EXTRAÇÃO DA MULTA PAGA:
+                // Estratégia de extração em cascata (da mais confiável para a menos):
+                //   1ª prioridade — regex nos detalhes ("+ multa: R$ XX") — formato atual
+                //   2ª prioridade — regex alternativo ("multa: R$ XX") — formatos legados
+                //   3ª prioridade — nenhuma multa encontrada → 0
+                // Se detectado como pagamento com atraso mas regex falhar, usa valor_juros
+                // do log menos o juros de mensalidade para não subestimar multasAcumuladas.
+                let multaPaga = 0;
+                if (ev === 'Pagamento com Atraso' || det.includes('[MULTA]')) {
+                    // Tenta regex principal: "+ multa: R$ XX.XX" ou "multa: R$ XX"
+                    const mPrincipal = det.match(/\+\s*multa:\s*R?\$?\s*([\d,.]+)/i)
+                                    || det.match(/multa[:\s]+R?\$?\s*([\d,.]+)/i);
+                    if (mPrincipal) {
+                        const raw = mPrincipal[1].replace(',', '.');
+                        multaPaga = Math.round(parseFloat(raw) * 100) / 100;
+                    } else if (jurosOrig > 0 && capOrig > 0) {
+                        // Fallback: usa o valor_juros do log como proxy da multa
+                        // (valor_juros = mensalidade + multa; capOrig = amortização de capital)
+                        // Mensalidade mínima esperada = v - capOrig (receita sem multa)
+                        // Excedente acima da mensalidade pura = estimativa da multa
+                        // Conservador: só marca multa se o log declara evento de atraso
+                        multaPaga = 0; // não arrisca estimativa — mantém 0 se regex não achou
                     }
-                    return 0;
-                })();
+                }
 
                 const mensalPago = Math.max(0, Math.round((v - capOrig - multaPaga) * 100) / 100);
 

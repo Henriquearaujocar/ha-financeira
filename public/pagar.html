@@ -155,7 +155,9 @@
                     if (dev.qtd_parcelas > 1 && dev.valor_parcela) {
                         const nomeQuebrado = dev.nome.split(' ')[0];
                         const numeroParcela = (dev.parcelas_pagas || 0) + 1;
-                        document.getElementById('nomeCliente').innerText = `${nomeQuebrado} (Pagando Parcela ${numeroParcela}/${dev.qtd_parcelas})`;
+                        // qtd_parcelas_original = total original (ex: 10); qtd_parcelas = restantes (ex: 7)
+                        const totalParcelas = dev.qtd_parcelas_original || dev.qtd_parcelas;
+                        document.getElementById('nomeCliente').innerText = `${nomeQuebrado} (Pagando Parcela ${numeroParcela}/${totalParcelas})`;
                         document.getElementById('lblValorPagar').innerText = "Valor da Parcela Atual (R$)";
                         // Para parcelado usa valor_parcela + multa proporcional pendente
                         const multaPorParcela = dev.multa_pendente > 0

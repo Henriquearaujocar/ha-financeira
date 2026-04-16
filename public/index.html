@@ -1336,14 +1336,9 @@
 
                     </div>
                     
-                    <div class="bg-blue-900/10 border border-blue-500/20 p-3 rounded-xl">
-                        <label class="text-[10px] font-black uppercase text-blue-400 ml-2 block mb-1">Tratamento de Excedente</label>
-                        <select id="pgtoTratamento" class="input-dark text-xs font-bold text-white">
-                            <option value="AMORTIZAR">Padrão (Amortizar no Saldo e Reduzir Próximas)</option>
-                            <option value="JUROS_EXTRA">Reter como Juros Extra (Não abater do saldo base)</option>
-                        </select>
-                        <p class="text-[8px] text-slate-400 mt-2 ml-1">Se o cliente pagar a mais, o sistema retém o extra como lucro.</p>
-                    </div>
+                    <!-- Campo pgtoTratamento removido: o backend (baixar-manual) não usa
+                         recalculoTratamento e já processa excedentes automaticamente pela
+                         matemática do DRE (amortização proporcional). O campo era misleading. -->
 
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Data do Recebimento</label>
@@ -2420,8 +2415,16 @@ function renderizarAberto(lista) {
     document.getElementById('pgtoVencimento').innerText = dtVencModal.toLocaleDateString('pt-BR');
     document.getElementById('pgtoDataRecebimento').value = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
 
-    // Saldo total projetado = valor_total do banco + multa pendente do dia atual
-    const saldoTotalProjetado = Math.round((parseFloat(parc.valor_total) + multaTotal) * 100) / 100;
+    // Saldo total projetado:
+    // valor_total do banco já inclui multas aplicadas pelo cron.
+    // multaTotal (calculado localmente) é ALL-TIME desde o vencimento — se somado diretamente
+    // ao valor_total causaria dupla contagem das multas já aplicadas.
+    // Solução: o saldo exibido usa valor_total do banco (atualizado pelo cron) + apenas
+    // 1 dia de multa adicional (estimativa do que ainda não foi gravado hoje).
+    const multaPendenteHoje = (diasAtraso > 0 && !parc.isento_multa)
+        ? Math.round(capital * taxaDiaria * 100) / 100
+        : 0;
+    const saldoTotalProjetado = Math.round((parseFloat(parc.valor_total) + multaPendenteHoje) * 100) / 100;
 
     document.getElementById('pgtoSaldo').innerHTML = `
         ${formatMoney(saldoTotalProjetado)}<br>
@@ -2444,7 +2447,7 @@ function renderizarAberto(lista) {
     document.getElementById('pgtoAjuste').value = '';
     document.getElementById('pgtoNovaTaxa').value = '';
     document.getElementById('pgtoNovoParcelamento').value = '';
-    document.getElementById('pgtoTratamento').value = 'AMORTIZAR';
+    // pgtoTratamento removido — campo foi descontinuado
     document.getElementById('previewRecalculo').classList.add('hidden');
     window._saldoParaRecalculo = saldoTotalProjetado;
 
@@ -2541,8 +2544,7 @@ function renderizarAberto(lista) {
                 valorPago: v || 0, 
                 dataRecebimento: dataEnvioFinal,
                 formaPagamento: document.getElementById('pgtoForma').value,
-                recalculoTratamento: document.getElementById('pgtoTratamento').value,
-                observacoes: document.getElementById('pgtoObs').value, 
+                observacoes: document.getElementById('pgtoObs').value,
                 recalculoAjuste: document.getElementById('pgtoAjuste').value ? parseFloat(document.getElementById('pgtoAjuste').value) : null, 
                 recalculoTaxa: document.getElementById('pgtoNovaTaxa').value ? parseFloat(document.getElementById('pgtoNovaTaxa').value) : null, 
                 recalculoParcelas: document.getElementById('pgtoNovoParcelamento').value ? parseInt(document.getElementById('pgtoNovoParcelamento').value) : null,
