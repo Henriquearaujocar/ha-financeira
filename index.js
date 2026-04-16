@@ -119,7 +119,9 @@ const formatarContratoCarne = (dev, parcelaOriginalValor = null, numeroParcela =
     if (parcelaOriginalValor && parcelaOriginalValor > 0) {
         dev.valor_parcela      = parcelaOriginalValor;
         dev.parcelas_pagas     = numeroParcela ? Math.max(0, numeroParcela - 1) : Math.floor(jaPago / parcelaOriginalValor);
-        dev.qtd_parcelas_original = Math.max(qtdDB, dev.parcelas_pagas + qtdDB);
+        // qtd_parcelas no banco = total original (não decrementa após pagamentos).
+        // Usa Math.max para proteger contra inconsistência onde numeroParcela > qtdDB.
+        dev.qtd_parcelas_original = Math.max(qtdDB, numeroParcela || 1);
         return dev;
     }
 
@@ -1371,8 +1373,9 @@ app.post('/api/baixar-manual', async (req, res) => {
             }]);
 
             // Encerra o contrato definitivamente
+            const novoTotalJaPegoAcordo = Math.round(((parseFloat(dev.total_ja_pego) || 0) + valPago) * 100) / 100;
             await supabase.from('devedores')
-                .update({ valor_total: 0, valor_emprestado: 0, status: 'QUITADO', pago: true })
+                .update({ valor_total: 0, valor_emprestado: 0, status: 'QUITADO', pago: true, total_ja_pego: novoTotalJaPegoAcordo })
                 .eq('id', parseInt(id));
 
             // Marca todas as parcelas abertas como PAGA
