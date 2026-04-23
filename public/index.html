@@ -2245,6 +2245,7 @@ function renderizarAberto(lista) {
                         <button onclick="abrirEdicaoContrato('${p.devedor_id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-orange-400">
                             <i class="fa-solid fa-pen-to-square mr-2"></i> Editar Contrato
                         </button>
+                        ${(p.total_parcelas_originais || 1) > 1 ? `<button onclick="editarParcelaIndividual('${p.parcela_id}', ${p.valor_original || p.valor_atual})" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-yellow-400"><i class="fa-solid fa-coins mr-2"></i> Ajustar Esta Parcela</button>` : ''}
                         <button onclick="cancelarContratoAtivo('${p.devedor_id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-red-400">
                             <i class="fa-solid fa-ban mr-2"></i> Cancelar / Estornar
                         </button>
@@ -2351,8 +2352,24 @@ function renderizarAberto(lista) {
         // =====================================
         // TERMINAL E EDIÇÃO
         // =====================================
+        async function editarParcelaIndividual(parcelaId, valorAtual) {
+            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+            const novoValorStr = prompt(`Novo valor para esta parcela (atual: R$ ${parseFloat(valorAtual).toFixed(2).replace('.', ',')})\nAs demais parcelas NÃO serão alteradas:`);
+            if (!novoValorStr) return;
+            const novoValor = parseFloat(novoValorStr.replace(',', '.'));
+            if (isNaN(novoValor) || novoValor < 0) return showToast("Valor inválido.", "error");
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/editar-parcela-individual`, {
+                    method: 'POST', headers: headersAuth,
+                    body: JSON.stringify({ parcela_id: parcelaId, novo_valor: novoValor })
+                });
+                if (res.ok) { showToast("Parcela ajustada com sucesso!"); carregarAberto(); }
+                else { const e = await res.json(); showToast(e.erro || "Erro ao ajustar parcela.", "error"); }
+            } catch(e) { showToast("Erro de conexão.", "error"); }
+        }
+
         async function cancelarContratoAtivo(id) {
-            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show')); 
+            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
             const motivo = prompt("Digite o motivo do cancelamento (Ex: Cliente desistiu antes do PIX):");
             if (!motivo) return;
 

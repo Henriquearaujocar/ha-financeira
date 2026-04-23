@@ -114,9 +114,12 @@ const enviarLembreteVencimento = async (numero, nome, valor, dataVenc, pixDados,
  *   Dia 15–24 → Sério, exibe multas acumuladas separadas
  *   Dia 25+   → Aviso de acionamento de referências + risco de calote
  */
-const enviarReguaCobranca = async (numero, nome, valorAtualizado, capitalOriginal, diasAtraso, pixDados, referencia1Nome = null, multaAcumulada = null) => {
+const enviarReguaCobranca = async (numero, nome, valorAtualizado, capitalOriginal, diasAtraso, pixDados, referencia1Nome = null, multaAcumulada = null, dataVencimento = null) => {
     const valorFmt    = formatarMoedaZap(valorAtualizado);
     const capitalFmt  = formatarMoedaZap(capitalOriginal);
+    const dataVencFmt = dataVencimento
+        ? new Date(dataVencimento + 'T12:00:00Z').toLocaleDateString('pt-BR')
+        : null;
     // Usa multaAcumulada se fornecida (só multa de atraso).
     // Fallback: diferença entre saldo e capital (mantém compatibilidade com chamadas antigas).
     const multaReal   = multaAcumulada !== null ? multaAcumulada : Math.max(0, valorAtualizado - capitalOriginal);
@@ -131,11 +134,14 @@ const enviarReguaCobranca = async (numero, nome, valorAtualizado, capitalOrigina
 
     let msg = '';
 
+    const linhaVenc = dataVencFmt ? `📅 *Vencimento original:* ${dataVencFmt}\n` : '';
+
     // ── DIA 1 a 4: gentil ──────────────────────────────────────────────
     if (diasAtraso <= 4) {
         msg  = `⏰ *CMS VENTURES — FATURA EM ABERTO*\n\n`;
         msg += `Olá ${nome}, tudo bem?\n\n`;
         msg += `Identificamos que sua fatura está em atraso há *${diasAtraso} dia${diasAtraso > 1 ? 's' : ''}*.\n\n`;
+        msg += linhaVenc;
         msg += `📌 *Saldo em aberto:* R$ *${valorFmt}*\n\n`;
         msg += blocoPix;
         msg += `_Qualquer dúvida, é só responder aqui. Estamos à disposição!_ 😊`;
@@ -145,12 +151,14 @@ const enviarReguaCobranca = async (numero, nome, valorAtualizado, capitalOrigina
         msg  = `⚠️ *CMS VENTURES — ATRASO: ${diasAtraso} DIAS*\n\n`;
         if (temMulta) {
             msg += `${nome}, sua fatura segue em aberto e *a dívida cresce a cada dia*.\n\n`;
+            msg += linhaVenc;
             msg += `📌 Saldo atual (com multas): R$ *${valorFmt}*\n`;
             msg += `📌 Capital emprestado: R$ ${capitalFmt}\n`;
             msg += `📌 Multas acumuladas: R$ *${multaFmt}*\n\n`;
             msg += `Regularize o quanto antes para evitar que o valor continue aumentando.\n\n`;
         } else {
             msg += `${nome}, sua fatura segue em aberto.\n\n`;
+            msg += linhaVenc;
             msg += `📌 Saldo em aberto: R$ *${valorFmt}*\n\n`;
             msg += `Regularize o quanto antes.\n\n`;
         }
@@ -162,6 +170,7 @@ const enviarReguaCobranca = async (numero, nome, valorAtualizado, capitalOrigina
         msg  = `🚨 *CMS VENTURES — COBRANÇA URGENTE (${diasAtraso} DIAS)*\n\n`;
         msg += `${nome}, sua situação está se agravando.\n\n`;
         msg += `Você está *${diasAtraso} dias* em atraso e até o momento não houve nenhum contato ou pagamento.\n\n`;
+        msg += linhaVenc;
         if (temMulta) {
             msg += `💰 *Valor total devido (com multas):* R$ *${valorFmt}*\n`;
             msg += `📈 Multas acumuladas: R$ *${multaFmt}* — e continuam crescendo diariamente.\n\n`;
@@ -176,6 +185,7 @@ const enviarReguaCobranca = async (numero, nome, valorAtualizado, capitalOrigina
     } else {
         msg  = `🔴 *CMS VENTURES — NOTIFICAÇÃO FINAL (${diasAtraso} DIAS)*\n\n`;
         msg += `${nome}, esta é uma notificação formal.\n\n`;
+        msg += linhaVenc;
         msg += `Sua dívida de R$ *${valorFmt}* está há *${diasAtraso} dias* em aberto sem qualquer retorno.\n\n`;
         msg += `⚠️ *Caso não haja pagamento ou acordo até hoje:*\n`;
         if (referencia1Nome) {

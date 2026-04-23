@@ -740,7 +740,16 @@
                     return;
                 }
 
-                if (err.message.includes('já possui uma solicitação') || err.message.includes('em análise')) {
+                if (err.message.includes('contrato ativo') || err.message.includes('Já é nosso cliente')) {
+                    erroEl.innerHTML = `
+                        <div class="bg-blue-900/30 border border-blue-500/50 rounded-2xl p-4 text-left space-y-2">
+                            <p class="font-black text-blue-300 text-sm uppercase"><i class="fa-solid fa-id-card mr-2"></i>Este CPF já possui um contrato ativo!</p>
+                            <p class="text-slate-400 text-xs">Para renovar ou fazer um novo pedido, use a secção <strong class="text-blue-400">"Já é nosso cliente?"</strong> no topo — informe o seu CPF e os seus dados serão preenchidos automaticamente.</p>
+                            <button type="button" onclick="document.getElementById('cpf_busca').focus(); window.scrollTo({top:0,behavior:'smooth'})" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase px-4 py-2 rounded-xl transition-all">
+                                <i class="fa-solid fa-arrow-up mr-1"></i> Ir para "Já sou cliente"
+                            </button>
+                        </div>`;
+                } else if (err.message.includes('já possui uma solicitação') || err.message.includes('em análise')) {
                     erroEl.innerHTML = `
                         <div class="bg-orange-900/30 border border-orange-500/50 rounded-2xl p-4 text-left space-y-2">
                             <p class="font-black text-orange-300 text-sm uppercase"><i class="fa-solid fa-triangle-exclamation mr-2"></i>Já tens uma solicitação em análise!</p>

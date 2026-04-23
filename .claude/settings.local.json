@@ -17,7 +17,10 @@
       "WebFetch(domain:cpf-brasil.org)",
       "WebFetch(domain:loja.serpro.gov.br)",
       "WebFetch(domain:blog.directd.com.br)",
-      "Bash(grep -E \"\\\\.js$|^d\")"
+      "Bash(grep -E \"\\\\.js$|^d\")",
+      "Bash(npm install:*)",
+      "Bash(node -e \"require\\('./index.js'\\)\" --check)",
+      "Bash(node --check index.js)"
     ]
   }
 }
