@@ -1306,13 +1306,32 @@
                         <input type="number" id="pgtoValor" class="input-dark font-black text-emerald-400 text-4xl h-20 w-full text-center shadow-inner" placeholder="0.00" min="0" oninput="if(this.value<0)this.value=0;">
                         
                         <div class="mt-4 p-3 bg-slate-900 rounded-lg border border-slate-800 text-center">
-                            <p class="text-[10px] text-slate-400 uppercase font-bold">Juros/Multas Atuais (Mínimo para Rolagem)</p>
+                            <p class="text-[10px] text-slate-400 uppercase font-bold">Multa por Atraso (acumulada)</p>
                             <p id="pgtoMinimoJuros" class="text-lg text-orange-400 font-black mt-1">R$ 0,00</p>
                         </div>
                     </div>
                 </div>
 
                 <div class="bg-slate-800/30 border border-slate-700 p-5 rounded-2xl space-y-4">
+
+                    <!-- Tipo de Baixa -->
+                    <div class="bg-slate-900/60 border border-slate-600 p-3 rounded-xl">
+                        <label class="text-[10px] font-black uppercase text-slate-400 ml-1 block mb-2">Tipo de Baixa</label>
+                        <select id="pgtoModoBaixa" class="input-dark text-xs font-bold text-white" onchange="onModoBaixaChange()">
+                            <option value="PADRAO">Pagamento de Parcela</option>
+                            <option value="ACORDO">Quitação por Acordo (com desconto)</option>
+                        </select>
+                        <p id="desc-padrao" class="text-[8px] text-slate-400 mt-2 ml-1 leading-relaxed">Registra o recebimento e separa automaticamente capital, juros e multa no relatório. <strong class="text-slate-300">Se o cliente tem multa por atraso, inclua ela no valor acima.</strong></p>
+                        <div id="desc-acordo" class="hidden mt-2">
+                            <p class="text-[8px] text-slate-400 ml-1 leading-relaxed mb-2">Use para fechar a dívida com um valor negociado menor. O sistema registra o desconto e encerra o contrato imediatamente.</p>
+                            <div class="bg-amber-900/30 border border-amber-500/50 rounded-xl p-3">
+                                <p class="text-[10px] font-black text-amber-400 uppercase">⚠ Contrato encerrado na hora</p>
+                                <p class="text-[9px] text-amber-200/80 mt-1">Marcado como <strong>QUITADO</strong> pelo valor recebido. A diferença fica registrada como desconto concedido no extrato.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Forma de Pagamento -->
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Forma de Pagamento</label>
                         <select id="pgtoForma" class="input-dark mt-1 text-sm font-bold text-white">
@@ -1320,58 +1339,62 @@
                             <option value="CONTA">PIX / Transferência Bancária</option>
                         </select>
                     </div>
-                    
-                    <div class="bg-slate-800/30 border border-slate-700 p-3 rounded-xl mb-4">
-                        <label class="text-[10px] font-black uppercase text-slate-400 ml-2 block mb-1">Modo de Baixa</label>
-                        <select id="pgtoModoBaixa" class="input-dark text-xs font-bold text-white" onchange="document.getElementById('aviso-acordo').classList.toggle('hidden', this.value !== 'ACORDO')">
-                            <option value="PADRAO">Matemática Padrão (Calcula Juros/Amortização/Rolagem)</option>
-                            <option value="SIMPLES">Abatimento Simples (Apenas subtrai o valor do saldo total)</option>
-                            <option value="ACORDO">Quitação por Acordo (Encerra o contrato pelo valor recebido)</option>
-                        </select>
-                        <p class="text-[8px] text-slate-400 mt-2 ml-1">Use o Abatimento Simples para pagamentos "por conta" sem alterar a estrutura do contrato.</p>
-                        <div id="aviso-acordo" class="hidden mt-2 bg-amber-900/30 border border-amber-500/50 rounded-xl p-3">
-                            <p class="text-[10px] font-black text-amber-400 uppercase">Atenção — Quitação por Acordo</p>
-                            <p class="text-[9px] text-amber-200/80 mt-1">O contrato será encerrado como <strong>QUITADO</strong> independente do saldo restante. Use quando negociar um valor menor com o cliente para liquidar a dívida.</p>
-                        </div>
 
-                    </div>
-                    
-                    <!-- Campo pgtoTratamento removido: o backend (baixar-manual) não usa
-                         recalculoTratamento e já processa excedentes automaticamente pela
-                         matemática do DRE (amortização proporcional). O campo era misleading. -->
-
+                    <!-- Data do Recebimento -->
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Data do Recebimento</label>
                         <input type="date" id="pgtoDataRecebimento" class="input-dark mt-1 text-sm font-bold text-white">
                     </div>
-                    <div class="bg-purple-900/10 border border-purple-500/20 p-3 rounded-xl mt-4">
-                        <label class="text-[10px] font-black uppercase text-purple-400 ml-2 block mb-1">Prorrogar Restante Para (Opcional)</label>
-                        <input type="date" id="pgtoNovoVencimento" class="input-dark text-xs" title="Se for um pagamento parcial, defina para quando a dívida restante fica prorrogada, evitando que o sistema gere multas amanhã.">
-                        <p class="text-[8px] text-slate-400 mt-2 ml-1">Use em pagamentos parciais para pausar a multa até esta data.</p>
-                    </div>
+                </div>
+            </div>
+
+            <!-- ── SEÇÃO: Negociar Próximo Pagamento (só aparece no modo PADRAO) ── -->
+            <div id="secao-proximo-pgto" class="mt-5 bg-purple-900/10 border border-purple-500/30 p-4 rounded-xl">
+                <p class="text-[10px] font-black uppercase text-purple-400 mb-1">Negociar Próximo Pagamento</p>
+                <p class="text-[8px] text-slate-400 mb-3 leading-relaxed">
+                    Quando recebe menos que o total da parcela (pagamento parcial). Configure o próximo acerto:
+                    <strong class="text-slate-300">somente esta parcela muda, as demais ficam iguais.</strong>
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-[9px] font-bold text-purple-300 ml-1 block mb-1">Agendar próximo pagamento para:</label>
+                        <input type="date" id="pgtoNovoVencimento" class="input-dark text-xs">
+                        <p class="text-[8px] text-slate-500 mt-1 ml-1">Pausa a multa até esta data.</p>
                     </div>
                     <div>
-                        <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Observações (Opcional)</label>
-                        <input type="text" id="pgtoObs" class="input-dark mt-1 text-sm" placeholder="Ex: Deu desconto de R$ 50 no capital...">
-                    </div>
-                    
-                    <div class="pt-2 border-t border-slate-700">
-                        <p class="text-[9px] font-black uppercase text-blue-400 mb-2">Recálculo Manual de Estrutura</p>
-                        <div class="grid grid-cols-2 gap-2">
-                            <input type="number" id="pgtoNovaTaxa" class="input-dark text-xs" placeholder="Nova Taxa (%)" oninput="calcularPreviewRecalculo()">
-                            <input type="number" id="pgtoNovoParcelamento" class="input-dark text-xs" placeholder="Novo nº Parcelas" oninput="calcularPreviewRecalculo()">
-                            <input type="number" id="pgtoAjuste" class="input-dark text-xs col-span-2" placeholder="Ajustar Saldo Restante (+ ou - R$)" oninput="calcularPreviewRecalculo()">
-                        </div>
-                        <div id="previewRecalculo" class="hidden mt-2 bg-blue-900/20 border border-blue-500/30 rounded-xl p-3 text-center">
-                            <p class="text-[9px] font-black uppercase text-blue-400 mb-1">Previsão com Novos Termos</p>
-                            <p class="text-[10px] text-slate-300">Novo Saldo: <span id="previewNovoSaldo" class="font-bold text-white"></span></p>
-                            <p class="text-[10px] text-slate-300 mt-0.5">Próxima Parcela: <span id="previewNovaParcela" class="font-bold text-emerald-400 text-sm"></span></p>
-                        </div>
+                        <label class="text-[9px] font-bold text-purple-300 ml-1 block mb-1">Valor combinado para o próximo pagamento (R$):</label>
+                        <input type="number" id="pgtoProximaParcela" class="input-dark text-xs font-bold text-purple-200" placeholder="Ex: 400,00" min="0" oninput="calcularPreviewRecalculo()">
+                        <p class="text-[8px] text-slate-500 mt-1 ml-1">Em branco = mantém o valor original da parcela.</p>
                     </div>
                 </div>
             </div>
 
-            <button onclick="confirmarPagamento()" id="btnConfirmarBaixa" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-5 rounded-xl font-black uppercase text-sm shadow-lg shadow-emerald-500/20 mt-8 transition-all"><i class="fa-solid fa-check-double mr-2"></i> Confirmar Baixa e Recalcular Contrato</button>
+            <!-- Observações -->
+            <div class="mt-4">
+                <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Observações (Opcional)</label>
+                <input type="text" id="pgtoObs" class="input-dark mt-1 text-sm" placeholder="Ex: Pagou R$500 agora, combinado R$300 no dia 20...">
+            </div>
+
+            <!-- ── SEÇÃO: Reestruturação Completa (só aparece no modo PADRAO) ── -->
+            <div id="secao-reestruturacao" class="mt-4 pt-4 border-t border-slate-700">
+                <p class="text-[10px] font-black uppercase text-blue-400 mb-1">Reestruturação Completa do Contrato</p>
+                <p class="text-[8px] text-slate-400 mb-3 leading-relaxed">
+                    Para renegociar o contrato inteiro. Ajuste o saldo total, mude o número de parcelas ou a taxa.
+                    <strong class="text-slate-300">Gera novas parcelas do zero</strong> a partir do próximo vencimento.
+                </p>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="number" id="pgtoAjuste" class="input-dark text-xs col-span-2" placeholder="Ajustar Saldo (ex: -200 para dar R$200 de desconto no total da dívida)" oninput="calcularPreviewRecalculo()">
+                    <input type="number" id="pgtoNovoParcelamento" class="input-dark text-xs" placeholder="Novo nº de Parcelas" oninput="calcularPreviewRecalculo()">
+                    <input type="number" id="pgtoNovaTaxa" class="input-dark text-xs" placeholder="Nova Taxa de Multa (%)" oninput="calcularPreviewRecalculo()">
+                </div>
+                <div id="previewRecalculo" class="hidden mt-2 bg-blue-900/20 border border-blue-500/30 rounded-xl p-3 text-center">
+                    <p class="text-[9px] font-black uppercase text-blue-400 mb-1">Resultado com Novos Termos</p>
+                    <p class="text-[10px] text-slate-300">Novo Saldo Total: <span id="previewNovoSaldo" class="font-bold text-white"></span></p>
+                    <p class="text-[10px] text-slate-300 mt-0.5">Valor de Cada Nova Parcela: <span id="previewNovaParcela" class="font-bold text-emerald-400 text-sm"></span></p>
+                </div>
+            </div>
+
+            <button onclick="confirmarPagamento()" id="btnConfirmarBaixa" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-5 rounded-xl font-black uppercase text-sm shadow-lg shadow-emerald-500/20 mt-8 transition-all"><i class="fa-solid fa-check-double mr-2"></i> Confirmar Baixa</button>
         </div>
     </div>
 
@@ -2464,9 +2487,12 @@ function renderizarAberto(lista) {
     document.getElementById('pgtoAjuste').value = '';
     document.getElementById('pgtoNovaTaxa').value = '';
     document.getElementById('pgtoNovoParcelamento').value = '';
-    // pgtoTratamento removido — campo foi descontinuado
+    document.getElementById('pgtoNovoVencimento').value = '';
+    document.getElementById('pgtoProximaParcela').value = '';
+    document.getElementById('pgtoModoBaixa').value = 'PADRAO';
     document.getElementById('previewRecalculo').classList.add('hidden');
     window._saldoParaRecalculo = saldoTotalProjetado;
+    onModoBaixaChange();
 
     // Garante que o botão esteja sempre limpo ao abrir o modal para qualquer cliente
     const btnBaixa = document.getElementById('btnConfirmarBaixa');
@@ -2562,9 +2588,10 @@ function renderizarAberto(lista) {
                 dataRecebimento: dataEnvioFinal,
                 formaPagamento: document.getElementById('pgtoForma').value,
                 observacoes: document.getElementById('pgtoObs').value,
-                recalculoAjuste: document.getElementById('pgtoAjuste').value ? parseFloat(document.getElementById('pgtoAjuste').value) : null, 
-                recalculoTaxa: document.getElementById('pgtoNovaTaxa').value ? parseFloat(document.getElementById('pgtoNovaTaxa').value) : null, 
+                recalculoAjuste: document.getElementById('pgtoAjuste').value ? parseFloat(document.getElementById('pgtoAjuste').value) : null,
+                recalculoTaxa: document.getElementById('pgtoNovaTaxa').value ? parseFloat(document.getElementById('pgtoNovaTaxa').value) : null,
                 recalculoParcelas: document.getElementById('pgtoNovoParcelamento').value ? parseInt(document.getElementById('pgtoNovoParcelamento').value) : null,
+                valorProximaParcela: document.getElementById('pgtoProximaParcela').value ? parseFloat(document.getElementById('pgtoProximaParcela').value) : null,
                 novoVencimento: document.getElementById('pgtoNovoVencimento').value || null,
                 modoBaixa: document.getElementById('pgtoModoBaixa').value,
                 parcelaId: document.getElementById('pgtoParcelaId').value
@@ -2675,6 +2702,14 @@ function renderizarAberto(lista) {
         // =====================================
         // CLIENTES, EXTRATO E GARANTIAS
         // =====================================
+        function onModoBaixaChange() {
+            const isAcordo = document.getElementById('pgtoModoBaixa').value === 'ACORDO';
+            document.getElementById('desc-padrao').classList.toggle('hidden', isAcordo);
+            document.getElementById('desc-acordo').classList.toggle('hidden', !isAcordo);
+            document.getElementById('secao-proximo-pgto').classList.toggle('hidden', isAcordo);
+            document.getElementById('secao-reestruturacao').classList.toggle('hidden', isAcordo);
+        }
+
         function calcularPreviewRecalculo() {
             const saldo = window._saldoParaRecalculo || 0;
             const taxa = parseFloat(document.getElementById('pgtoNovaTaxa').value);
@@ -2686,10 +2721,12 @@ function renderizarAberto(lista) {
                 return;
             }
 
-            const novoSaldo = Math.max(0, saldo + ajuste);
-            const novasParcelas = parcelas || 1;
-            const novaTaxa = taxa || 0;
-            const novaParcela = (novoSaldo / novasParcelas) * (1 + novaTaxa / 100);
+            // Desconta o que está sendo pago agora para mostrar o saldo pós-pagamento real
+            const valorPagandoAgora = parseFloat(document.getElementById('pgtoValor').value) || 0;
+            const novoSaldo = Math.max(0, saldo - valorPagandoAgora + ajuste);
+            const novasParcelas = Math.max(1, parcelas || 1);
+            // Parcela = saldo restante dividido igualmente (backend não aplica taxa sobre o saldo)
+            const novaParcela = novoSaldo / novasParcelas;
 
             document.getElementById('previewNovoSaldo').innerText = formatMoney(novoSaldo);
             document.getElementById('previewNovaParcela').innerText = formatMoney(novaParcela);

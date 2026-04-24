@@ -20,7 +20,8 @@
       "Bash(grep -E \"\\\\.js$|^d\")",
       "Bash(npm install:*)",
       "Bash(node -e \"require\\('./index.js'\\)\" --check)",
-      "Bash(node --check index.js)"
+      "Bash(node --check index.js)",
+      "Bash(node -e \"require\\('./index.js'\\)\")"
     ]
   }
 }

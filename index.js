@@ -1420,7 +1420,7 @@ app.get('/api/estatisticas-pagamento/:id', async (req, res) => {
 
         let totalPago = 0;
         logs?.forEach(l => {
-            if ((l.evento.includes('Rolagem') || l.evento.includes('Pagamento') || l.evento.includes('Liquidação') || l.evento.includes('Recebimento')) && l.valor_fluxo > 0) {
+            if ((l.evento.includes('Rolagem') || l.evento.includes('Pagamento') || l.evento.includes('Liquidação') || l.evento.includes('Recebimento') || l.evento.includes('Quitação')) && l.valor_fluxo > 0) {
                 totalPago += parseFloat(l.valor_fluxo) || 0;
             }
         });
@@ -1435,7 +1435,8 @@ app.get('/api/estatisticas-pagamento/:id', async (req, res) => {
 
 app.post('/api/baixar-manual', async (req, res) => {
     try {
-        const { id, parcelaId, valorPago, formaPagamento, observacoes, dataRecebimento, novoVencimento, modoBaixa } = req.body;
+        const { id, parcelaId, valorPago, formaPagamento, observacoes, dataRecebimento, novoVencimento, modoBaixa,
+                recalculoAjuste, recalculoTaxa, recalculoParcelas } = req.body;
         if (!parcelaId) throw new Error("ID da parcela não foi enviado.");
 
         const { data: parc } = await supabase.from('parcelas').select('*').eq('id', parcelaId).single();
@@ -1546,7 +1547,6 @@ app.post('/api/baixar-manual', async (req, res) => {
         const amortizaJurosTotal    = Math.round((amortizaJurosMensalid + pagoMulta) * 100) / 100;
 
         // novoStatusParcela precisa ser declarado ANTES de novoValorTotal que o usa
-        const faltaPagarNaParcela = Math.max(0, restoOriginal);
         const novoStatusParcela   = (pagoSobreOriginal >= Math.max(0.01, restoOriginal - 0.10)) ? 'PAGA' : 'PARCIAL';
 
         const novoValorTotal = (() => {
@@ -1602,7 +1602,45 @@ app.post('/api/baixar-manual', async (req, res) => {
             p_parcela_status:  novoStatusParcela
         });
         if (error) throw error;
-        
+
+        // ── VALOR DA PRÓXIMA PARCELA NEGOCIADO ───────────────────────────────
+        // Quando o admin combina um valor específico para o próximo pagamento,
+        // atualiza apenas a parcela-alvo sem tocar nas demais.
+        const valorProxParc = req.body.valorProximaParcela != null ? parseFloat(req.body.valorProximaParcela) : null;
+        if (valorProxParc !== null && !isNaN(valorProxParc) && valorProxParc > 0) {
+            if (novoStatusParcela === 'PARCIAL') {
+                // Parcela atual ainda aberta: ajusta seu valor_atual para (já_pago + combinado)
+                const { data: parcPos } = await supabase.from('parcelas').select('valor_pago, valor_atual').eq('id', parseInt(parcelaId)).single();
+                const vPagoPos   = Math.round((parseFloat(parcPos?.valor_pago)  || 0) * 100) / 100;
+                const vAtualPos  = Math.round((parseFloat(parcPos?.valor_atual) || 0) * 100) / 100;
+                const novoVAtual = Math.round((vPagoPos + valorProxParc) * 100) / 100;
+                await supabase.from('parcelas').update({ valor_atual: novoVAtual }).eq('id', parseInt(parcelaId));
+                // Reflete a diferença no valor_total do contrato
+                const diff = Math.round((novoVAtual - vAtualPos) * 100) / 100;
+                if (diff !== 0) {
+                    const { data: devDiff } = await supabase.from('devedores').select('valor_total').eq('id', id).single();
+                    const novoTotalDiff = Math.max(0, Math.round(((parseFloat(devDiff?.valor_total) || 0) + diff) * 100) / 100);
+                    await supabase.from('devedores').update({ valor_total: novoTotalDiff }).eq('id', id);
+                }
+            } else {
+                // Parcela atual foi totalmente paga: ajusta a próxima PENDENTE
+                const { data: proxParc } = await supabase.from('parcelas')
+                    .select('id, valor_atual').eq('devedor_id', id).eq('status', 'PENDENTE')
+                    .order('numero_parcela', { ascending: true }).limit(1).maybeSingle();
+                if (proxParc) {
+                    const vAtualProx = Math.round((parseFloat(proxParc.valor_atual) || 0) * 100) / 100;
+                    const diff = Math.round((valorProxParc - vAtualProx) * 100) / 100;
+                    await supabase.from('parcelas').update({ valor_atual: Math.round(valorProxParc * 100) / 100 }).eq('id', proxParc.id);
+                    if (diff !== 0) {
+                        const { data: devDiff } = await supabase.from('devedores').select('valor_total').eq('id', id).single();
+                        const novoTotalDiff = Math.max(0, Math.round(((parseFloat(devDiff?.valor_total) || 0) + diff) * 100) / 100);
+                        await supabase.from('devedores').update({ valor_total: novoTotalDiff }).eq('id', id);
+                    }
+                }
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         const { data: parcAbertas } = await supabase
             .from('parcelas')
             .select('id, valor_atual, valor_pago, data_vencimento, status, numero_parcela')
@@ -1684,6 +1722,74 @@ app.post('/api/baixar-manual', async (req, res) => {
                 formaPagamento || 'PIX'
             ).catch(e => console.warn('[CONFIRM BAIXA] Falha WhatsApp:', e.message));
         }
+
+        // ── RECÁLCULO MANUAL DE ESTRUTURA (pós-pagamento) ────────────────────
+        const ajuste   = recalculoAjuste   != null ? parseFloat(recalculoAjuste)   : null;
+        const novaTaxaPct = recalculoTaxa  != null ? parseFloat(recalculoTaxa)     : null;
+        const novasParcs  = recalculoParcelas != null ? parseInt(recalculoParcelas) : null;
+
+        if (ajuste !== null && !isNaN(ajuste) && ajuste !== 0) {
+            const { data: devPos } = await supabase.from('devedores').select('valor_total, valor_emprestado').eq('id', id).single();
+            const saldoPos   = Math.round((parseFloat(devPos?.valor_total)      || 0) * 100) / 100;
+            const capitalPos = Math.round((parseFloat(devPos?.valor_emprestado) || 0) * 100) / 100;
+            const novoSaldoAj   = Math.max(0, Math.round((saldoPos   + ajuste) * 100) / 100);
+            const ratioCapital  = saldoPos > 0 ? Math.min(1, capitalPos / saldoPos) : 0;
+            const novoCapitalAj = Math.max(0, Math.round((capitalPos + ajuste * ratioCapital) * 100) / 100);
+            await supabase.from('devedores').update({ valor_total: novoSaldoAj, valor_emprestado: novoCapitalAj }).eq('id', id);
+            await supabase.from('logs').insert([{
+                devedor_id: parseInt(id),
+                evento:     ajuste < 0 ? 'Desconto Manual' : 'Acréscimo Manual',
+                detalhes:   `[AJUSTE] Saldo ${ajuste > 0 ? '+' : ''}R$ ${ajuste.toFixed(2)}. De R$ ${saldoPos.toFixed(2)} → R$ ${novoSaldoAj.toFixed(2)}.${observacoes ? ' OBS: ' + observacoes : ''}`,
+                valor_fluxo: ajuste < 0 ? ajuste : 0
+            }]);
+
+            // Se o desconto zerou o saldo, encerra o contrato
+            if (novoSaldoAj <= 0.10) {
+                await supabase.from('devedores').update({ valor_total: 0, valor_emprestado: 0, status: 'QUITADO', pago: true }).eq('id', id);
+                await supabase.from('parcelas').update({ status: 'PAGA' }).eq('devedor_id', id).in('status', ['PENDENTE', 'ATRASADO', 'PARCIAL']);
+                await supabase.from('logs').insert([{ evento: 'Quitação Total', detalhes: 'Contrato quitado via desconto manual.', devedor_id: parseInt(id) }]);
+            }
+
+            // Se não houve reparcelamento, distribui o ajuste nas parcelas pendentes
+            // para evitar que a reconciliação da próxima baixa reverta o desconto/acréscimo.
+            if (!novasParcs) {
+                const { data: parcsPendentes } = await supabase.from('parcelas')
+                    .select('id, valor_atual, valor_pago')
+                    .eq('devedor_id', id)
+                    .eq('status', 'PENDENTE')
+                    .order('numero_parcela', { ascending: false });
+
+                if (parcsPendentes && parcsPendentes.length > 0) {
+                    let restante = ajuste;
+                    for (const p of parcsPendentes) {
+                        if (restante === 0) break;
+                        const vAtual  = Math.round((parseFloat(p.valor_atual) || 0) * 100) / 100;
+                        const vPago   = Math.round((parseFloat(p.valor_pago)  || 0) * 100) / 100;
+                        const novoVal = Math.max(vPago, Math.round((vAtual + restante) * 100) / 100);
+                        const aplicado = Math.round((novoVal - vAtual) * 100) / 100;
+                        restante = Math.round((restante - aplicado) * 100) / 100;
+                        await supabase.from('parcelas').update({ valor_atual: novoVal }).eq('id', p.id);
+                    }
+                }
+            }
+        }
+
+        if (novaTaxaPct !== null && !isNaN(novaTaxaPct) && novaTaxaPct > 0) {
+            await supabase.from('devedores').update({ taxa_juros: novaTaxaPct }).eq('id', id);
+        }
+
+        if (novasParcs !== null && !isNaN(novasParcs) && novasParcs > 0) {
+            const { data: devRec } = await supabase.from('devedores').select('valor_total, frequencia, data_vencimento').eq('id', id).single();
+            const saldoRec   = Math.round((parseFloat(devRec?.valor_total) || 0) * 100) / 100;
+            const proxVencRec = proximoVencimentoReal || devRec?.data_vencimento;
+            if (saldoRec > 0.10 && proxVencRec) {
+                await supabase.from('parcelas').update({ status: 'CANCELADA' })
+                    .eq('devedor_id', id).in('status', ['PENDENTE', 'ATRASADO', 'PARCIAL']);
+                await gerarParcelasComPersonalizacao(parseInt(id), saldoRec, novasParcs, proxVencRec, devRec?.frequencia || 'MENSAL');
+                await supabase.from('devedores').update({ qtd_parcelas: novasParcs }).eq('id', id);
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────────
 
         invalidarCacheFluxo(); // atualiza caixa no próximo request do dashboard
         res.json({ sucesso: true });
