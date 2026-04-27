@@ -2131,8 +2131,8 @@
                     
                     fecharModal('modalDocumentos'); 
                 }
-            } catch(e) { 
-                showToast("Erro.", "error"); 
+            } catch(e) {
+                showToast(e.message || "Erro ao rejeitar solicitação.", "error");
             }
         }
 
@@ -2504,15 +2504,25 @@ function renderizarAberto(lista) {
     document.getElementById('modalPagamento').classList.remove('hidden');
 
     // Traz estatísticas adicionais do servidor (capital original, total pago)
+    // _pgtoTargetId evita que resposta de um cliente anterior sobrescreva dados do cliente atual
+    const _pgtoTargetId = String(parc.devedor_id);
     try {
         const res = await fetchSeguro(`${API_BASE}/api/estatisticas-pagamento/${parc.devedor_id}`, { headers: headersAuth });
-        if(res.ok) { 
-            const data = await res.json(); 
-            document.getElementById('pgtoData').innerText = new Date(data.data_emprestimo).toLocaleDateString('pt-BR'); 
-            document.getElementById('pgtoTotalCapital').innerText = formatMoney(data.capital_original); 
-            document.getElementById('pgtoTotalPago').innerText = formatMoney(data.total_pago); 
+        // Se outro cliente foi aberto antes desta resposta chegar, descarta silenciosamente
+        if (document.getElementById('pgtoDevedorId').value !== _pgtoTargetId) return;
+        if(res.ok) {
+            const data = await res.json();
+            document.getElementById('pgtoData').innerText = new Date(data.data_emprestimo).toLocaleDateString('pt-BR');
+            document.getElementById('pgtoTotalCapital').innerText = formatMoney(data.capital_original);
+            document.getElementById('pgtoTotalPago').innerText = formatMoney(data.total_pago);
+        } else {
+            showToast("Erro ao carregar estatísticas do cliente.", "error");
         }
-    } catch(e) {}
+    } catch(e) {
+        if (document.getElementById('pgtoDevedorId').value === _pgtoTargetId) {
+            showToast("Erro ao carregar estatísticas do cliente.", "error");
+        }
+    }
 }
 
         async function buscarAvalistaLive() {
@@ -2598,11 +2608,11 @@ function renderizarAberto(lista) {
             }) 
         });
         
-        if(res.ok) { 
-            showToast("Baixa Registrada com Sucesso!"); 
-            fecharModal('modalPagamento'); 
-            carregarAberto(); 
-            carregarDash();
+        if(res.ok) {
+            showToast("Baixa Registrada com Sucesso!");
+            fecharModal('modalPagamento');
+            await carregarAberto();
+            await carregarDash();
         } else { 
             const eBody = await res.json().catch(() => ({}));
             throw new Error(eBody.erro || "Erro ao processar baixa."); 
@@ -2672,8 +2682,8 @@ function renderizarAberto(lista) {
                 if (res.ok) {
                     showToast("Salvo!");
                     fecharModal('modalEditarContrato');
-                    carregarAberto();
-                    carregarDash();
+                    await carregarAberto();
+                    await carregarDash();
                 } else {
                     const eBody = await res.json().catch(() => ({}));
                     throw new Error(eBody.erro || eBody.details || "Erro ao editar contrato."); 
@@ -3481,9 +3491,12 @@ function renderizarAberto(lista) {
             }
         }
 
+        let _estornoEmProcessamento = false;
         async function estornarPagamento(logId) {
+            if (_estornoEmProcessamento) return;
             if(!confirm("⚠️ ATENÇÃO: Deseja realmente ESTORNAR este pagamento?\n\nO valor será retirado do caixa e a dívida do cliente voltará a ficar pendente/atrasada.")) return;
 
+            _estornoEmProcessamento = true;
             showToast("A processar estorno e a recalcular saldos...");
             try {
                 const res = await fetchSeguro(`${API_BASE}/api/estornar-pagamento`, {
@@ -3494,14 +3507,17 @@ function renderizarAberto(lista) {
 
                 if(res.ok) {
                     showToast("Pagamento estornado com sucesso!");
-                    carregarRelatorios(); // Atualiza a tabela na hora
-                    carregarDashboard(); // Atualiza o DRE
+                    await carregarRelatorios();
+                    await carregarDashboard();
+                    await carregarAberto();
                 } else {
                     const err = await res.json();
                     throw new Error(err.erro || "Erro interno ao tentar estornar.");
                 }
             } catch(e) {
                 showToast(e.message, "error");
+            } finally {
+                _estornoEmProcessamento = false;
             }
         }
         

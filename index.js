@@ -1594,6 +1594,7 @@ app.post('/api/baixar-manual', async (req, res) => {
             p_limpar_atraso:   estaAtrasado && novoStatusParcela === 'PAGA', // só limpa se a parcela foi totalmente quitada
             p_evento:          eventoLog,
             p_detalhes:        detalhesLog,
+            p_transaction_id:  `BAIXA_${parcelaId}_${Date.now()}`,
             p_data_pagamento:  dataEnvioFinal,
             p_valor_capital:   amortizaCapital,       // só a porção mensalidade
             p_valor_juros:     amortizaJurosTotal,    // mensalidade + multa = lucro total
@@ -1781,12 +1782,18 @@ app.post('/api/baixar-manual', async (req, res) => {
         if (novasParcs !== null && !isNaN(novasParcs) && novasParcs > 0) {
             const { data: devRec } = await supabase.from('devedores').select('valor_total, frequencia, data_vencimento').eq('id', id).single();
             const saldoRec   = Math.round((parseFloat(devRec?.valor_total) || 0) * 100) / 100;
-            const proxVencRec = proximoVencimentoReal || devRec?.data_vencimento;
+            // Prioridade: data definida pelo admin > próxima parcela aberta > vencimento atual do contrato
+            const proxVencRec = novoVencimento || proximoVencimentoReal || devRec?.data_vencimento;
             if (saldoRec > 0.10 && proxVencRec) {
                 await supabase.from('parcelas').update({ status: 'CANCELADA' })
                     .eq('devedor_id', id).in('status', ['PENDENTE', 'ATRASADO', 'PARCIAL']);
                 await gerarParcelasComPersonalizacao(parseInt(id), saldoRec, novasParcs, proxVencRec, devRec?.frequencia || 'MENSAL');
-                await supabase.from('devedores').update({ qtd_parcelas: novasParcs }).eq('id', id);
+                // Atualiza vencimento e status do contrato para refletir o reparcelamento
+                const dtProxRec = new Date(proxVencRec + 'T00:00:00-03:00');
+                const novoStatusRec = dtProxRec > hojeCheck ? 'ABERTO' : 'ATRASADO';
+                const updateRec = { qtd_parcelas: novasParcs, data_vencimento: proxVencRec, status: novoStatusRec };
+                if (novoStatusRec === 'ABERTO') updateRec.ultima_cobranca_atraso = null;
+                await supabase.from('devedores').update(updateRec).eq('id', id);
             }
         }
         // ─────────────────────────────────────────────────────────────────────
@@ -1807,6 +1814,12 @@ app.post('/api/estornar-pagamento', async (req, res) => {
 
         const valorEstornarBruto = parseFloat(logOriginal.valor_fluxo);
         if (valorEstornarBruto <= 0) throw new Error("Apenas recebimentos podem ser estornados.");
+
+        // Determina o status correto após estorno com base no vencimento real do contrato
+        const { data: devEstorno } = await supabase.from('devedores').select('data_vencimento').eq('id', logOriginal.devedor_id).single();
+        const hojeEstorno = new Date(); hojeEstorno.setHours(0,0,0,0);
+        const vencEstorno = devEstorno ? new Date(devEstorno.data_vencimento + 'T00:00:00-03:00') : null;
+        const statusAposEstorno = (vencEstorno && vencEstorno < hojeEstorno) ? 'ATRASADO' : 'ABERTO';
 
         const eraAtrasado = logOriginal.evento?.toLowerCase().includes('atraso')
             || logOriginal.detalhes?.includes('[MULTA]');
@@ -1852,7 +1865,7 @@ app.post('/api/estornar-pagamento', async (req, res) => {
             p_pago:            -Math.abs(valorEstornarBruto),
             p_novo_total:      0,
             p_capital:         0,
-            p_status:          'ABERTO',
+            p_status:          statusAposEstorno,
             p_novo_vencimento: null,
             p_novas_parcelas:  null,
             p_evento:          'Estorno de Pagamento',
