@@ -1668,8 +1668,10 @@ app.post('/api/baixar-manual', async (req, res) => {
             // Parcela paga mas contrato ainda tem saldo → avança vencimento e
             // determina o novo status: ABERTO se a próxima parcela ainda não venceu,
             // ATRASADO se já passou da data (ex: cliente tinha 2 parcelas vencidas e pagou só uma).
-            const dtProxima = proximoVencimentoReal
-                ? new Date(proximoVencimentoReal + 'T00:00:00-03:00')
+            // Prioridade: vencimento definido pelo admin > próxima parcela real > vencimento atual
+            const dataVencFinal = novoVencimento || proximoVencimentoReal || dev.data_vencimento;
+            const dtProxima = dataVencFinal
+                ? new Date(dataVencFinal + 'T00:00:00-03:00')
                 : null;
             const novoStatusContrato = (dtProxima && dtProxima > hojeCheck) ? 'ABERTO' : 'ATRASADO';
             // valor_total reconciliado com a soma real das parcelas: garante que
@@ -1677,11 +1679,19 @@ app.post('/api/baixar-manual', async (req, res) => {
             // coberta faz novoValorTotal != saldoAtualizado em edge cases).
             await supabase.from('devedores')
                 .update({
-                    data_vencimento: proximoVencimentoReal || dev.data_vencimento,
+                    data_vencimento: dataVencFinal,
                     status: novoStatusContrato,
                     valor_total: Math.round(saldoAtualizado * 100) / 100
                 })
                 .eq('id', id);
+
+            // Se o admin definiu um novo vencimento e não houve reparcelamento,
+            // atualiza também a próxima parcela pendente para refletir a nova data.
+            if (novoVencimento && proximaParcela && !novasParcs) {
+                await supabase.from('parcelas')
+                    .update({ data_vencimento: novoVencimento })
+                    .eq('id', proximaParcela.id);
+            }
         }
 
         // MENSAGEM WHATSAPP — bifurca conforme o tipo de baixa:
