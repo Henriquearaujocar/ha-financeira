@@ -25,7 +25,9 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' })); 
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
-app.use(express.static('public'));
+app.use(express.static('public', { etag: false, lastModified: false, setHeaders: (res, path) => {
+    if (path.endsWith('.html')) res.setHeader('Cache-Control', 'no-store');
+} }));
 
 const APP_URL = process.env.APP_URL || 'https://cmsventures.site';
 if (!process.env.APP_URL) {

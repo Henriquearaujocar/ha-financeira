@@ -2455,11 +2455,14 @@ function renderizarAberto(lista) {
     document.getElementById('pgtoVencimento').innerText = dtVencModal.toLocaleDateString('pt-BR');
     document.getElementById('pgtoDataRecebimento').value = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
 
-    // Saldo total projetado: usa valor_total_projetado (calculado ao vivo na API) quando disponível.
-    // Fallback: valor_total do banco + 1 dia de multa pendente (estimativa para evitar dupla contagem).
-    const saldoTotalProjetado = parc.valor_total_projetado != null
-        ? Math.round(parseFloat(parc.valor_total_projetado) * 100) / 100
-        : Math.round((parseFloat(parc.valor_total) + ((diasAtraso > 0 && !parc.isento_multa) ? Math.round(capital * taxaDiaria * 100) / 100 : 0)) * 100) / 100;
+    // Saldo total projetado:
+    // Para contratos com 1 parcela ativa: o total = valor desta parcela (calculado ao vivo).
+    // Para contratos com múltiplas parcelas: usa valor_total_projetado da API (calculado ao vivo no servidor).
+    // Nunca usa valor_total do banco diretamente — pode estar desatualizado.
+    const totalParcelasAtivas = parseInt(parc.total_parcelas_originais) || 1;
+    const saldoTotalProjetado = (totalParcelasAtivas <= 1 || parc.valor_total_projetado == null)
+        ? faltaNestaParcela
+        : Math.round(parseFloat(parc.valor_total_projetado) * 100) / 100;
 
     document.getElementById('pgtoSaldo').innerHTML = `
         ${formatMoney(saldoTotalProjetado)}<br>
