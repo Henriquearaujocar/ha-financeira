@@ -118,3 +118,50 @@ $$ LANGUAGE plpgsql;
 GRANT EXECUTE ON FUNCTION obter_resumo_dashboard TO postgres, anon, authenticated, service_role;
 
 NOTIFY pgrst, 'reload schema';
+
+
+-- ==============================================================================
+-- FIX 3: Reconciliar devedores.valor_total com a soma real das parcelas
+-- Bug: o TDZ no backend causava retorno 500 após processar o pagamento,
+--      deixando valor_total e data_vencimento desincronizados das parcelas.
+-- Execute UMA vez para corrigir clientes com divergência > R$ 1,00
+-- ==============================================================================
+
+UPDATE devedores d
+SET valor_total = sub.saldo_real
+FROM (
+    SELECT
+        p.devedor_id,
+        GREATEST(0, SUM(GREATEST(0, p.valor_atual - COALESCE(p.valor_pago, 0)))) AS saldo_real
+    FROM parcelas p
+    WHERE p.status NOT IN ('CANCELADA', 'PAGA')
+    GROUP BY p.devedor_id
+) sub
+WHERE d.id = sub.devedor_id
+  AND d.status IN ('ABERTO', 'ATRASADO')
+  AND ABS(d.valor_total - sub.saldo_real) > 1;
+
+
+-- ==============================================================================
+-- FIX 4: Corrigir data_vencimento do contrato para bater com a próxima parcela aberta
+-- Bug: quando o admin definia novo vencimento em baixas PARCIAL, o contrato
+--      ficava com a data antiga porque o branch PARCIAL não atualizava o devedor.
+-- Execute UMA vez para sincronizar data_vencimento do contrato com a parcela ativa
+-- ==============================================================================
+
+UPDATE devedores d
+SET data_vencimento = sub.prox_venc
+FROM (
+    SELECT DISTINCT ON (p.devedor_id)
+        p.devedor_id,
+        p.data_vencimento AS prox_venc
+    FROM parcelas p
+    WHERE p.status IN ('PENDENTE', 'ATRASADO', 'PARCIAL')
+    ORDER BY p.devedor_id, p.numero_parcela ASC
+) sub
+WHERE d.id = sub.devedor_id
+  AND d.status IN ('ABERTO', 'ATRASADO')
+  AND d.data_vencimento != sub.prox_venc;
+
+
+NOTIFY pgrst, 'reload schema';

@@ -71,7 +71,7 @@ async function gerarParcelasComPersonalizacao(devedorId, valorTotal, qtdParcelas
     }
 
     const insertData = [];
-    let dt = new Date(dataVencimento + 'T12:00:00Z');
+    let dt = new Date(dataVencimento + 'T12:00:00-03:00');
 
     for (let i = 0; i < qtdParcelas; i++) {
         const valor = i === 0 ? valorP1 : valorDemais;
@@ -80,7 +80,7 @@ async function gerarParcelasComPersonalizacao(devedorId, valorTotal, qtdParcelas
             numero_parcela:  i + 1,
             valor_original:  valor,
             valor_atual:     valor,
-            data_vencimento: dt.toISOString().split('T')[0],
+            data_vencimento: new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(dt),
             status:          'PENDENTE'
         });
         
@@ -916,6 +916,15 @@ app.get('/api/devedores-ativos', async (req, res) => {
 
         // Agrupa por devedor — multa é sobre o CAPITAL DO CONTRATO, não por parcela
         // Calculamos apenas UMA VEZ por devedor e atribuímos INTEIRA à parcela mais antiga
+        // Saldo base por devedor: soma de (valor_original - valor_pago) de todas as parcelas ativas
+        const saldoBasePorDevedor = {};
+        (data || []).forEach(p => {
+            const did = p.devedor_id;
+            const valOrig = parseFloat(p.valor_original || p.valor_atual || 0);
+            const jaPago  = parseFloat(p.valor_pago || 0);
+            saldoBasePorDevedor[did] = (saldoBasePorDevedor[did] || 0) + Math.max(0, valOrig - jaPago);
+        });
+
         const multasPorDevedor  = {};
         const primeiraPorDevedor = {};
 
@@ -961,16 +970,25 @@ app.get('/api/devedores-ativos', async (req, res) => {
             const jaPago        = parseFloat(p.valor_pago || 0);
             const valorComMulta = Math.round((valorOriginal - jaPago + info.multaTotal) * 100) / 100;
 
+            const saldoTotalProjetado = Math.round(((saldoBasePorDevedor[p.devedor_id] || 0) + info.multaTotal) * 100) / 100;
+
             return {
                 ...p,
-                valor_atual:    Math.round((valorOriginal + info.multaTotal) * 100) / 100,
-                valor_pago:     p.valor_pago,   // mantém o já pago intacto
-                multa_total:    info.multaTotal,
-                dias_atraso:    info.diasTotais,
+                valor_atual:          Math.round((valorOriginal + info.multaTotal) * 100) / 100,
+                valor_pago:           p.valor_pago,   // mantém o já pago intacto
+                multa_total:          info.multaTotal,
+                dias_atraso:          info.diasTotais,
+                valor_total_projetado: saldoTotalProjetado,
             };
         });
 
-        res.json(projetados);
+        // Parcelas ABERTO/PENDENTE: inclui saldo base como valor_total_projetado para consistência
+        const projetadosComSaldo = projetados.map(p => {
+            if (p.valor_total_projetado != null) return p; // já calculado (ATRASADO)
+            return { ...p, valor_total_projetado: Math.round((saldoBasePorDevedor[p.devedor_id] || parseFloat(p.valor_total) || 0) * 100) / 100 };
+        });
+
+        res.json(projetadosComSaldo);
     } catch (error) { res.status(500).json({ erro: "Erro ao buscar parcelas de cobrança." }); }
 });
 
@@ -1434,14 +1452,25 @@ app.get('/api/estatisticas-pagamento/:id', async (req, res) => {
 });
 
 app.post('/api/baixar-manual', async (req, res) => {
+    const { id, parcelaId, valorPago, formaPagamento, observacoes, dataRecebimento, novoVencimento, modoBaixa,
+            recalculoAjuste, recalculoTaxa, recalculoParcelas } = req.body;
+    if (!parcelaId) return res.status(400).json({ erro: "ID da parcela não foi enviado." });
+
+    // Trava por parcelaId: impede duplo processamento da mesma parcela em paralelo
+    const lockKeyBaixa = `baixa_${parcelaId}`;
+    if (travasAtivasPainel.has(lockKeyBaixa)) return res.status(429).json({ erro: "Baixa já está sendo processada. Aguarde." });
+    travasAtivasPainel.add(lockKeyBaixa);
+
     try {
-        const { id, parcelaId, valorPago, formaPagamento, observacoes, dataRecebimento, novoVencimento, modoBaixa,
-                recalculoAjuste, recalculoTaxa, recalculoParcelas } = req.body;
-        if (!parcelaId) throw new Error("ID da parcela não foi enviado.");
 
         const { data: parc } = await supabase.from('parcelas').select('*').eq('id', parcelaId).single();
         const { data: dev } = await supabase.from('devedores').select('*').eq('id', id).single();
         if (!parc || !dev) throw new Error("Dados não encontrados no banco.");
+
+        // Declarados aqui para evitar TDZ (temporal dead zone) nas checagens abaixo
+        const ajuste_     = recalculoAjuste    != null ? parseFloat(recalculoAjuste)    : null;
+        const novaTaxaPct_= recalculoTaxa      != null ? parseFloat(recalculoTaxa)      : null;
+        const novasParcs  = recalculoParcelas  != null ? parseInt(recalculoParcelas)     : null;
 
         const valPago     = Math.round((parseFloat(valorPago) || 0) * 100) / 100;
         let totalAtual    = Math.round((parseFloat(dev.valor_total)      || 0) * 100) / 100;
@@ -1650,7 +1679,7 @@ app.post('/api/baixar-manual', async (req, res) => {
             .order('numero_parcela', { ascending: true });
 
         let saldoAtualizado = 0;
-        parcAbertas?.forEach(p => saldoAtualizado += (parseFloat(p.valor_atual) - parseFloat(p.valor_pago || 0)));
+        parcAbertas?.forEach(p => saldoAtualizado += Math.max(0, parseFloat(p.valor_atual) - parseFloat(p.valor_pago || 0)));
 
         // Próxima parcela pendente — usada para avançar o vencimento do contrato
         // e para informar a data correta na mensagem de confirmação.
@@ -1692,6 +1721,16 @@ app.post('/api/baixar-manual', async (req, res) => {
                     .update({ data_vencimento: novoVencimento })
                     .eq('id', proximaParcela.id);
             }
+        } else if (novoVencimento) {
+            // PARCIAL: parcela ainda aberta — atualiza data de vencimento desta parcela e do contrato
+            const dtProxParcial = new Date(novoVencimento + 'T00:00:00-03:00');
+            const novoStatusContratoP = dtProxParcial > hojeCheck ? 'ABERTO' : 'ATRASADO';
+            await supabase.from('devedores')
+                .update({ data_vencimento: novoVencimento, status: novoStatusContratoP })
+                .eq('id', id);
+            await supabase.from('parcelas')
+                .update({ data_vencimento: novoVencimento })
+                .eq('id', parseInt(parcelaId));
         }
 
         // MENSAGEM WHATSAPP — bifurca conforme o tipo de baixa:
@@ -1735,9 +1774,8 @@ app.post('/api/baixar-manual', async (req, res) => {
         }
 
         // ── RECÁLCULO MANUAL DE ESTRUTURA (pós-pagamento) ────────────────────
-        const ajuste   = recalculoAjuste   != null ? parseFloat(recalculoAjuste)   : null;
-        const novaTaxaPct = recalculoTaxa  != null ? parseFloat(recalculoTaxa)     : null;
-        const novasParcs  = recalculoParcelas != null ? parseInt(recalculoParcelas) : null;
+        const ajuste = ajuste_;         // declarado no início da rota para evitar TDZ
+        const novaTaxaPct = novaTaxaPct_; // idem
 
         if (ajuste !== null && !isNaN(ajuste) && ajuste !== 0) {
             const { data: devPos } = await supabase.from('devedores').select('valor_total, valor_emprestado').eq('id', id).single();
@@ -1767,7 +1805,7 @@ app.post('/api/baixar-manual', async (req, res) => {
                 const { data: parcsPendentes } = await supabase.from('parcelas')
                     .select('id, valor_atual, valor_pago')
                     .eq('devedor_id', id)
-                    .eq('status', 'PENDENTE')
+                    .in('status', ['PENDENTE', 'PARCIAL'])
                     .order('numero_parcela', { ascending: false });
 
                 if (parcsPendentes && parcsPendentes.length > 0) {
@@ -1811,6 +1849,7 @@ app.post('/api/baixar-manual', async (req, res) => {
         invalidarCacheFluxo(); // atualiza caixa no próximo request do dashboard
         res.json({ sucesso: true });
     } catch (e) { res.status(500).json({ erro: e.message || "Erro interno ao processar baixa." }); }
+    finally { travasAtivasPainel.delete(lockKeyBaixa); }
 });
 
 app.post('/api/estornar-pagamento', async (req, res) => {
