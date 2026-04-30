@@ -2200,10 +2200,20 @@ function renderizarAberto(lista) {
     const listaVisual = lista.slice(0, LIMIT_UI);
     
     listaVisual.forEach(p => {
-        let dt = new Date(p.vencimento_parcela + 'T12:00:00Z'); 
-        let hoje = new Date(); 
+        let dt = new Date(p.vencimento_parcela + 'T12:00:00Z');
+        let hoje = new Date();
         hoje.setHours(0,0,0,0);
-        
+
+        // Cálculo ao vivo do valor a pagar (inclui multa do dia)
+        const taxaDiariaT = (window._taxaMultaDiaria || 3) / 100;
+        const capitalT    = parseFloat(p.valor_emprestado || 0);
+        const valOrigT    = parseFloat(p.valor_original || 0) || parseFloat(p.valor_atual || 0);
+        const jaPagoT     = parseFloat(p.valor_pago || 0);
+        const dtVencT     = new Date(p.vencimento_parcela + 'T00:00:00-03:00');
+        const diasT       = dtVencT < hoje ? Math.max(0, Math.floor((hoje - dtVencT) / (1000*60*60*24))) : 0;
+        const multaT      = (diasT > 0 && !p.isento_multa) ? Math.round(capitalT * taxaDiariaT * diasT * 100) / 100 : 0;
+        const valorExibir = Math.max(0, Math.round((valOrigT - jaPagoT + multaT) * 100) / 100);
+
         // Lógica de cores e atraso
         const isAtrasado = dt < hoje && p.status_contrato !== 'APROVADO_AGUARDANDO_ACEITE';
         const corTextoAtraso = isAtrasado ? 'text-red-500' : 'text-emerald-500';
@@ -2241,7 +2251,7 @@ function renderizarAberto(lista) {
                 <td class="px-4 py-4 text-xs font-bold ${corTextoAtraso}">${dt.toLocaleDateString('pt-BR')}</td>
                 
                 <td class="px-4 py-4 text-sm font-black text-orange-400">
-                    ${formatMoney(p.valor_atual - p.valor_pago)}
+                    ${formatMoney(valorExibir)}
                     ${p.valor_pago > 0 ? `<br><span class="text-[8px] text-emerald-400 uppercase">Já pago: ${formatMoney(p.valor_pago)}</span>` : ''}
                 </td>
                 
@@ -2305,7 +2315,14 @@ function renderizarAberto(lista) {
         const corBorda = isAtrasado2 ? 'border-red-500/40 bg-red-900/10' : 'border-slate-700';
         const totalParcs = p.total_parcelas_originais || 1;
         const nParcela = totalParcs > 1 ? `${p.numero_parcela}/${totalParcs}` : 'Única';
-        const valorExibir = parseFloat(p.valor_atual) - parseFloat(p.valor_pago || 0);
+        const taxaDiariaT2 = (window._taxaMultaDiaria || 3) / 100;
+        const capitalT2    = parseFloat(p.valor_emprestado || 0);
+        const valOrigT2    = parseFloat(p.valor_original || 0) || parseFloat(p.valor_atual || 0);
+        const jaPagoT2     = parseFloat(p.valor_pago || 0);
+        const dtVencT2     = new Date(p.vencimento_parcela + 'T00:00:00-03:00');
+        const diasT2       = dtVencT2 < hoje2 ? Math.max(0, Math.floor((hoje2 - dtVencT2) / (1000*60*60*24))) : 0;
+        const multaT2      = (diasT2 > 0 && !p.isento_multa) ? Math.round(capitalT2 * taxaDiariaT2 * diasT2 * 100) / 100 : 0;
+        const valorExibir  = Math.max(0, Math.round((valOrigT2 - jaPagoT2 + multaT2) * 100) / 100);
         const badgeMob = isAtrasado2
             ? '<span class="bg-red-500/20 text-red-400 px-2 py-0.5 rounded text-[9px] font-black">ATRASADA</span>'
             : p.status_contrato === 'APROVADO_AGUARDANDO_ACEITE'
