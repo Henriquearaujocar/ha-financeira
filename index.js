@@ -2269,7 +2269,15 @@ app.post('/api/admin/reparar-logs-emprestimos', async (req, res) => {
 });
 
 app.get('/api/lista-negra', async (req, res) => {
-    try { const { data } = await supabase.from('lista_negra').select('*').order('created_at', { ascending: false }); res.json(data || []); } catch(e) { res.status(500).json({ erro: e.message }); }
+    try {
+        const { data: lista } = await supabase.from('lista_negra').select('*').order('created_at', { ascending: false });
+        if (!lista || !lista.length) return res.json([]);
+        const cpfs = lista.map(l => l.cpf);
+        const { data: devedores } = await supabase.from('devedores').select('cpf, nome').in('cpf', cpfs);
+        const nomeMap = {};
+        (devedores || []).forEach(d => { nomeMap[d.cpf] = d.nome; });
+        res.json(lista.map(l => ({ ...l, nome: nomeMap[l.cpf] || null })));
+    } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
 app.post('/api/lista-negra', async (req, res) => {

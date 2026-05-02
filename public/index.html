@@ -879,6 +879,7 @@
                     <thead class="bg-slate-800/50 text-xs uppercase font-black text-slate-400 tracking-wider">
                         <tr>
                             <th class="px-6 py-4">CPF Bloqueado</th>
+                            <th class="px-6 py-4">Nome</th>
                             <th class="px-6 py-4">Motivo / Detalhes</th>
                             <th class="px-6 py-4">Data Inclusão</th>
                             <th class="px-6 py-4 text-center">Ação</th>
@@ -3656,6 +3657,7 @@ function renderizarAberto(lista) {
                     tb.innerHTML += `
                         <tr class="border-b border-slate-800/50">
                             <td class="px-6 py-3 text-red-400 font-bold font-mono">${cpfEscaped}</td>
+                            <td class="px-6 py-3 font-bold text-white uppercase">${escapeHTML(s.nome || '—')}</td>
                             <td class="px-6 py-3 text-xs">${escapeHTML(s.motivo || '—')}</td>
                             <td class="px-6 py-3 text-xs">${new Date(s.created_at).toLocaleDateString('pt-BR')}</td>
                             <td class="px-6 py-3 text-center">
