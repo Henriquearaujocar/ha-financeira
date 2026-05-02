@@ -99,7 +99,7 @@
                 
                 <div class="bg-blue-900/10 border border-blue-500/20 p-6 rounded-2xl mb-4">
                     <label class="text-xs font-black uppercase text-slate-400 block mb-2">Valor Desejado (R$)</label>
-                    <input type="number" id="valor" placeholder="A carregar limites..." class="input-field font-black text-2xl text-emerald-400" onkeydown="if(['e', 'E', '+', '-', ',', '.'].includes(event.key)) event.preventDefault();" oninput="limitarValor(this)" required>
+                    <input type="text" id="valor" placeholder="A carregar limites..." class="input-field font-black text-2xl text-emerald-400" oninput="mascaraMonetaria(this); calcularSimulacao();" required>
                     <p id="texto-minimo" class="text-[10px] text-slate-500 mt-2"><i class="fa-solid fa-circle-info mr-1"></i> A carregar valor mínimo...</p>
                 </div>
 
@@ -486,9 +486,16 @@
             };
         }
 
-        function limitarValor(i) {
-            if (i.value.length > 7) i.value = i.value.slice(0, 7);
-            calcularSimulacao();
+        function mascaraMonetaria(input) {
+            let v = input.value.replace(/\D/g, '');
+            if (!v) { input.value = ''; return; }
+            v = parseInt(v, 10);
+            input.value = (v / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function parseMoeda(str) {
+            if (str === '' || str === null || str === undefined) return NaN;
+            return parseFloat(String(str).replace(/\./g, '').replace(',', '.'));
         }
 
         const vInput = document.getElementById('valor');
@@ -498,7 +505,7 @@
         }
 
         function calcularSimulacao() {
-            const valorBase = parseFloat(vInput.value) || 0;
+            const valorBase = parseMoeda(vInput.value) || 0;
             const grade     = document.getElementById('grade-planos');
             const container = document.getElementById('cards-planos');
 
@@ -544,7 +551,7 @@
             calcularSimulacao(); // re-render para destacar o card selecionado
         }
 
-        // Seleciona 30 dias por padrão e re-renderiza ao digitar o valor
+        // Seleciona 30 dias por padrão e re-renderiza ao digitar o valor (oninput já cobre, listener de segurança)
         vInput.addEventListener('input', () => { calcularSimulacao(); });
       
         function toggleRgUpload() {
@@ -619,7 +626,7 @@
                 return;
             }
 
-            const valorDesejado = parseFloat(vInput.value) || 0;
+            const valorDesejado = parseMoeda(vInput.value) || 0;
             if(valorDesejado < VALOR_MINIMO) {
                 erroEl.innerText = `O valor mínimo para solicitação é de R$ ${VALOR_MINIMO.toFixed(2)}.`;
                 erroEl.classList.remove('hidden');

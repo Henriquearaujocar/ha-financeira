@@ -627,11 +627,11 @@
                 <div id="cad_area_financeira" class="grid grid-cols-1 md:grid-cols-4 gap-4 border-t border-slate-700 pt-6 transition-all">
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Capital Original</label>
-                        <input type="number" id="cad_capital" placeholder="Ex: 500" min="0" class="input-dark mt-1" required oninput="autoCalcularSaldoCadastro()">
+                        <input type="text" id="cad_capital" placeholder="Ex: 500,00" class="input-dark mt-1" required oninput="mascaraMonetaria(this); autoCalcularSaldoCadastro()">
                     </div>
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Saldo da Dívida</label>
-                        <input type="number" id="cad_saldo" placeholder="Cálculo Automático" min="0" class="input-dark mt-1 text-red-400 font-bold" required>
+                        <input type="text" id="cad_saldo" placeholder="Cálculo Automático" class="input-dark mt-1 text-red-400 font-bold" required>
                     </div>
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Vencimento</label>
@@ -679,7 +679,7 @@
                         </div>
                         <div>
                             <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Valor (R$)</label>
-                            <input type="number" id="saida_valor" min="0" placeholder="0.00" class="input-dark mt-1 font-bold text-red-400">
+                            <input type="text" id="saida_valor" placeholder="0,00" class="input-dark mt-1 font-bold text-red-400" oninput="mascaraMonetaria(this)">
                         </div>
                         <button onclick="registrarSaidaCaixa()" class="w-full bg-red-600 hover:bg-red-500 text-white font-black uppercase py-3 rounded-xl transition-all shadow-lg shadow-red-500/20 mt-2">
                             <i class="fa-solid fa-minus-circle mr-2"></i> Lançar Saída
@@ -861,10 +861,11 @@
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-user-slash text-red-500 mr-2"></i> Lista Negra de CPFs</h2>
             <div class="glass-card p-6 rounded-3xl border border-red-500/20 max-w-4xl mb-6">
                 <h3 class="text-xs font-black uppercase text-red-400 mb-4">Bloquear Novo CPF</h3>
-                <div class="flex gap-4 items-end">
+                <div class="flex gap-4 items-end flex-wrap">
                     <div class="w-1/3">
                         <label class="text-[10px] font-black uppercase text-slate-500 ml-2">CPF a Bloquear</label>
-                        <input type="text" id="ln_cpf" placeholder="Apenas números" class="input-dark mt-1">
+                        <input type="text" id="ln_cpf" placeholder="000.000.000-00" maxlength="14" class="input-dark mt-1" oninput="mascaraCPF(this); buscarNomeLN(this)">
+                        <p id="ln_nome_txt" class="text-[10px] text-red-400 font-bold ml-2 mt-1"></p>
                     </div>
                     <div class="w-1/2">
                         <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Motivo do Bloqueio</label>
@@ -931,7 +932,7 @@
 
                         <div id="pix_modo_valor_box" class="hidden bg-orange-900/10 p-4 rounded-lg border border-orange-500/20">
                             <label class="text-[10px] font-black uppercase text-orange-400 mb-2 block"><i class="fa-solid fa-scale-unbalanced text-orange-500 mr-1"></i> Valor Limite de Corte (R$)</label>
-                            <input type="number" id="pix_valor_corte" placeholder="Ex: 1000" class="input-dark mb-4 text-lg font-black text-orange-400 text-center" min="0">
+                            <input type="text" id="pix_valor_corte" placeholder="Ex: 1.000,00" class="input-dark mb-4 text-lg font-black text-orange-400 text-center" oninput="mascaraMonetaria(this)">
                             <div class="grid grid-cols-1 gap-4 border-t border-slate-700 pt-4">
                                 <div>
                                     <label class="text-[9px] font-black uppercase text-slate-400 mb-1 block">Se a fatura for MENOR que o limite:</label>
@@ -975,7 +976,7 @@
                     <h3 class="text-xs font-black uppercase text-blue-400 mb-2 border-b border-slate-700 pb-2">Controlo do Cofre (Capital da Empresa)</h3>
                     <div class="mb-4">
                         <label class="text-[10px] font-black uppercase text-emerald-500 ml-2">Tamanho do Caixa Geral (R$)</label>
-                        <input type="number" id="conf_caixa_total" class="input-dark mt-1 border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.1)]" placeholder="Ex: 50000" min="0">
+                        <input type="text" id="conf_caixa_total" class="input-dark mt-1 border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.1)]" placeholder="Ex: 50.000,00" oninput="mascaraMonetaria(this)">
                         <p class="text-[9px] text-slate-500 mt-1 ml-2">Este valor será usado para calcular o quanto tem disponível para emprestar no Dashboard.</p>
                     </div>
 
@@ -996,7 +997,7 @@
                     </div>
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Valor Mínimo para Crédito (R$)</label>
-                        <input type="number" id="conf_minimo" class="input-dark mt-1" placeholder="Ex: 500" min="0">
+                        <input type="text" id="conf_minimo" class="input-dark mt-1" placeholder="Ex: 500,00" oninput="mascaraMonetaria(this)">
                     </div>
                     <button onclick="salvarConfig()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase py-3 rounded-xl shadow-lg mt-4"><i class="fa-solid fa-save mr-2"></i> Guardar Alterações</button>
                 </div>
@@ -1075,7 +1076,7 @@
                 </div>
                 <div>
                     <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Valor Estimado de Mercado (R$)</label>
-                    <input type="number" id="garantiaValor" placeholder="3000" class="input-dark mt-1 font-bold text-orange-400" min="0">
+                    <input type="text" id="garantiaValor" placeholder="3.000,00" class="input-dark mt-1 font-bold text-orange-400" oninput="mascaraMonetaria(this)">
                 </div>
             </div>
             <button onclick="salvarGarantia()" class="w-full bg-orange-600 hover:bg-orange-500 text-white py-4 rounded-xl font-black uppercase text-sm shadow-lg shadow-orange-500/20 mt-6">Guardar Garantia</button>
@@ -1174,7 +1175,7 @@
                         <div class="grid grid-cols-2 gap-2">
                             <div>
                                 <label class="text-[9px] font-black uppercase text-slate-500 block mb-1">Valor Aprovado (R$)</label>
-                                <input type="number" id="docNovoValor" class="input-dark text-sm font-bold text-emerald-400" min="0" oninput="if(this.value<0)this.value=0; recalcularSimulacaoDoc()">
+                                <input type="text" id="docNovoValor" class="input-dark text-sm font-bold text-emerald-400" oninput="mascaraMonetaria(this); recalcularSimulacaoDoc()">
                             </div>
                             <div>
                                 <label class="text-[9px] font-black uppercase text-slate-500 block mb-1">Juros Base (%)</label>
@@ -1303,7 +1304,7 @@
                 <div class="space-y-4">
                     <div class="bg-emerald-900/10 border border-emerald-500/20 p-4 rounded-xl">
                         <label class="text-[10px] font-black uppercase text-emerald-500 block mb-2">Valor Recebido (R$)</label>
-                        <input type="number" id="pgtoValor" class="input-dark font-black text-emerald-400 text-4xl h-20 w-full text-center shadow-inner" placeholder="0.00" min="0" oninput="if(this.value<0)this.value=0;">
+                        <input type="text" id="pgtoValor" class="input-dark font-black text-emerald-400 text-4xl h-20 w-full text-center shadow-inner" placeholder="0,00" oninput="mascaraMonetaria(this)">
                         
                         <div class="mt-4 p-3 bg-slate-900 rounded-lg border border-slate-800 text-center">
                             <p class="text-[10px] text-slate-400 uppercase font-bold">Multa por Atraso (acumulada)</p>
@@ -1363,7 +1364,7 @@
                     </div>
                     <div>
                         <label class="text-[9px] font-bold text-purple-300 ml-1 block mb-1">Valor combinado para o próximo pagamento (R$):</label>
-                        <input type="number" id="pgtoProximaParcela" class="input-dark text-xs font-bold text-purple-200" placeholder="Ex: 400,00" min="0" oninput="calcularPreviewRecalculo()">
+                        <input type="text" id="pgtoProximaParcela" class="input-dark text-xs font-bold text-purple-200" placeholder="Ex: 400,00" oninput="mascaraMonetaria(this); calcularPreviewRecalculo()">
                         <p class="text-[8px] text-slate-500 mt-1 ml-1">Em branco = mantém o valor original da parcela.</p>
                     </div>
                 </div>
@@ -1574,6 +1575,26 @@
 
         function formatMoney(num) {
             return Number(num).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
+        // Máscara monetária: formata o campo enquanto o usuário digita (ex: 1.234,56)
+        function mascaraMonetaria(input) {
+            let v = input.value.replace(/\D/g, '');
+            if (!v) { input.value = ''; return; }
+            v = parseInt(v, 10);
+            input.value = (v / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        // Converte string BRL ("1.234,56") para número (1234.56)
+        function parseMoeda(str) {
+            if (str === '' || str === null || str === undefined) return NaN;
+            return parseFloat(String(str).replace(/\./g, '').replace(',', '.'));
+        }
+
+        // Formata número para exibir em campo de texto (ex: 50000 → "50.000,00")
+        function fmtMoedaInput(valor) {
+            if (valor === '' || valor === null || valor === undefined) return '';
+            return Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
         function escapeHTML(str) {
@@ -1959,7 +1980,7 @@
         }
 
         function recalcularSimulacaoDoc() {
-            const valor = parseFloat(document.getElementById('docNovoValor').value) || 0; 
+            const valor = parseMoeda(document.getElementById('docNovoValor').value) || 0;
             const jurosBase = parseFloat(document.getElementById('docJuros').value) || 0; 
             const parcelas = parseInt(document.getElementById('docNovasParcelas').value) || 1;
             
@@ -2010,7 +2031,7 @@
             document.getElementById('docNovaFreq').dataset.original = s.frequencia || 'MENSAL'; 
             document.getElementById('docNovasParcelas').dataset.original = qtdParcelas;
 
-            document.getElementById('docNovoValor').value = valor; 
+            document.getElementById('docNovoValor').value = fmtMoedaInput(valor);
             document.getElementById('docNovaFreq').value = s.frequencia || 'MENSAL'; 
             document.getElementById('docNovasParcelas').value = qtdParcelas; 
             document.getElementById('docJuros').value = jurosPadrao;
@@ -2056,17 +2077,17 @@
             btn.disabled = true;
 
             let juros, novoValor, novaFreq, novasParcelas;
-            
-            if (isContraProposta) { 
-                juros = document.getElementById('docJuros').value; 
-                novoValor = document.getElementById('docNovoValor').value; 
-                novaFreq = document.getElementById('docNovaFreq').value; 
-                novasParcelas = document.getElementById('docNovasParcelas').value; 
-            } else { 
-                juros = document.getElementById('docJuros').dataset.original; 
-                novoValor = document.getElementById('docNovoValor').dataset.original; 
-                novaFreq = document.getElementById('docNovaFreq').dataset.original; 
-                novasParcelas = document.getElementById('docNovasParcelas').dataset.original; 
+
+            if (isContraProposta) {
+                juros = document.getElementById('docJuros').value;
+                novoValor = parseMoeda(document.getElementById('docNovoValor').value);
+                novaFreq = document.getElementById('docNovaFreq').value;
+                novasParcelas = document.getElementById('docNovasParcelas').value;
+            } else {
+                juros = document.getElementById('docJuros').dataset.original;
+                novoValor = parseFloat(document.getElementById('docNovoValor').dataset.original);
+                novaFreq = document.getElementById('docNovaFreq').dataset.original;
+                novasParcelas = document.getElementById('docNovasParcelas').dataset.original;
             }
             
             try {
@@ -2080,7 +2101,7 @@
                         id: solicitacaoAtualId, 
                         juros: parseFloat(juros), 
                         observacao: document.getElementById('docObs').value, 
-                        novoValor: parseFloat(novoValor), 
+                        novoValor: novoValor,
                         novaFreq: novaFreq, 
                         novasParcelas: parseInt(novasParcelas), 
                         cobrarSoEmDinheiro: document.getElementById('docApenasDinheiro').checked, 
@@ -2466,7 +2487,7 @@ function renderizarAberto(lista) {
     // Valor a pagar nesta parcela = original restante + multa total do contrato
     const faltaNestaParcela = Math.max(0, Math.round((valOriginal - jaPago + multaTotal) * 100) / 100);
 
-    document.getElementById('pgtoValor').value = faltaNestaParcela.toFixed(2);
+    document.getElementById('pgtoValor').value = fmtMoedaInput(faltaNestaParcela);
     document.getElementById('pgtoNome').innerText = `${parc.nome} (CT #${parc.devedor_id} - Parc ${parc.numero_parcela})`;
     document.getElementById('pgtoCpf').innerText = parc.cpf;
     document.getElementById('pgtoVencimento').innerText = dtVencModal.toLocaleDateString('pt-BR');
@@ -2585,8 +2606,8 @@ function renderizarAberto(lista) {
     if (btn.disabled) return;
 
     const id = document.getElementById('pgtoDevedorId').value; 
-    const v = parseFloat(document.getElementById('pgtoValor').value); 
-    
+    const v = parseMoeda(document.getElementById('pgtoValor').value);
+
     if (!v && v !== 0 && !document.getElementById('pgtoAjuste').value && !document.getElementById('pgtoNovaTaxa').value) {
         return showToast("Preencha um valor recebido ou um ajuste de estrutura.", "error");
     }
@@ -2616,7 +2637,7 @@ function renderizarAberto(lista) {
                 recalculoAjuste: document.getElementById('pgtoAjuste').value ? parseFloat(document.getElementById('pgtoAjuste').value) : null,
                 recalculoTaxa: document.getElementById('pgtoNovaTaxa').value ? parseFloat(document.getElementById('pgtoNovaTaxa').value) : null,
                 recalculoParcelas: document.getElementById('pgtoNovoParcelamento').value ? parseInt(document.getElementById('pgtoNovoParcelamento').value) : null,
-                valorProximaParcela: document.getElementById('pgtoProximaParcela').value ? parseFloat(document.getElementById('pgtoProximaParcela').value) : null,
+                valorProximaParcela: document.getElementById('pgtoProximaParcela').value ? parseMoeda(document.getElementById('pgtoProximaParcela').value) : null,
                 novoVencimento: document.getElementById('pgtoNovoVencimento').value || null,
                 modoBaixa: document.getElementById('pgtoModoBaixa').value,
                 parcelaId: document.getElementById('pgtoParcelaId').value
@@ -2747,7 +2768,7 @@ function renderizarAberto(lista) {
             }
 
             // Desconta o que está sendo pago agora para mostrar o saldo pós-pagamento real
-            const valorPagandoAgora = parseFloat(document.getElementById('pgtoValor').value) || 0;
+            const valorPagandoAgora = parseMoeda(document.getElementById('pgtoValor').value) || 0;
             const novoSaldo = Math.max(0, saldo - valorPagandoAgora + ajuste);
             const novasParcelas = Math.max(1, parcelas || 1);
             // Parcela = saldo restante dividido igualmente (backend não aplica taxa sobre o saldo)
@@ -2958,7 +2979,7 @@ function renderizarAberto(lista) {
                     body: JSON.stringify({ 
                         cpf: document.getElementById('garantiaCpf').value, 
                         descricao: document.getElementById('garantiaDesc').value, 
-                        valor_estimado: document.getElementById('garantiaValor').value 
+                        valor_estimado: parseMoeda(document.getElementById('garantiaValor').value) || 0
                     }) 
                 });
                 
@@ -3201,7 +3222,7 @@ function renderizarAberto(lista) {
         }
 
         function autoCalcularSaldoCadastro() {
-            const cap = parseFloat(document.getElementById('cad_capital').value);
+            const cap = parseMoeda(document.getElementById('cad_capital').value);
             if (isNaN(cap) || cap <= 0) { 
                 document.getElementById('cad_saldo').value = ''; 
                 document.getElementById('cad_taxa_aplicada_txt').innerText = ''; 
@@ -3221,7 +3242,7 @@ function renderizarAberto(lista) {
                 document.getElementById('cad_taxa_aplicada_txt').innerText = `Taxa Aplicada: ${jU}% (Única 30 Dias)`;
             }
             
-            document.getElementById('cad_saldo').value = (cap * (1 + tx)).toFixed(2);
+            document.getElementById('cad_saldo').value = fmtMoedaInput(cap * (1 + tx));
         }
 
         async function buscarParaCadastroLive() {
@@ -3332,8 +3353,8 @@ function renderizarAberto(lista) {
                     nome: document.getElementById('cad_nome').value, 
                     cpf: document.getElementById('cad_cpf').value.replace(/\D/g,''),
                     whatsapp: document.getElementById('cad_zap').value.replace(/\D/g,''), 
-                    valor_emprestado: parseFloat(document.getElementById('cad_capital').value) || 0, 
-                    valor_total: parseFloat(document.getElementById('cad_saldo').value) || 0, 
+                    valor_emprestado: parseMoeda(document.getElementById('cad_capital').value) || 0,
+                    valor_total: parseMoeda(document.getElementById('cad_saldo').value) || 0,
                     data_vencimento: document.getElementById('cad_venc').value || null, 
                     frequencia: document.getElementById('cad_freq').value || 'MENSAL', 
                     qtd_parcelas: parseInt(document.getElementById('cad_parcelas').value) || 1, 
@@ -3558,7 +3579,7 @@ function renderizarAberto(lista) {
 
         async function registrarSaidaCaixa() {
             const m = document.getElementById('saida_motivo').value; 
-            const v = parseFloat(document.getElementById('saida_valor').value);
+            const v = parseMoeda(document.getElementById('saida_valor').value);
             
             try {
                 const res = await fetchSeguro(`${API_BASE}/api/saida-caixa`, { 
@@ -3598,52 +3619,84 @@ function renderizarAberto(lista) {
         // =====================================
         // LISTA NEGRA
         // =====================================
+        async function buscarNomeLN(input) {
+            const cpf = input.value.replace(/\D/g, '');
+            const txt = document.getElementById('ln_nome_txt');
+            if (cpf.length === 11) {
+                txt.innerText = 'Buscando...';
+                try {
+                    const res = await fetch(`${API_BASE}/api/buscar-cliente-publico/${cpf}`);
+                    if (res.ok) {
+                        const cli = await res.json();
+                        txt.innerHTML = `<i class="fa-solid fa-user mr-1"></i>${escapeHTML(cli.nome)}`;
+                    } else {
+                        txt.innerText = 'CPF não cadastrado na base';
+                    }
+                } catch(e) { txt.innerText = ''; }
+            } else {
+                txt.innerText = '';
+            }
+        }
+
         async function carregarListaNegra() {
             try {
-                const res = await fetchSeguro(`${API_BASE}/api/lista-negra`, { headers: headersAuth }); 
-                const l = await res.json(); 
-                
-                const tb = document.getElementById('lista-negra-body'); 
+                const res = await fetchSeguro(`${API_BASE}/api/lista-negra`, { headers: headersAuth });
+                const l = await res.json();
+
+                const tb = document.getElementById('lista-negra-body');
                 tb.innerHTML = '';
-                
+
+                if (!l.length) {
+                    tb.innerHTML = '<tr><td colspan="4" class="px-6 py-6 text-center text-slate-500 text-xs">Nenhum CPF bloqueado.</td></tr>';
+                    return;
+                }
+
                 l.forEach(s => {
+                    const cpfEscaped = escapeHTML(s.cpf);
                     tb.innerHTML += `
                         <tr class="border-b border-slate-800/50">
-                            <td class="px-6 py-3 text-red-400 font-bold">${escapeHTML(s.cpf)}</td>
-                            <td class="px-6 py-3 text-xs">${escapeHTML(s.motivo)}</td>
-                            <td class="px-6 py-3 text-xs">${new Date(s.created_at).toLocaleDateString()}</td>
+                            <td class="px-6 py-3 text-red-400 font-bold font-mono">${cpfEscaped}</td>
+                            <td class="px-6 py-3 text-xs">${escapeHTML(s.motivo || '—')}</td>
+                            <td class="px-6 py-3 text-xs">${new Date(s.created_at).toLocaleDateString('pt-BR')}</td>
                             <td class="px-6 py-3 text-center">
-                                <button onclick="removerListaNegra('${s.cpf}')" class="text-slate-400 hover:text-white">
+                                <button onclick="removerListaNegra('${cpfEscaped}')" class="text-red-500 hover:text-white transition-colors" title="Remover da lista negra">
                                     <i class="fa-solid fa-trash"></i>
                                 </button>
                             </td>
                         </tr>
                     `;
                 });
-            } catch(e) {}
+            } catch(e) { console.error('Erro ao carregar lista negra:', e); }
         }
 
         async function adicionarListaNegra() {
-            try { 
-                await fetchSeguro(`${API_BASE}/api/lista-negra`, { 
-                    method: 'POST', 
-                    headers: headersAuth, 
-                    body: JSON.stringify({ 
-                        cpf: document.getElementById('ln_cpf').value.replace(/\D/g,''), 
-                        motivo: document.getElementById('ln_motivo').value 
-                    }) 
-                }); 
-                
-                showToast("Embargado!"); 
-                carregarListaNegra(); 
-            } catch(e) {}
+            const cpf = document.getElementById('ln_cpf').value.replace(/\D/g,'');
+            const motivo = document.getElementById('ln_motivo').value.trim();
+            if (!cpf || cpf.length !== 11) return showToast("CPF inválido.", "error");
+            if (!motivo) return showToast("Informe o motivo do bloqueio.", "error");
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/lista-negra`, {
+                    method: 'POST',
+                    headers: headersAuth,
+                    body: JSON.stringify({ cpf, motivo })
+                });
+                if (!res.ok) throw new Error();
+                showToast("CPF bloqueado com sucesso!");
+                document.getElementById('ln_cpf').value = '';
+                document.getElementById('ln_motivo').value = '';
+                document.getElementById('ln_nome_txt').innerText = '';
+                carregarListaNegra();
+            } catch(e) { showToast("Erro ao bloquear CPF.", "error"); }
         }
 
-        async function removerListaNegra(cpf) { 
-            try { 
-                await fetchSeguro(`${API_BASE}/api/lista-negra/${cpf}`, { method: 'DELETE', headers: headersAuth }); 
-                carregarListaNegra(); 
-            } catch(e) {} 
+        async function removerListaNegra(cpf) {
+            if (!confirm(`Remover CPF ${cpf} da lista negra?`)) return;
+            try {
+                const res = await fetchSeguro(`${API_BASE}/api/lista-negra/${cpf}`, { method: 'DELETE', headers: headersAuth });
+                if (!res.ok) throw new Error();
+                showToast("CPF removido da lista negra.");
+                carregarListaNegra();
+            } catch(e) { showToast("Erro ao remover CPF.", "error"); }
         }
 
         // =====================================
@@ -3909,11 +3962,11 @@ function renderizarAberto(lista) {
                 window._taxaMultaDiaria = parseFloat(obj.multa_diaria || 3);
 
                 if (document.getElementById('conf_caixa_total')) {
-                    document.getElementById('conf_caixa_total').value = obj.caixa_total || 50000;
+                    document.getElementById('conf_caixa_total').value = fmtMoedaInput(obj.caixa_total || 50000);
                     document.getElementById('conf_juros_unico').value = obj.juros_unico || 30;
                     document.getElementById('conf_juros_parcelado').value = obj.juros_parcelado || 25;
                     document.getElementById('conf_multa').value = obj.multa_diaria || 3;
-                    document.getElementById('conf_minimo').value = obj.valor_minimo || 500;
+                    document.getElementById('conf_minimo').value = fmtMoedaInput(obj.valor_minimo || 500);
                 }
 
                 if (obj.pix_avancado) {
@@ -3928,7 +3981,7 @@ function renderizarAberto(lista) {
                         setTimeout(() => {
                             if (pixConf.padrao) document.getElementById('pix_chave_padrao').value = pixConf.padrao;
                             if (pixConf.regras) {
-                                document.getElementById('pix_valor_corte').value = pixConf.regras.limite || '';
+                                document.getElementById('pix_valor_corte').value = pixConf.regras.limite ? fmtMoedaInput(pixConf.regras.limite) : '';
                                 document.getElementById('pix_chave_menor').value = pixConf.regras.menor || '';
                                 document.getElementById('pix_chave_maior').value = pixConf.regras.maior || '';
                             }
@@ -3942,11 +3995,11 @@ function renderizarAberto(lista) {
 
         async function salvarConfig() {
             const val = [
-                { chave: 'caixa_total', valor: document.getElementById('conf_caixa_total').value },
+                { chave: 'caixa_total', valor: parseMoeda(document.getElementById('conf_caixa_total').value) || 50000 },
                 { chave: 'juros_unico', valor: document.getElementById('conf_juros_unico').value },
                 { chave: 'juros_parcelado', valor: document.getElementById('conf_juros_parcelado').value },
                 { chave: 'multa_diaria', valor: document.getElementById('conf_multa').value },
-                { chave: 'valor_minimo', valor: document.getElementById('conf_minimo').value }
+                { chave: 'valor_minimo', valor: parseMoeda(document.getElementById('conf_minimo').value) || 500 }
             ];
             
             try {
@@ -4119,7 +4172,7 @@ function renderizarAberto(lista) {
                 conf.padrao = document.getElementById('pix_chave_padrao').value;
             } else if (modo === 'VALOR') {
                 conf.regras = {
-                    limite: document.getElementById('pix_valor_corte').value || 0,
+                    limite: parseMoeda(document.getElementById('pix_valor_corte').value) || 0,
                     menor: document.getElementById('pix_chave_menor').value,
                     maior: document.getElementById('pix_chave_maior').value
                 };
