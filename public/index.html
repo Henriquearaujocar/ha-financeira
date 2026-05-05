@@ -1321,14 +1321,15 @@
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-1 block mb-2">Tipo de Baixa</label>
                         <select id="pgtoModoBaixa" class="input-dark text-xs font-bold text-white" onchange="onModoBaixaChange()">
                             <option value="PADRAO">Pagamento de Parcela</option>
-                            <option value="ACORDO">Quitação por Acordo (com desconto)</option>
+                            <option value="ACORDO">Quitação de Parcela (com desconto)</option>
+                            <option value="QUITACAO_TOTAL">Quitar Contrato Todo (com desconto)</option>
                         </select>
                         <p id="desc-padrao" class="text-[8px] text-slate-400 mt-2 ml-1 leading-relaxed">Registra o recebimento e separa automaticamente capital, juros e multa no relatório. <strong class="text-slate-300">Se o cliente tem multa por atraso, inclua ela no valor acima.</strong></p>
                         <div id="desc-acordo" class="hidden mt-2">
-                            <p class="text-[8px] text-slate-400 ml-1 leading-relaxed mb-2">Use para fechar a dívida com um valor negociado menor. O sistema registra o desconto e encerra o contrato imediatamente.</p>
+                            <p class="text-[8px] text-slate-400 ml-1 leading-relaxed mb-2"><strong class="text-slate-300">Quitação de Parcela:</strong> quita só a parcela selecionada pelo valor digitado, registrando o desconto. As demais parcelas não são alteradas.<br><strong class="text-slate-300">Quitar Contrato Todo:</strong> encerra o contrato inteiro pelo valor digitado, quitando todas as parcelas de uma vez.</p>
                             <div class="bg-amber-900/30 border border-amber-500/50 rounded-xl p-3">
-                                <p class="text-[10px] font-black text-amber-400 uppercase">⚠ Contrato encerrado na hora</p>
-                                <p class="text-[9px] text-amber-200/80 mt-1">Marcado como <strong>QUITADO</strong> pelo valor recebido. A diferença fica registrada como desconto concedido no extrato.</p>
+                                <p class="text-[10px] font-black text-amber-400 uppercase">⚠ Atenção</p>
+                                <p class="text-[9px] text-amber-200/80 mt-1">A diferença entre o valor digitado e o saldo fica registrada como desconto concedido no extrato.</p>
                             </div>
                         </div>
                     </div>
@@ -2750,11 +2751,12 @@ function renderizarAberto(lista) {
         // CLIENTES, EXTRATO E GARANTIAS
         // =====================================
         function onModoBaixaChange() {
-            const isAcordo = document.getElementById('pgtoModoBaixa').value === 'ACORDO';
-            document.getElementById('desc-padrao').classList.toggle('hidden', isAcordo);
-            document.getElementById('desc-acordo').classList.toggle('hidden', !isAcordo);
-            document.getElementById('secao-proximo-pgto').classList.toggle('hidden', isAcordo);
-            document.getElementById('secao-reestruturacao').classList.toggle('hidden', isAcordo);
+            const modo = document.getElementById('pgtoModoBaixa').value;
+            const isAcordoOuTotal = modo === 'ACORDO' || modo === 'QUITACAO_TOTAL';
+            document.getElementById('desc-padrao').classList.toggle('hidden', isAcordoOuTotal);
+            document.getElementById('desc-acordo').classList.toggle('hidden', !isAcordoOuTotal);
+            document.getElementById('secao-proximo-pgto').classList.toggle('hidden', isAcordoOuTotal);
+            document.getElementById('secao-reestruturacao').classList.toggle('hidden', isAcordoOuTotal);
         }
 
         function calcularPreviewRecalculo() {

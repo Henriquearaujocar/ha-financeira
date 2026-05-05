@@ -1478,8 +1478,86 @@ app.post('/api/baixar-manual', async (req, res) => {
         let totalAtual    = Math.round((parseFloat(dev.valor_total)      || 0) * 100) / 100;
         let capitalAtual  = Math.round((parseFloat(dev.valor_emprestado) || 0) * 100) / 100;
 
-        // ── MODO ACORDO: Encerrar contrato pelo valor negociado ───────────────
-        if (modoBaixa === 'ACORDO') {
+        // ── MODO ACORDO / QUITACAO_TOTAL ─────────────────────────────────────
+        if (modoBaixa === 'ACORDO' || modoBaixa === 'QUITACAO_TOTAL') {
+
+            // ACORDO DE PARCELA INDIVIDUAL:
+            //   - Só ativa quando modo = ACORDO (não QUITACAO_TOTAL)
+            //   - Contrato parcelado + valor pago não cobre o saldo total do contrato
+            //   Quita apenas a parcela selecionada com desconto — não toca nas demais.
+            if (modoBaixa === 'ACORDO' && dev.qtd_parcelas > 1 && valPago < totalAtual - 0.10) {
+                const dataEnvioAcordoP = dataRecebimento
+                    ? (dataRecebimento.includes('T') ? dataRecebimento : `${dataRecebimento}T12:00:00-03:00`)
+                    : new Date().toISOString();
+
+                // Usa valor_atual da parcela (inclui multas acumuladas nela)
+                // e o que já foi pago parcialmente
+                const valorAtualParcAcordo = Math.round((parseFloat(parc.valor_atual)) * 100) / 100;
+                const jaPagoParcAcordo     = Math.round((parseFloat(parc.valor_pago || 0)) * 100) / 100;
+                const restoAtualAcordo     = Math.max(0, valorAtualParcAcordo - jaPagoParcAcordo);
+                const descontoAcordoP      = Math.max(0, Math.round((restoAtualAcordo - valPago) * 100) / 100);
+
+                // Capital amortizado proporcionalmente a esta parcela
+                const { data: parcsAbAcordo } = await supabase
+                    .from('parcelas').select('id')
+                    .eq('devedor_id', id).in('status', ['PENDENTE', 'ATRASADO', 'PARCIAL']);
+                const nParcsAcordo      = Math.max(1, parcsAbAcordo?.length || 1);
+                const capitalPorParc    = Math.round((capitalAtual / nParcsAcordo) * 100) / 100;
+                const novoCapitalAcordo = Math.max(0, Math.round((capitalAtual - capitalPorParc) * 100) / 100);
+
+                // Novo total: remove o saldo atual desta parcela do contrato
+                // (multa + desconto são absorvidos — não redistribuídos para as outras)
+                const novoTotalAcordo = Math.max(0, Math.round((totalAtual - restoAtualAcordo) * 100) / 100);
+
+                await supabase.from('logs').insert([{
+                    devedor_id:    parseInt(id),
+                    evento:        'Quitação de Parcela por Acordo',
+                    detalhes:      `[ACORDO] Parcela ${parc.numero_parcela}: recebido R$ ${valPago.toFixed(2)} de R$ ${restoAtualAcordo.toFixed(2)}. Desconto: R$ ${descontoAcordoP.toFixed(2)}.${observacoes ? ' OBS: ' + observacoes : ''}`,
+                    valor_fluxo:   valPago,
+                    valor_capital: Math.min(capitalPorParc, valPago),
+                    valor_juros:   Math.max(0, Math.round((valPago - capitalPorParc) * 100) / 100),
+                    created_at:    dataEnvioAcordoP
+                }]);
+
+                // Marca APENAS esta parcela como PAGA pelo valor_atual (saldo zerado na tela)
+                await supabase.from('parcelas')
+                    .update({ status: 'PAGA', valor_pago: valorAtualParcAcordo })
+                    .eq('id', parseInt(parcelaId));
+
+                const novoTotalJaPegoAcordoP = Math.round(((parseFloat(dev.total_ja_pego) || 0) + valPago) * 100) / 100;
+
+                if (novoTotalAcordo <= 0.10) {
+                    // Era a última parcela: encerra o contrato
+                    await supabase.from('devedores')
+                        .update({ valor_total: 0, valor_emprestado: 0, status: 'QUITADO', pago: true, total_ja_pego: novoTotalJaPegoAcordoP, ultima_cobranca_atraso: null })
+                        .eq('id', parseInt(id));
+                    await supabase.from('parcelas').update({ status: 'PAGA' })
+                        .eq('devedor_id', parseInt(id)).in('status', ['PENDENTE', 'ATRASADO', 'PARCIAL']);
+                } else {
+                    // Ainda há parcelas abertas: avança vencimento para a próxima
+                    const { data: proxParcAcordo } = await supabase.from('parcelas')
+                        .select('data_vencimento')
+                        .eq('devedor_id', id).in('status', ['PENDENTE', 'ATRASADO'])
+                        .neq('id', parseInt(parcelaId))
+                        .order('numero_parcela', { ascending: true }).limit(1).maybeSingle();
+                    const proxVencAcordo = novoVencimento || proxParcAcordo?.data_vencimento || dev.data_vencimento;
+                    const dtProxAcordo   = new Date(proxVencAcordo + 'T00:00:00-03:00');
+                    const hojeAcordo     = new Date(); hojeAcordo.setHours(0,0,0,0);
+                    const novoStAcordo   = dtProxAcordo > hojeAcordo ? 'ABERTO' : 'ATRASADO';
+                    await supabase.from('devedores')
+                        .update({ valor_total: novoTotalAcordo, valor_emprestado: novoCapitalAcordo, status: novoStAcordo, data_vencimento: proxVencAcordo, total_ja_pego: novoTotalJaPegoAcordoP })
+                        .eq('id', parseInt(id));
+                }
+
+                enviarConfirmacaoBaixa(dev.telefone, dev.nome, valPago, novoTotalAcordo, null, formaPagamento || 'PIX')
+                    .catch(e => console.warn('[ACORDO PARCELA] Falha WhatsApp:', e.message));
+
+                invalidarCacheFluxo();
+                return res.json({ sucesso: true });
+            }
+
+            // ACORDO CONTRATO INTEIRO (modo ACORDO em contrato simples, ou QUITACAO_TOTAL):
+            // Encerra o contrato pelo valor negociado, com ou sem desconto.
             const dataEnvioAcordo = dataRecebimento
                 ? (dataRecebimento.includes('T') ? dataRecebimento : `${dataRecebimento}T12:00:00-03:00`)
                 : new Date().toISOString();
@@ -1499,7 +1577,7 @@ app.post('/api/baixar-manual', async (req, res) => {
             // Encerra o contrato definitivamente
             const novoTotalJaPegoAcordo = Math.round(((parseFloat(dev.total_ja_pego) || 0) + valPago) * 100) / 100;
             await supabase.from('devedores')
-                .update({ valor_total: 0, valor_emprestado: 0, status: 'QUITADO', pago: true, total_ja_pego: novoTotalJaPegoAcordo })
+                .update({ valor_total: 0, valor_emprestado: 0, status: 'QUITADO', pago: true, total_ja_pego: novoTotalJaPegoAcordo, ultima_cobranca_atraso: null })
                 .eq('id', parseInt(id));
 
             // Marca todas as parcelas abertas como PAGA
@@ -1529,6 +1607,46 @@ app.post('/api/baixar-manual', async (req, res) => {
                 totalAtual   = Math.round((parseFloat(devAtualizado.valor_total)      || 0) * 100) / 100;
                 capitalAtual = Math.round((parseFloat(devAtualizado.valor_emprestado) || 0) * 100) / 100;
             }
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
+        // ── QUITAÇÃO TOTAL AUTOMÁTICA ────────────────────────────────────────
+        // Quando o valor pago cobre o saldo total restante, quita o contrato
+        // diretamente sem cancelar nem abater nas outras parcelas — apenas
+        // marca todas as parcelas abertas como PAGA.
+        if (valPago >= totalAtual - 0.10 && totalAtual > 0) {
+            const dataEnvioQuit = dataRecebimento
+                ? (dataRecebimento.includes('T') ? dataRecebimento : `${dataRecebimento}T12:00:00-03:00`)
+                : new Date().toISOString();
+            const capitalPagoQuit = Math.min(capitalAtual, valPago);
+            const jurosPagoQuit   = Math.max(0, Math.round((valPago - capitalAtual) * 100) / 100);
+
+            await supabase.from('logs').insert([{
+                devedor_id:    parseInt(id),
+                evento:        'Quitação Total',
+                detalhes:      `[${formaPagamento || 'PIX'}] Recebido R$ ${valPago.toFixed(2)} — contrato liquidado integralmente.${observacoes ? ' OBS: ' + observacoes : ''}`,
+                valor_fluxo:   valPago,
+                valor_capital: capitalPagoQuit,
+                valor_juros:   jurosPagoQuit,
+                created_at:    dataEnvioQuit
+            }]);
+
+            const novoTotalJaPegoQuit = Math.round(((parseFloat(dev.total_ja_pego) || 0) + valPago) * 100) / 100;
+            await supabase.from('devedores')
+                .update({ valor_total: 0, valor_emprestado: 0, status: 'QUITADO', pago: true, total_ja_pego: novoTotalJaPegoQuit, ultima_cobranca_atraso: null })
+                .eq('id', parseInt(id));
+
+            // Marca todas as parcelas abertas como PAGA — sem cancelar nenhuma
+            await supabase.from('parcelas')
+                .update({ status: 'PAGA' })
+                .eq('devedor_id', parseInt(id))
+                .in('status', ['PENDENTE', 'ATRASADO', 'PARCIAL']);
+
+            enviarConfirmacaoBaixa(dev.telefone, dev.nome, valPago, 0, null, formaPagamento || 'PIX')
+                .catch(e => console.warn('[QUITAÇÃO TOTAL] Falha WhatsApp:', e.message));
+
+            invalidarCacheFluxo();
+            return res.json({ sucesso: true });
         }
         // ─────────────────────────────────────────────────────────────────────
 
@@ -1693,7 +1811,9 @@ app.post('/api/baixar-manual', async (req, res) => {
         const proximoVencimentoReal = proximaParcela?.data_vencimento || null;
 
         if (saldoAtualizado <= 0.10) {
-            await supabase.from('devedores').update({ valor_total: 0, valor_emprestado: 0, status: 'QUITADO', pago: true }).eq('id', id);
+            await supabase.from('devedores').update({ valor_total: 0, valor_emprestado: 0, status: 'QUITADO', pago: true, ultima_cobranca_atraso: null }).eq('id', id);
+            // Marca as parcelas abertas restantes como PAGA para não ficarem presas em PENDENTE/ATRASADO
+            await supabase.from('parcelas').update({ status: 'PAGA' }).eq('devedor_id', id).in('status', ['PENDENTE', 'ATRASADO', 'PARCIAL']);
             await supabase.from('logs').insert([{ evento: 'Quitação Total', detalhes: 'Contrato liquidado com sucesso.', devedor_id: id }]);
         } else if (novoStatusParcela === 'PAGA') {
             // Parcela paga mas contrato ainda tem saldo → avança vencimento e
@@ -2730,9 +2850,6 @@ const rodarRoboCobranca = async () => {
         }
         // ─────────────────────────────────────────────────────────────────────
 
-        // Busca a taxa UMA VEZ antes do loop (evita N queries idênticas ao banco)
-        const taxaRobo = await buscarTaxaMultaDiaria();
-
         // ── PASSO 2: BUSCAR TODOS OS ATRASADOS (incluindo os recém-marcados) ─
         const { data: devedores, error } = await supabase
             .from('devedores')
@@ -2741,88 +2858,18 @@ const rodarRoboCobranca = async () => {
             .or(`ultima_cobranca_atraso.lt.${hoje},ultima_cobranca_atraso.is.null`);
         if (error) throw error;
 
-        const { data: confPix } = await supabase.from('config').select('valor').eq('chave', 'pix_avancado').maybeSingle();
+        // Busca a taxa UMA VEZ antes do loop (evita N queries idênticas ao banco)
+        const taxaRobo = await buscarTaxaMultaDiaria();
 
-        // Processa em lotes de 10 em paralelo (idempotência garante segurança)
-        const LOTE = 10;
-        for (let i = 0; i < (devedores || []).length; i += LOTE) {
-            await Promise.all(devedores.slice(i, i + LOTE).map(async (dev) => {
-                try {
-                    // 1. Aplica multa diária sobre o capital (passa taxaRobo para evitar N queries)
-                    if (financeService?.aplicarMultaDiaria) {
-                        await financeService.aplicarMultaDiaria(dev, hoje, taxaRobo);
-                    }
-
-                    // 2. Calcula dias em atraso a partir do vencimento original
-                    const dtVenc   = new Date(dev.data_vencimento + 'T00:00:00-03:00');
-                    const diasAtraso = Math.max(1, Math.floor((hojeDate - dtVenc) / (1000 * 60 * 60 * 24)));
-
-                    // 3. Busca saldo e parcelas atrasadas para montar o valor correto da mensagem
-                    const { data: devAtualizado } = await supabase
-                        .from('devedores')
-                        .select('valor_total, valor_emprestado, ultima_cobranca_atraso, isento_multa, status, data_vencimento')
-                        .eq('id', dev.id).single();
-
-                    // Guarda de segurança: o contrato pode ter sido pago enquanto o robô
-                    // processava o lote (race condition). Se status mudou para ABERTO/QUITADO,
-                    // não enviar cobrança.
-                    if (!devAtualizado || devAtualizado.status !== 'ATRASADO') return;
-
-                    const saldoTotalAtual = parseFloat(devAtualizado?.valor_total   || dev.valor_total);
-                    const capitalBase     = parseFloat(devAtualizado?.valor_emprestado || dev.valor_emprestado);
-
-                    // Multa total acumulada: capital × taxa × dias totais em atraso
-                    // Zerada para clientes isentos de multa
-                    const dtVencRobo = new Date((devAtualizado?.data_vencimento || dev.data_vencimento) + 'T00:00:00-03:00');
-                    const diasTotaisAtraso = Math.max(1, Math.floor((hojeDate - dtVencRobo) / (1000 * 60 * 60 * 24)));
-                    const isento = devAtualizado?.isento_multa || dev.isento_multa || false;
-                    const multaTotalAcum = (!isento && diasTotaisAtraso > 0)
-                        ? Math.round(capitalBase * taxaRobo * diasTotaisAtraso * 100) / 100
-                        : 0;
-
-                    // VALOR DA MENSAGEM:
-                    // Parcelado → soma só as parcelas vencidas + multa total sobre o capital
-                    // Simples   → saldo total do contrato (já correto)
-                    let saldoMensagem = saldoTotalAtual;
-                    if (dev.qtd_parcelas > 1) {
-                        const { data: parcsVenc } = await supabase
-                            .from('parcelas')
-                            .select('valor_original, valor_pago')
-                            .eq('devedor_id', dev.id)
-                            .in('status', ['ATRASADO', 'PENDENTE', 'PARCIAL'])
-                            .lte('data_vencimento', hoje);
-                        if (parcsVenc?.length > 0) {
-                            const saldoVencidas = parcsVenc.reduce((acc, p) =>
-                                acc + Math.max(0, parseFloat(p.valor_original) - parseFloat(p.valor_pago || 0)), 0);
-                            saldoMensagem = Math.round((saldoVencidas + multaTotalAcum) * 100) / 100;
-                        }
-                    }
-
-                    // 4. Escolhe chave PIX conforme configuração
-                    const pixDados = escolherPixInteligente(confPix?.valor, saldoMensagem);
-
-                    // 5. Dispara a mensagem escalonada com o valor correto
-                    if (!dev.cobrar_so_em_dinheiro || diasAtraso >= 25) {
-                        await enviarReguaCobranca(
-                            dev.telefone, dev.nome,
-                            saldoMensagem, capitalBase,
-                            diasAtraso,
-                            dev.cobrar_so_em_dinheiro ? null : pixDados,
-                            dev.referencia1_nome || null,
-                            multaTotalAcum,
-                            dev.data_vencimento
-                        );
-                    }
-
-                    // Anti-ban: pequena pausa após cada envio individual não é possível em paralelo,
-                    // mas o lote de 10 já espaça naturalmente. Se quiser pausa, use série.
-                } catch (errDev) {
-                    console.error(`[ROBÔ] Erro no devedor ${dev.id}:`, errDev.message);
+        // Aplica multa diária a cada devedor — sem envio de mensagem
+        for (const dev of (devedores || [])) {
+            try {
+                if (financeService?.aplicarMultaDiaria) {
+                    await financeService.aplicarMultaDiaria(dev, hoje, taxaRobo);
                 }
-            }));
-
-            // Pausa entre lotes para não sobrecarregar Z-API (10 mensagens de golpe)
-            if (i + LOTE < (devedores || []).length) await sleep(3500);
+            } catch (errDev) {
+                console.error(`[ROBÔ] Erro no devedor ${dev.id}:`, errDev.message);
+            }
         }
 
         console.log(`[ROBÔ] Multas + régua processadas em ${hoje}. Total: ${devedores?.length || 0}`);
@@ -2852,7 +2899,7 @@ const rodarRoboLembretes = async () => {
 
             const sucesso = await enviarLembreteVencimento(parc.telefone, parc.nome, valorAEnviar, parc.vencimento_parcela, null, textoContexto);
             if (sucesso) relatorioEnvio.push(parc.nome);
-            await sleep(3500); // Pausa anti-ban do WhatsApp
+            await sleep(5000); // Pausa anti-ban do WhatsApp
         }
         
         console.log(`[ROBÔ] ${relatorioEnvio.length} Lembretes enviados com sucesso.`);
