@@ -182,8 +182,8 @@ const escolherPixInteligente = (configPixString, valorCobranca) => {
         if (conf.modo === 'ALEATORIO') return conf.chaves[Math.floor(Math.random() * conf.chaves.length)];
         if (conf.modo === 'VALOR') {
             const limite = parseFloat(conf.regras.limite) || 0;
-            if (parseFloat(valorCobranca) < limite) return getChave(conf.regras.menor);
-            else return getChave(conf.regras.maior);
+            if (parseFloat(valorCobranca) < limite) return getChave(conf.regras.menor) || conf.chaves[0];
+            else return getChave(conf.regras.maior) || conf.chaves[0];
         }
         return conf.chaves[0]; 
     } catch(e) { return null; }
@@ -1537,7 +1537,7 @@ app.post('/api/baixar-manual', async (req, res) => {
                     // Ainda há parcelas abertas: avança vencimento para a próxima
                     const { data: proxParcAcordo } = await supabase.from('parcelas')
                         .select('data_vencimento')
-                        .eq('devedor_id', id).in('status', ['PENDENTE', 'ATRASADO'])
+                        .eq('devedor_id', id).in('status', ['PENDENTE', 'ATRASADO', 'PARCIAL'])
                         .neq('id', parseInt(parcelaId))
                         .order('numero_parcela', { ascending: true }).limit(1).maybeSingle();
                     const proxVencAcordo = novoVencimento || proxParcAcordo?.data_vencimento || dev.data_vencimento;
@@ -1545,7 +1545,7 @@ app.post('/api/baixar-manual', async (req, res) => {
                     const hojeAcordo     = new Date(); hojeAcordo.setHours(0,0,0,0);
                     const novoStAcordo   = dtProxAcordo > hojeAcordo ? 'ABERTO' : 'ATRASADO';
                     await supabase.from('devedores')
-                        .update({ valor_total: novoTotalAcordo, valor_emprestado: novoCapitalAcordo, status: novoStAcordo, data_vencimento: proxVencAcordo, total_ja_pego: novoTotalJaPegoAcordoP })
+                        .update({ valor_total: novoTotalAcordo, valor_emprestado: novoCapitalAcordo, status: novoStAcordo, data_vencimento: proxVencAcordo, total_ja_pego: novoTotalJaPegoAcordoP, ...(novoStAcordo === 'ABERTO' ? { ultima_cobranca_atraso: null } : {}) })
                         .eq('id', parseInt(id));
                 }
 
@@ -1589,6 +1589,7 @@ app.post('/api/baixar-manual', async (req, res) => {
             enviarConfirmacaoBaixa(dev.telefone, dev.nome, valPago, 0, null, formaPagamento || 'PIX')
                 .catch(e => console.warn('[ACORDO] Falha WhatsApp:', e.message));
 
+            invalidarCacheFluxo();
             return res.json({ sucesso: true });
         }
         // ─────────────────────────────────────────────────────────────────────
@@ -1649,6 +1650,14 @@ app.post('/api/baixar-manual', async (req, res) => {
             return res.json({ sucesso: true });
         }
         // ─────────────────────────────────────────────────────────────────────
+
+        // Variáveis compartilhadas entre bloco de pagamento e reestruturação
+        const hojeCheck = new Date(); hojeCheck.setHours(0,0,0,0);
+        let proximoVencimentoReal = null;
+
+        // Se não houve pagamento real (apenas reestruturação), pula DRE/RPC para não
+        // criar log com R$0 nem marcar parcela como PARCIAL desnecessariamente.
+        if (valPago > 0) {
 
         // ── DRE CORRETO: SEPARAR PARCELA ORIGINAL DA MULTA ───────────────────
         //
@@ -1717,7 +1726,6 @@ app.post('/api/baixar-manual', async (req, res) => {
 
         // Determina se o contrato estava atrasado (tem multa embutida no pagamento)
         const dataVencCheck = new Date(dev.data_vencimento + 'T00:00:00-03:00');
-        const hojeCheck     = new Date(); hojeCheck.setHours(0,0,0,0);
         const estaAtrasado  = dataVencCheck < hojeCheck;
 
         // Evento e detalhe diferenciados para o relatório classificar corretamente:
@@ -1773,9 +1781,9 @@ app.post('/api/baixar-manual', async (req, res) => {
                     await supabase.from('devedores').update({ valor_total: novoTotalDiff }).eq('id', id);
                 }
             } else {
-                // Parcela atual foi totalmente paga: ajusta a próxima PENDENTE
+                // Parcela atual foi totalmente paga: ajusta a próxima PENDENTE ou ATRASADA
                 const { data: proxParc } = await supabase.from('parcelas')
-                    .select('id, valor_atual').eq('devedor_id', id).eq('status', 'PENDENTE')
+                    .select('id, valor_atual').eq('devedor_id', id).in('status', ['PENDENTE', 'ATRASADO'])
                     .order('numero_parcela', { ascending: true }).limit(1).maybeSingle();
                 if (proxParc) {
                     const vAtualProx = Math.round((parseFloat(proxParc.valor_atual) || 0) * 100) / 100;
@@ -1799,7 +1807,15 @@ app.post('/api/baixar-manual', async (req, res) => {
             .order('numero_parcela', { ascending: true });
 
         let saldoAtualizado = 0;
-        parcAbertas?.forEach(p => saldoAtualizado += Math.max(0, parseFloat(p.valor_atual) - parseFloat(p.valor_pago || 0)));
+        parcAbertas?.forEach(p => {
+            if (p.status !== 'PAGA') {
+                saldoAtualizado += Math.max(0, parseFloat(p.valor_atual) - parseFloat(p.valor_pago || 0));
+            }
+        });
+        // Usa o maior entre a soma das parcelas abertas e o novoValorTotal do RPC.
+        // Garante que multa pendente não seja perdida quando o operador paga só o
+        // valor original (sem multa): nesse caso saldoAtualizado = 0 mas novoValorTotal > 0.
+        const saldoFinalEfetivo = Math.max(saldoAtualizado, novoValorTotal);
 
         // Próxima parcela pendente — usada para avançar o vencimento do contrato
         // e para informar a data correta na mensagem de confirmação.
@@ -1808,9 +1824,9 @@ app.post('/api/baixar-manual', async (req, res) => {
         const proximaParcela = parcAbertas?.find(
             p => ['PENDENTE', 'ATRASADO', 'PARCIAL'].includes(p.status)
         );
-        const proximoVencimentoReal = proximaParcela?.data_vencimento || null;
+        proximoVencimentoReal = proximaParcela?.data_vencimento || null;
 
-        if (saldoAtualizado <= 0.10) {
+        if (saldoFinalEfetivo <= 0.10) {
             await supabase.from('devedores').update({ valor_total: 0, valor_emprestado: 0, status: 'QUITADO', pago: true, ultima_cobranca_atraso: null }).eq('id', id);
             // Marca as parcelas abertas restantes como PAGA para não ficarem presas em PENDENTE/ATRASADO
             await supabase.from('parcelas').update({ status: 'PAGA' }).eq('devedor_id', id).in('status', ['PENDENTE', 'ATRASADO', 'PARCIAL']);
@@ -1832,7 +1848,7 @@ app.post('/api/baixar-manual', async (req, res) => {
                 .update({
                     data_vencimento: dataVencFinal,
                     status: novoStatusContrato,
-                    valor_total: Math.round(saldoAtualizado * 100) / 100
+                    valor_total: Math.round(saldoFinalEfetivo * 100) / 100
                 })
                 .eq('id', id);
 
@@ -1848,18 +1864,23 @@ app.post('/api/baixar-manual', async (req, res) => {
             const dtProxParcial = new Date(novoVencimento + 'T00:00:00-03:00');
             const novoStatusContratoP = dtProxParcial > hojeCheck ? 'ABERTO' : 'ATRASADO';
             await supabase.from('devedores')
-                .update({ data_vencimento: novoVencimento, status: novoStatusContratoP })
+                .update({ data_vencimento: novoVencimento, status: novoStatusContratoP, valor_total: Math.round(saldoFinalEfetivo * 100) / 100 })
                 .eq('id', id);
             await supabase.from('parcelas')
                 .update({ data_vencimento: novoVencimento })
                 .eq('id', parseInt(parcelaId));
+        } else if (novoStatusParcela === 'PARCIAL') {
+            // PARCIAL sem data agendada — reconcilia valor_total com a soma real das parcelas
+            await supabase.from('devedores')
+                .update({ valor_total: Math.round(saldoFinalEfetivo * 100) / 100 })
+                .eq('id', id);
         }
 
         // MENSAGEM WHATSAPP — bifurca conforme o tipo de baixa:
         //   PARCIAL + data agendada → confirma parcial e informa agendamento do restante
         //   PARCIAL sem data        → confirmação simples com saldo restante
         //   PAGA (integral)         → confirmação com próximo vencimento real
-        const novoSaldoFinal = saldoAtualizado <= 0.10 ? 0 : Math.round(saldoAtualizado * 100) / 100;
+        const novoSaldoFinal = saldoFinalEfetivo <= 0.10 ? 0 : Math.round(saldoFinalEfetivo * 100) / 100;
 
         if (novoStatusParcela === 'PARCIAL') {
             // Calcula quanto ainda falta pagar nesta parcela específica
@@ -1895,7 +1916,9 @@ app.post('/api/baixar-manual', async (req, res) => {
             ).catch(e => console.warn('[CONFIRM BAIXA] Falha WhatsApp:', e.message));
         }
 
-        // ── RECÁLCULO MANUAL DE ESTRUTURA (pós-pagamento) ────────────────────
+        } // fim do bloco if (valPago > 0)
+
+        // ── RECÁLCULO MANUAL DE ESTRUTURA (pós-pagamento ou reestruturação pura) ──
         const ajuste = ajuste_;         // declarado no início da rota para evitar TDZ
         const novaTaxaPct = novaTaxaPct_; // idem
 
@@ -2891,13 +2914,18 @@ const rodarRoboLembretes = async () => {
         const strHoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(hoje);
         const strAmanha = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(amanha);
 
+        // Busca config de PIX uma única vez antes do loop (evita N queries idênticas ao banco)
+        const { data: confPixLembrete } = await supabase.from('config').select('valor').eq('chave', 'pix_avancado').maybeSingle();
+
         const { data: parcelas } = await supabase.from('vw_cobranca_ativa_parcelas').select('*').in('vencimento_parcela', [strHoje, strAmanha]);
 
         for (const parc of (parcelas || [])) {
             const valorAEnviar = (parseFloat(parc.valor_atual) - parseFloat(parc.valor_pago || 0)).toFixed(2);
             const textoContexto = parc.vencimento_parcela === strAmanha ? `Sua parcela vence amanhã!` : `Sua parcela vence *hoje*!`;
+            // Inclui PIX na mensagem, exceto para contratos marcados como "só em dinheiro"
+            const pixDadosLembrete = parc.cobrar_so_em_dinheiro ? null : escolherPixInteligente(confPixLembrete?.valor, valorAEnviar);
 
-            const sucesso = await enviarLembreteVencimento(parc.telefone, parc.nome, valorAEnviar, parc.vencimento_parcela, null, textoContexto);
+            const sucesso = await enviarLembreteVencimento(parc.telefone, parc.nome, valorAEnviar, parc.vencimento_parcela, pixDadosLembrete, textoContexto);
             if (sucesso) relatorioEnvio.push(parc.nome);
             await sleep(5000); // Pausa anti-ban do WhatsApp
         }

@@ -1281,7 +1281,8 @@
             </div>
             
             <input type="hidden" id="pgtoDevedorId">
-            
+            <input type="hidden" id="pgtoParcelaId">
+
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
                     <p class="text-[9px] font-black uppercase text-slate-500">Dias em Atraso</p>
@@ -1301,76 +1302,170 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="space-y-4">
-                    <div class="bg-emerald-900/10 border border-emerald-500/20 p-4 rounded-xl">
-                        <label class="text-[10px] font-black uppercase text-emerald-500 block mb-2">Valor Recebido (R$)</label>
-                        <input type="text" id="pgtoValor" class="input-dark font-black text-emerald-400 text-4xl h-20 w-full text-center shadow-inner" placeholder="0,00" oninput="mascaraMonetaria(this)">
-                        
-                        <div class="mt-4 p-3 bg-slate-900 rounded-lg border border-slate-800 text-center">
-                            <p class="text-[10px] text-slate-400 uppercase font-bold">Multa por Atraso (acumulada)</p>
-                            <p id="pgtoMinimoJuros" class="text-lg text-orange-400 font-black mt-1">R$ 0,00</p>
+            <!-- Alerta: parcela com pagamento parcial anterior -->
+            <div id="alertParcelaParcial" class="hidden mb-4 p-3 bg-amber-900/30 border border-amber-500/50 rounded-xl">
+                <p class="text-[10px] font-black text-amber-400 uppercase">⚠ Parcela com Pagamento Anterior Registrado</p>
+                <p id="alertParcelaParcialTexto" class="text-[9px] text-amber-200/80 mt-1 leading-relaxed"></p>
+            </div>
+
+            <!-- Linha: Valor Recebido + Forma + Data -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+                <div class="md:col-span-2 bg-emerald-900/10 border border-emerald-500/20 p-4 rounded-xl">
+                    <label class="text-[10px] font-black uppercase text-emerald-500 block mb-2">Valor Recebido (R$)</label>
+                    <input type="text" id="pgtoValor" class="input-dark font-black text-emerald-400 text-4xl h-20 w-full text-center shadow-inner" placeholder="0,00" oninput="mascaraMonetaria(this); atualizarPreviewBaixa()">
+                    <div class="mt-3 flex gap-3">
+                        <div class="flex-1 p-2 bg-slate-900 rounded-lg border border-slate-800 text-center">
+                            <p class="text-[9px] text-slate-400 uppercase font-bold">Multa Acumulada</p>
+                            <p id="pgtoMinimoJuros" class="text-base text-orange-400 font-black mt-0.5">R$ 0,00</p>
+                        </div>
+                        <div id="previewBaixa" class="hidden flex-1 p-2 rounded-lg border text-center">
+                            <p id="previewBaixaTexto" class="text-xs font-black leading-tight"></p>
+                            <p id="previewBaixaDetalhe" class="text-[9px] mt-0.5"></p>
                         </div>
                     </div>
                 </div>
-
-                <div class="bg-slate-800/30 border border-slate-700 p-5 rounded-2xl space-y-4">
-
-                    <!-- Tipo de Baixa -->
-                    <div class="bg-slate-900/60 border border-slate-600 p-3 rounded-xl">
-                        <label class="text-[10px] font-black uppercase text-slate-400 ml-1 block mb-2">Tipo de Baixa</label>
-                        <select id="pgtoModoBaixa" class="input-dark text-xs font-bold text-white" onchange="onModoBaixaChange()">
-                            <option value="PADRAO">Pagamento de Parcela</option>
-                            <option value="ACORDO">Quitação de Parcela (com desconto)</option>
-                            <option value="QUITACAO_TOTAL">Quitar Contrato Todo (com desconto)</option>
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-[10px] font-black uppercase text-slate-400 block mb-1">Forma de Pagamento</label>
+                        <select id="pgtoForma" class="input-dark text-sm font-bold text-white">
+                            <option value="DINHEIRO">Dinheiro (Espécie)</option>
+                            <option value="CONTA">PIX / Transferência</option>
                         </select>
-                        <p id="desc-padrao" class="text-[8px] text-slate-400 mt-2 ml-1 leading-relaxed">Registra o recebimento e separa automaticamente capital, juros e multa no relatório. <strong class="text-slate-300">Se o cliente tem multa por atraso, inclua ela no valor acima.</strong></p>
-                        <div id="desc-acordo" class="hidden mt-2">
-                            <p class="text-[8px] text-slate-400 ml-1 leading-relaxed mb-2"><strong class="text-slate-300">Quitação de Parcela:</strong> quita só a parcela selecionada pelo valor digitado, registrando o desconto. As demais parcelas não são alteradas.<br><strong class="text-slate-300">Quitar Contrato Todo:</strong> encerra o contrato inteiro pelo valor digitado, quitando todas as parcelas de uma vez.</p>
-                            <div class="bg-amber-900/30 border border-amber-500/50 rounded-xl p-3">
-                                <p class="text-[10px] font-black text-amber-400 uppercase">⚠ Atenção</p>
-                                <p class="text-[9px] text-amber-200/80 mt-1">A diferença entre o valor digitado e o saldo fica registrada como desconto concedido no extrato.</p>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black uppercase text-slate-400 block mb-1">Data do Recebimento</label>
+                        <input type="date" id="pgtoDataRecebimento" class="input-dark text-sm font-bold text-white">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hidden input — valor definido pelos cartões abaixo -->
+            <input type="hidden" id="pgtoModoBaixa" value="PADRAO">
+
+            <!-- ════════════════════════════════════════════════════
+                 CARTÕES DE AÇÃO — O que fazer com este pagamento?
+                 ════════════════════════════════════════════════════ -->
+            <p class="text-[10px] font-black uppercase text-slate-400 mb-2">O Que Fazer com Este Pagamento?</p>
+            <div class="space-y-2">
+
+                <!-- ── CARTÃO 1: Pagar Normalmente ── -->
+                <div id="card-acao-padrao" onclick="selecionarAcao('PADRAO')"
+                     class="cursor-pointer rounded-xl border p-4 transition-all select-none border-slate-600 bg-slate-900/30">
+                    <div class="flex items-start gap-3">
+                        <span class="text-xl mt-0.5 shrink-0">💳</span>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <p class="text-sm font-black text-emerald-400">Pagar Normalmente</p>
+                                <span id="card-padrao-badge" class="hidden text-[8px] bg-emerald-500 text-black font-black px-2 py-0.5 rounded-full uppercase">✓ Selecionado</span>
+                            </div>
+                            <p class="text-[9px] text-slate-400 mt-0.5 leading-relaxed">
+                                Registra o recebimento. Se o valor cobrir a parcela inteira, ela é quitada.
+                                Se for a menos, a parcela continua em aberto — configure o restante abaixo.
+                            </p>
+                            <!-- Sub-seção parcial: aparece quando o valor não cobre a parcela -->
+                            <div id="card-parcial-sub" class="hidden mt-3 pt-3 border-t border-slate-700">
+                                <p class="text-[9px] font-black text-orange-300 mb-2">⚠ Pagamento Parcial — <span id="cardParcialSubtitulo" class="font-normal text-slate-400"></span></p>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="text-[9px] font-bold text-orange-300 block mb-1">📅 Data para cobrar o restante:</label>
+                                        <input type="date" id="pgtoNovoVencimento" class="input-dark text-xs" onclick="event.stopPropagation()">
+                                        <p class="text-[8px] text-slate-500 mt-1">Em branco = combinar depois. Pausa multa.</p>
+                                    </div>
+                                    <div>
+                                        <label class="text-[9px] font-bold text-orange-300 block mb-1">💰 Valor combinado para o restante:</label>
+                                        <input type="text" id="pgtoProximaParcela" class="input-dark text-xs font-bold text-orange-200" placeholder="Ex: 400,00"
+                                               oninput="mascaraMonetaria(this); calcularPreviewRecalculo()" onclick="event.stopPropagation()">
+                                        <p class="text-[8px] text-slate-500 mt-1">Em branco = valor original.</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Forma de Pagamento -->
-                    <div>
-                        <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Forma de Pagamento</label>
-                        <select id="pgtoForma" class="input-dark mt-1 text-sm font-bold text-white">
-                            <option value="DINHEIRO">Dinheiro Vivo (Espécie)</option>
-                            <option value="CONTA">PIX / Transferência Bancária</option>
-                        </select>
-                    </div>
-
-                    <!-- Data do Recebimento -->
-                    <div>
-                        <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Data do Recebimento</label>
-                        <input type="date" id="pgtoDataRecebimento" class="input-dark mt-1 text-sm font-bold text-white">
+                <!-- ── CARTÃO 2: Fechar Esta Parcela com Desconto ── -->
+                <div id="card-acao-acordo" onclick="selecionarAcao('ACORDO')"
+                     class="cursor-pointer rounded-xl border p-4 transition-all select-none border-slate-600 bg-slate-900/30">
+                    <div class="flex items-start gap-3">
+                        <span class="text-xl mt-0.5 shrink-0">🤝</span>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <p class="text-sm font-black text-amber-400">Fechar Esta Parcela (com Desconto)</p>
+                                <span id="card-acordo-badge" class="hidden text-[8px] bg-amber-500 text-black font-black px-2 py-0.5 rounded-full uppercase">✓ Selecionado</span>
+                            </div>
+                            <p class="text-[9px] text-slate-400 mt-0.5 leading-relaxed">
+                                Quita <strong class="text-slate-300">somente esta parcela</strong> pelo valor digitado,
+                                mesmo que seja menor. O desconto fica registrado no extrato.
+                                <strong class="text-slate-300">As demais parcelas não mudam.</strong>
+                            </p>
+                            <div id="card-acordo-info" class="hidden mt-2 p-2 bg-amber-900/20 border border-amber-500/30 rounded-lg">
+                                <p id="card-acordo-desconto" class="text-[9px] text-amber-300 font-bold"></p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- ── SEÇÃO: Negociar Próximo Pagamento (só aparece no modo PADRAO) ── -->
-            <div id="secao-proximo-pgto" class="mt-5 bg-purple-900/10 border border-purple-500/30 p-4 rounded-xl">
-                <p class="text-[10px] font-black uppercase text-purple-400 mb-1">Negociar Próximo Pagamento</p>
-                <p class="text-[8px] text-slate-400 mb-3 leading-relaxed">
-                    Quando recebe menos que o total da parcela (pagamento parcial). Configure o próximo acerto:
-                    <strong class="text-slate-300">somente esta parcela muda, as demais ficam iguais.</strong>
-                </p>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                        <label class="text-[9px] font-bold text-purple-300 ml-1 block mb-1">Agendar próximo pagamento para:</label>
-                        <input type="date" id="pgtoNovoVencimento" class="input-dark text-xs">
-                        <p class="text-[8px] text-slate-500 mt-1 ml-1">Pausa a multa até esta data.</p>
-                    </div>
-                    <div>
-                        <label class="text-[9px] font-bold text-purple-300 ml-1 block mb-1">Valor combinado para o próximo pagamento (R$):</label>
-                        <input type="text" id="pgtoProximaParcela" class="input-dark text-xs font-bold text-purple-200" placeholder="Ex: 400,00" oninput="mascaraMonetaria(this); calcularPreviewRecalculo()">
-                        <p class="text-[8px] text-slate-500 mt-1 ml-1">Em branco = mantém o valor original da parcela.</p>
+                <!-- ── CARTÃO 3: Quitar Contrato Inteiro ── -->
+                <div id="card-acao-quitar-tudo" onclick="selecionarAcao('QUITACAO_TOTAL')"
+                     class="cursor-pointer rounded-xl border p-4 transition-all select-none border-slate-600 bg-slate-900/30">
+                    <div class="flex items-start gap-3">
+                        <span class="text-xl mt-0.5 shrink-0">📋</span>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <p class="text-sm font-black text-blue-400">Quitar Contrato Inteiro</p>
+                                <span id="card-quitartudo-badge" class="hidden text-[8px] bg-blue-500 text-white font-black px-2 py-0.5 rounded-full uppercase">✓ Selecionado</span>
+                            </div>
+                            <p class="text-[9px] text-slate-400 mt-0.5 leading-relaxed">
+                                Encerra o contrato completo pelo valor digitado.
+                                <strong class="text-slate-300">Todas as parcelas são fechadas de uma vez.</strong>
+                                O desconto (se houver) fica registrado no extrato.
+                            </p>
+                            <div id="card-quitartudo-info" class="hidden mt-2 p-2 bg-blue-900/20 border border-blue-500/30 rounded-lg">
+                                <p id="card-quitartudo-desconto" class="text-[9px] text-blue-300 font-bold"></p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
+
+                <!-- ── CARTÃO 4: Renegociar Contrato ── -->
+                <div id="card-acao-renegociar" onclick="selecionarAcao('RENEGOCIAR')"
+                     class="cursor-pointer rounded-xl border p-4 transition-all select-none border-slate-600 bg-slate-900/30">
+                    <div class="flex items-start gap-3">
+                        <span class="text-xl mt-0.5 shrink-0">🔄</span>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <p class="text-sm font-black text-purple-400">Renegociar Contrato</p>
+                                <span id="card-renegociar-badge" class="hidden text-[8px] bg-purple-500 text-white font-black px-2 py-0.5 rounded-full uppercase">✓ Selecionado</span>
+                            </div>
+                            <p class="text-[9px] text-slate-400 mt-0.5 leading-relaxed">
+                                Registra o pagamento e <strong class="text-slate-300">reestrutura o contrato</strong>:
+                                ajuste o saldo, mude o número de parcelas, altere a taxa.
+                                Gera novas parcelas a partir do próximo vencimento.
+                            </p>
+                            <!-- Sub-seção de renegociação -->
+                            <div id="card-renegociar-sub" class="hidden mt-3 pt-3 border-t border-slate-700" onclick="event.stopPropagation()">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <input type="number" id="pgtoAjuste" class="input-dark text-xs col-span-2"
+                                           placeholder="Ajustar Saldo Total (ex: -200 para dar R$200 de desconto)"
+                                           oninput="calcularPreviewRecalculo()">
+                                    <input type="number" id="pgtoNovoParcelamento" class="input-dark text-xs"
+                                           placeholder="Novo nº de Parcelas"
+                                           oninput="calcularPreviewRecalculo()">
+                                    <input type="number" id="pgtoNovaTaxa" class="input-dark text-xs"
+                                           placeholder="Nova Taxa de Multa (%)"
+                                           oninput="calcularPreviewRecalculo()">
+                                </div>
+                                <div id="previewRecalculo" class="hidden mt-2 bg-purple-900/20 border border-purple-500/30 rounded-xl p-3 text-center">
+                                    <p class="text-[9px] font-black uppercase text-purple-400 mb-1">Resultado após Renegociação</p>
+                                    <p class="text-[10px] text-slate-300">Novo Saldo Total: <span id="previewNovoSaldo" class="font-bold text-white"></span></p>
+                                    <p class="text-[10px] text-slate-300 mt-0.5">Valor de Cada Nova Parcela: <span id="previewNovaParcela" class="font-bold text-emerald-400 text-sm"></span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!-- /cartões -->
 
             <!-- Observações -->
             <div class="mt-4">
@@ -1378,26 +1473,7 @@
                 <input type="text" id="pgtoObs" class="input-dark mt-1 text-sm" placeholder="Ex: Pagou R$500 agora, combinado R$300 no dia 20...">
             </div>
 
-            <!-- ── SEÇÃO: Reestruturação Completa (só aparece no modo PADRAO) ── -->
-            <div id="secao-reestruturacao" class="mt-4 pt-4 border-t border-slate-700">
-                <p class="text-[10px] font-black uppercase text-blue-400 mb-1">Reestruturação Completa do Contrato</p>
-                <p class="text-[8px] text-slate-400 mb-3 leading-relaxed">
-                    Para renegociar o contrato inteiro. Ajuste o saldo total, mude o número de parcelas ou a taxa.
-                    <strong class="text-slate-300">Gera novas parcelas do zero</strong> a partir do próximo vencimento.
-                </p>
-                <div class="grid grid-cols-2 gap-2">
-                    <input type="number" id="pgtoAjuste" class="input-dark text-xs col-span-2" placeholder="Ajustar Saldo (ex: -200 para dar R$200 de desconto no total da dívida)" oninput="calcularPreviewRecalculo()">
-                    <input type="number" id="pgtoNovoParcelamento" class="input-dark text-xs" placeholder="Novo nº de Parcelas" oninput="calcularPreviewRecalculo()">
-                    <input type="number" id="pgtoNovaTaxa" class="input-dark text-xs" placeholder="Nova Taxa de Multa (%)" oninput="calcularPreviewRecalculo()">
-                </div>
-                <div id="previewRecalculo" class="hidden mt-2 bg-blue-900/20 border border-blue-500/30 rounded-xl p-3 text-center">
-                    <p class="text-[9px] font-black uppercase text-blue-400 mb-1">Resultado com Novos Termos</p>
-                    <p class="text-[10px] text-slate-300">Novo Saldo Total: <span id="previewNovoSaldo" class="font-bold text-white"></span></p>
-                    <p class="text-[10px] text-slate-300 mt-0.5">Valor de Cada Nova Parcela: <span id="previewNovaParcela" class="font-bold text-emerald-400 text-sm"></span></p>
-                </div>
-            </div>
-
-            <button onclick="confirmarPagamento()" id="btnConfirmarBaixa" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-5 rounded-xl font-black uppercase text-sm shadow-lg shadow-emerald-500/20 mt-8 transition-all"><i class="fa-solid fa-check-double mr-2"></i> Confirmar Baixa</button>
+            <button onclick="confirmarPagamento()" id="btnConfirmarBaixa" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-5 rounded-xl font-black uppercase text-sm shadow-lg shadow-emerald-500/20 mt-6 transition-all"><i class="fa-solid fa-check-double mr-2"></i> Confirmar Baixa</button>
         </div>
     </div>
 
@@ -2529,8 +2605,29 @@ function renderizarAberto(lista) {
     document.getElementById('pgtoProximaParcela').value = '';
     document.getElementById('pgtoModoBaixa').value = 'PADRAO';
     document.getElementById('previewRecalculo').classList.add('hidden');
-    window._saldoParaRecalculo = saldoTotalProjetado;
-    onModoBaixaChange();
+    window._saldoParaRecalculo   = saldoTotalProjetado;
+    window._saldoTotalContrato   = saldoTotalProjetado;
+    window._restoOriginalParcela = Math.max(0, valOriginal - jaPago); // falta sem multa
+    window._valorAtualRestante   = faltaNestaParcela; // falta COM multa (igual ao backend)
+    window._faltaNestaParcela    = faltaNestaParcela;
+    window._statusParcelaAtual   = parc.status_parcela;
+    window._jaPagoParcela        = jaPago;
+    window._qtdParcelasContrato  = parseInt(parc.qtd_parcelas) || 1;
+
+    // Alerta de parcela parcial anterior
+    const alertParcialEl = document.getElementById('alertParcelaParcial');
+    if (parc.status_parcela === 'PARCIAL' && jaPago > 0.01) {
+        const restoSemMulta = Math.max(0, valOriginal - jaPago);
+        document.getElementById('alertParcelaParcialTexto').innerHTML =
+            `Já foi recebido <strong class="text-amber-300">R$ ${jaPago.toFixed(2).replace('.', ',')}</strong> desta parcela. ` +
+            `Para quitá-la faltam <strong class="text-amber-300">R$ ${restoSemMulta.toFixed(2).replace('.', ',')}</strong>` +
+            (multaTotal > 0 ? ` + <span class="text-red-300">R$ ${multaTotal.toFixed(2).replace('.', ',')} de multa</span>.` : '.');
+        alertParcialEl.classList.remove('hidden');
+    } else {
+        alertParcialEl.classList.add('hidden');
+    }
+
+    selecionarAcao('PADRAO'); // inicializa cartões e preview
 
     // Garante que o botão esteja sempre limpo ao abrir o modal para qualquer cliente
     const btnBaixa = document.getElementById('btnConfirmarBaixa');
@@ -2610,7 +2707,7 @@ function renderizarAberto(lista) {
     const id = document.getElementById('pgtoDevedorId').value; 
     const v = parseMoeda(document.getElementById('pgtoValor').value);
 
-    if (!v && v !== 0 && !document.getElementById('pgtoAjuste').value && !document.getElementById('pgtoNovaTaxa').value) {
+    if (!v && v !== 0 && !document.getElementById('pgtoAjuste').value && !document.getElementById('pgtoNovaTaxa').value && !document.getElementById('pgtoNovoParcelamento').value) {
         return showToast("Preencha um valor recebido ou um ajuste de estrutura.", "error");
     }
     if (v < 0) {
@@ -2750,14 +2847,127 @@ function renderizarAberto(lista) {
         // =====================================
         // CLIENTES, EXTRATO E GARANTIAS
         // =====================================
-        function onModoBaixaChange() {
-            const modo = document.getElementById('pgtoModoBaixa').value;
-            const isAcordoOuTotal = modo === 'ACORDO' || modo === 'QUITACAO_TOTAL';
-            document.getElementById('desc-padrao').classList.toggle('hidden', isAcordoOuTotal);
-            document.getElementById('desc-acordo').classList.toggle('hidden', !isAcordoOuTotal);
-            document.getElementById('secao-proximo-pgto').classList.toggle('hidden', isAcordoOuTotal);
-            document.getElementById('secao-reestruturacao').classList.toggle('hidden', isAcordoOuTotal);
+        // ─── CARTÕES DE AÇÃO ─────────────────────────────────────────────────────
+        function selecionarAcao(modo) {
+            window._acaoSelecionada = modo;
+            document.getElementById('pgtoModoBaixa').value = (modo === 'RENEGOCIAR') ? 'PADRAO' : modo;
+
+            const cartoes = [
+                { id: 'card-acao-padrao',      m: 'PADRAO',         badge: 'card-padrao-badge',
+                  ativo: ['border-emerald-500', 'bg-emerald-900/20'] },
+                { id: 'card-acao-acordo',      m: 'ACORDO',         badge: 'card-acordo-badge',
+                  ativo: ['border-amber-500',   'bg-amber-900/20']   },
+                { id: 'card-acao-quitar-tudo', m: 'QUITACAO_TOTAL', badge: 'card-quitartudo-badge',
+                  ativo: ['border-blue-500',    'bg-blue-900/20']    },
+                { id: 'card-acao-renegociar',  m: 'RENEGOCIAR',     badge: 'card-renegociar-badge',
+                  ativo: ['border-purple-500',  'bg-purple-900/20']  }
+            ];
+            cartoes.forEach(({ id, m, badge, ativo }) => {
+                const el = document.getElementById(id);
+                const b  = document.getElementById(badge);
+                if (!el) return;
+                if (m === modo) {
+                    el.classList.remove('border-slate-600', 'bg-slate-900/30');
+                    ativo.forEach(c => el.classList.add(c));
+                    b?.classList.remove('hidden');
+                } else {
+                    ativo.forEach(c => el.classList.remove(c));
+                    el.classList.add('border-slate-600', 'bg-slate-900/30');
+                    b?.classList.add('hidden');
+                }
+            });
+            // Sub-seção de renegociação: só expande no cartão selecionado
+            document.getElementById('card-renegociar-sub')?.classList.toggle('hidden', modo !== 'RENEGOCIAR');
+            atualizarPreviewBaixa();
         }
+
+        // ─── PREVIEW DINÂMICO DE BAIXA ───────────────────────────────────────────
+        function onModoBaixaChange() { atualizarPreviewBaixa(); } // stub legado
+
+        function atualizarPreviewBaixa() {
+            const modo           = window._acaoSelecionada || 'PADRAO';
+            const valPago        = parseMoeda(document.getElementById('pgtoValor').value) || 0;
+            const previewDiv     = document.getElementById('previewBaixa');
+            const cardParcialSub = document.getElementById('card-parcial-sub');
+            const textoEl        = document.getElementById('previewBaixaTexto');
+            const detalheEl      = document.getElementById('previewBaixaDetalhe');
+
+            previewDiv.classList.add('hidden');
+            cardParcialSub?.classList.add('hidden');
+            if (!valPago || valPago <= 0) return;
+
+            const restoOriginal = window._restoOriginalParcela || 0;
+            const jaPago        = window._jaPagoParcela        || 0;
+            const statusAtual   = window._statusParcelaAtual   || 'PENDENTE';
+            const saldoTotal    = window._saldoTotalContrato   || restoOriginal;
+            const isPagaIntegral = restoOriginal <= 0.01 || valPago >= restoOriginal - 0.10;
+
+            previewDiv.classList.remove('hidden');
+
+            if (modo === 'PADRAO') {
+                if (isPagaIntegral) {
+                    previewDiv.className = 'flex-1 p-2 rounded-lg border text-center bg-emerald-900/30 border-emerald-500/50';
+                    textoEl.innerHTML    = '✅ Parcela <strong>QUITADA</strong>';
+                    textoEl.className    = 'text-xs font-black text-emerald-400 leading-tight';
+                    detalheEl.innerHTML  = (statusAtual === 'PARCIAL' && jaPago > 0.01)
+                        ? `<span class="text-slate-500">R$ ${jaPago.toFixed(2).replace('.', ',')} + R$ ${valPago.toFixed(2).replace('.', ',')}</span>` : '';
+                    detalheEl.className  = 'text-[9px] mt-0.5';
+                } else {
+                    const faltaReal = Math.max(0, restoOriginal - valPago);
+                    previewDiv.className = 'flex-1 p-2 rounded-lg border text-center bg-orange-900/30 border-orange-500/50';
+                    textoEl.innerHTML    = '⚠️ PARCIAL';
+                    textoEl.className    = 'text-xs font-black text-orange-400 leading-tight';
+                    detalheEl.innerHTML  = `<span class="text-slate-400">Falta R$ ${faltaReal.toFixed(2).replace('.', ',')}</span>`;
+                    detalheEl.className  = 'text-[9px] mt-0.5';
+                    cardParcialSub?.classList.remove('hidden');
+                    const sub = document.getElementById('cardParcialSubtitulo');
+                    if (sub) sub.textContent = `R$ ${valPago.toFixed(2).replace('.', ',')} agora — falta R$ ${faltaReal.toFixed(2).replace('.', ',')}`;
+                }
+            } else if (modo === 'ACORDO') {
+                const baseAcordo = window._valorAtualRestante || restoOriginal; // usa valor com multa (igual ao backend)
+                const desconto = Math.max(0, baseAcordo - valPago);
+                previewDiv.className = 'flex-1 p-2 rounded-lg border text-center bg-amber-900/30 border-amber-500/50';
+                textoEl.innerHTML    = '🤝 Parcela <strong>FECHADA</strong>';
+                textoEl.className    = 'text-xs font-black text-amber-400 leading-tight';
+                detalheEl.innerHTML  = desconto > 0.01
+                    ? `<span class="text-slate-400">Desconto: R$ ${desconto.toFixed(2).replace('.', ',')}</span>` : '';
+                detalheEl.className  = 'text-[9px] mt-0.5';
+                const info = document.getElementById('card-acordo-info');
+                const desc = document.getElementById('card-acordo-desconto');
+                if (info && desc) {
+                    if (desconto > 0.01) {
+                        desc.textContent = `Desconto: R$ ${desconto.toFixed(2).replace('.', ',')} (de R$ ${baseAcordo.toFixed(2).replace('.', ',')} → R$ ${valPago.toFixed(2).replace('.', ',')})`;
+                        info.classList.remove('hidden');
+                    } else {
+                        info.classList.add('hidden');
+                    }
+                }
+            } else if (modo === 'QUITACAO_TOTAL') {
+                const desconto = Math.max(0, saldoTotal - valPago);
+                previewDiv.className = 'flex-1 p-2 rounded-lg border text-center bg-blue-900/30 border-blue-500/50';
+                textoEl.innerHTML    = '📋 Contrato <strong>QUITADO</strong>';
+                textoEl.className    = 'text-xs font-black text-blue-400 leading-tight';
+                detalheEl.innerHTML  = desconto > 0.01
+                    ? `<span class="text-slate-400">Desconto: R$ ${desconto.toFixed(2).replace('.', ',')}</span>`
+                    : `<span class="text-slate-400">Saldo: R$ ${saldoTotal.toFixed(2).replace('.', ',')}</span>`;
+                detalheEl.className  = 'text-[9px] mt-0.5';
+                const info = document.getElementById('card-quitartudo-info');
+                const desc = document.getElementById('card-quitartudo-desconto');
+                if (info && desc) {
+                    desc.textContent = desconto > 0.01
+                        ? `Desconto: R$ ${desconto.toFixed(2).replace('.', ',')} — recebido R$ ${valPago.toFixed(2).replace('.', ',')} de R$ ${saldoTotal.toFixed(2).replace('.', ',')}`
+                        : `Saldo total coberto: R$ ${valPago.toFixed(2).replace('.', ',')}`;
+                    info.classList.remove('hidden');
+                }
+            } else if (modo === 'RENEGOCIAR') {
+                previewDiv.className = 'flex-1 p-2 rounded-lg border text-center bg-purple-900/30 border-purple-500/50';
+                textoEl.innerHTML    = '🔄 Reestruturado';
+                textoEl.className    = 'text-xs font-black text-purple-400 leading-tight';
+                detalheEl.innerHTML  = `<span class="text-slate-400">R$ ${valPago.toFixed(2).replace('.', ',')} recebido</span>`;
+                detalheEl.className  = 'text-[9px] mt-0.5';
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────────────
 
         function calcularPreviewRecalculo() {
             const saldo = window._saldoParaRecalculo || 0;
