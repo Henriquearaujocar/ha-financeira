@@ -866,9 +866,13 @@ app.post('/api/aprovar-solicitacao', async (req, res) => {
 
         const linkAceite = `${APP_URL}/aceitar.html?id=${devUuid}`;
         let whatsappEnviado = false;
-        try { 
+        try {
             const valorDaParcela = parcelasFinais > 1 ? (valorTotal / parcelasFinais) : valorTotal;
-            await enviarAprovacaoComTermos(payload.telefone, payload.nome, valorFinal, parcelasFinais, freqFinal, valorDaParcela, linkAceite, isContraProposta);
+            const { data: parcelasGeradas } = await supabase.from('parcelas')
+                .select('numero_parcela, valor_original, data_vencimento')
+                .eq('devedor_id', devId).eq('status', 'PENDENTE')
+                .order('numero_parcela', { ascending: true });
+            await enviarAprovacaoComTermos(payload.telefone, payload.nome, valorFinal, parcelasFinais, freqFinal, valorDaParcela, linkAceite, isContraProposta, parcelasGeradas || null);
             whatsappEnviado = true;
         } catch(e) {
             // CORREÇÃO: erro silenciado virou log + campo no response para o painel alertar o operador
@@ -1455,7 +1459,9 @@ app.get('/api/estatisticas-pagamento/:id', async (req, res) => {
 
 app.post('/api/baixar-manual', async (req, res) => {
     const { id, parcelaId, valorPago, formaPagamento, observacoes, dataRecebimento, novoVencimento, modoBaixa,
-            recalculoAjuste, recalculoTaxa, recalculoParcelas } = req.body;
+            recalculoAjuste, recalculoTaxa, recalculoParcelas, jurosParcial,
+            renegValor, renegTaxa, renegQtdParcelas, renegVencimento,
+            reagendarData, zerarMultaTudo, valorDescontoMulta } = req.body;
     if (!parcelaId) return res.status(400).json({ erro: "ID da parcela não foi enviado." });
 
     // Trava por parcelaId: impede duplo processamento da mesma parcela em paralelo
@@ -1591,6 +1597,198 @@ app.post('/api/baixar-manual', async (req, res) => {
 
             invalidarCacheFluxo();
             return res.json({ sucesso: true });
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
+        // ── RENEGOCIAR PARCELA ESPECÍFICA ─────────────────────────────────────
+        // Renegocia APENAS a parcela selecionada, sem tocar nas demais do contrato.
+        // Cancela a parcela atual e gera novas parcelas com o valor/juros definidos.
+        if (modoBaixa === 'RENEGOCIAR_PARCELA') {
+            if (!renegVencimento) return res.status(400).json({ erro: "Informe o primeiro vencimento para a renegociação." });
+
+            const valorAtualParc  = Math.round((parseFloat(parc.valor_atual)      || 0) * 100) / 100;
+            const valorJaPagoParc = Math.round((parseFloat(parc.valor_pago  || 0)) * 100) / 100;
+            const restanteParc    = Math.max(0, valorAtualParc - valorJaPagoParc);
+
+            // Usa o valor informado pelo admin ou o restante atual da parcela
+            const baseReneg       = (renegValor != null && parseFloat(renegValor) > 0)
+                ? Math.round(parseFloat(renegValor) * 100) / 100
+                : restanteParc;
+            const taxaReneg       = (renegTaxa != null && parseFloat(renegTaxa) > 0) ? parseFloat(renegTaxa) / 100 : 0;
+            const totalComJuros   = Math.round((baseReneg * (1 + taxaReneg)) * 100) / 100;
+            const qtdNovas        = Math.max(1, renegQtdParcelas ? parseInt(renegQtdParcelas) : 1);
+            const valorPorNova    = Math.round((totalComJuros / qtdNovas) * 100) / 100;
+
+            // Cancela a parcela atual
+            await supabase.from('parcelas').update({ status: 'CANCELADA' }).eq('id', parseInt(parcelaId));
+
+            // Descobre o próximo número de parcela disponível
+            const { data: maxParc } = await supabase.from('parcelas')
+                .select('numero_parcela').eq('devedor_id', id)
+                .order('numero_parcela', { ascending: false }).limit(1).maybeSingle();
+            let proxNumero = (maxParc?.numero_parcela || 0) + 1;
+
+            // Cria as novas parcelas renegociadas
+            const novasInsert = [];
+            let dtReneg = new Date(renegVencimento + 'T12:00:00-03:00');
+            for (let i = 0; i < qtdNovas; i++) {
+                novasInsert.push({
+                    devedor_id:      parseInt(id),
+                    numero_parcela:  proxNumero + i,
+                    valor_original:  valorPorNova,
+                    valor_atual:     valorPorNova,
+                    data_vencimento: new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(dtReneg),
+                    status:          'PENDENTE'
+                });
+                dtReneg.setMonth(dtReneg.getMonth() + 1);
+            }
+            await supabase.from('parcelas').insert(novasInsert);
+
+            // Atualiza valor_total do contrato: remove o restante desta parcela, adiciona o novo total com juros
+            const diferencaObrigacao = Math.round((totalComJuros - restanteParc) * 100) / 100;
+            const novoTotalReneg     = Math.max(0, Math.round((totalAtual + diferencaObrigacao) * 100) / 100);
+            const hojeReneg          = new Date(); hojeReneg.setHours(0, 0, 0, 0);
+            const dtRenegCheck       = new Date(renegVencimento + 'T00:00:00-03:00');
+            const novoStatusReneg    = dtRenegCheck > hojeReneg ? 'ABERTO' : 'ATRASADO';
+
+            await supabase.from('devedores').update({
+                valor_total:     novoTotalReneg,
+                data_vencimento: renegVencimento,
+                status:          novoStatusReneg,
+                qtd_parcelas:    (parseInt(dev.qtd_parcelas) || 1) - 1 + qtdNovas,
+                ...(novoStatusReneg === 'ABERTO' ? { ultima_cobranca_atraso: null } : {})
+            }).eq('id', parseInt(id));
+
+            await supabase.from('logs').insert([{
+                devedor_id: parseInt(id),
+                evento:     'Renegociação de Parcela',
+                detalhes:   `[RENEGOCIAÇÃO] Parcela ${parc.numero_parcela} cancelada → ${qtdNovas}x R$ ${valorPorNova.toFixed(2)} (taxa ${(taxaReneg * 100).toFixed(1)}%). Total renegociado: R$ ${totalComJuros.toFixed(2)}.${observacoes ? ' OBS: ' + observacoes : ''}`,
+                valor_fluxo: 0
+            }]);
+
+            // Notifica o cliente via WhatsApp
+            try {
+                const dtRenegFmt    = new Date(renegVencimento + 'T12:00:00Z').toLocaleDateString('pt-BR');
+                const valorPorNovaFmt = Number(valorPorNova).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                const confPixReneg  = (await supabase.from('config').select('valor').eq('chave', 'pix_avancado').maybeSingle()).data;
+                const pixDadosReneg = dev.cobrar_so_em_dinheiro ? null : escolherPixInteligente(confPixReneg?.valor, valorPorNovaFmt);
+                let msgReneg = `📋 *CMS VENTURES — RENEGOCIAÇÃO DE PARCELA*\n\nOlá ${dev.nome}!\n\nSua parcela foi renegociada. Confira o novo plano:\n\n`;
+                msgReneg += `• ${qtdNovas}x de *R$ ${valorPorNovaFmt}*\n`;
+                msgReneg += `• Primeiro vencimento: *${dtRenegFmt}*\n\n`;
+                if (pixDadosReneg?.chave) {
+                    msgReneg += `🏦 *PIX:* ${pixDadosReneg.chave}\n\n`;
+                }
+                msgReneg += `_Qualquer dúvida, é só responder aqui!_`;
+                enviarZap(dev.telefone, msgReneg).catch(e => console.warn('[RENEGOCIAÇÃO] WhatsApp:', e.message));
+            } catch (e) { console.warn('[RENEGOCIAÇÃO] Falha WhatsApp:', e.message); }
+
+            invalidarCacheFluxo();
+            return res.json({ sucesso: true });
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
+        // ── REAGENDAR PARCELA ─────────────────────────────────────────────────
+        // Muda somente a data de vencimento desta parcela, sem nenhum recebimento.
+        // Atualiza também o vencimento do contrato para a menor data entre as parcelas abertas.
+        if (modoBaixa === 'REAGENDAR') {
+            if (!reagendarData) return res.status(400).json({ erro: "Informe a nova data de vencimento." });
+
+            const hojeReag   = new Date(); hojeReag.setHours(0, 0, 0, 0);
+            const dtNovaReag = new Date(reagendarData + 'T00:00:00-03:00');
+            const novoStReag = dtNovaReag > hojeReag ? 'PENDENTE' : 'ATRASADO';
+
+            await supabase.from('parcelas')
+                .update({ data_vencimento: reagendarData, status: novoStReag })
+                .eq('id', parseInt(parcelaId));
+
+            // Vencimento do contrato = menor data entre as parcelas abertas após o reagendamento
+            const { data: proxAberta } = await supabase.from('parcelas')
+                .select('data_vencimento')
+                .eq('devedor_id', id)
+                .in('status', ['PENDENTE', 'ATRASADO', 'PARCIAL'])
+                .order('data_vencimento', { ascending: true })
+                .limit(1).maybeSingle();
+
+            const novoVencContrato   = proxAberta?.data_vencimento || reagendarData;
+            const dtContrato         = new Date(novoVencContrato + 'T00:00:00-03:00');
+            const novoStContrato     = dtContrato > hojeReag ? 'ABERTO' : 'ATRASADO';
+
+            await supabase.from('devedores').update({
+                data_vencimento: novoVencContrato,
+                status:          novoStContrato,
+                ...(novoStContrato === 'ABERTO' ? { ultima_cobranca_atraso: null } : {})
+            }).eq('id', parseInt(id));
+
+            await supabase.from('logs').insert([{
+                devedor_id: parseInt(id),
+                evento:     'Reagendamento de Parcela',
+                detalhes:   `[REAGENDAMENTO] Parcela ${parc.numero_parcela}: nova data ${reagendarData}. Antes: ${parc.data_vencimento}.${observacoes ? ' OBS: ' + observacoes : ''}`,
+                valor_fluxo: 0
+            }]);
+
+            // Notifica o cliente via WhatsApp
+            try {
+                const dtReagFmt = new Date(reagendarData + 'T12:00:00Z').toLocaleDateString('pt-BR');
+                const valorFmtReag = Number(Math.max(0, parseFloat(parc.valor_atual || 0) - parseFloat(parc.valor_pago || 0))).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                const confPix = (await supabase.from('config').select('valor').eq('chave', 'pix_avancado').maybeSingle()).data;
+                const pixDadosReag = dev.cobrar_so_em_dinheiro ? null : escolherPixInteligente(confPix?.valor, valorFmtReag);
+                let msgReag = `📅 *CMS VENTURES — REAGENDAMENTO DE PARCELA*\n\nOlá ${dev.nome}!\n\nInformamos que o vencimento da sua parcela foi reagendado para *${dtReagFmt}*.\n\nValor: *R$ ${valorFmtReag}*\n\n`;
+                if (pixDadosReag?.chave) {
+                    msgReag += `🏦 *PIX:* ${pixDadosReag.chave}\n\n`;
+                }
+                msgReag += `_Qualquer dúvida, é só responder aqui!_`;
+                enviarZap(dev.telefone, msgReag).catch(e => console.warn('[REAGENDAMENTO] WhatsApp:', e.message));
+            } catch (e) { console.warn('[REAGENDAMENTO] Falha WhatsApp:', e.message); }
+
+            invalidarCacheFluxo();
+            return res.json({ sucesso: true });
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
+        // ── ABATER MULTA DA PARCELA ───────────────────────────────────────────
+        // Remove parte ou toda a multa acumulada nesta parcela específica,
+        // sem exigir recebimento de pagamento.
+        if (modoBaixa === 'DESCONTO_MULTA') {
+            const valorAtualP  = Math.round((parseFloat(parc.valor_atual)           || 0) * 100) / 100;
+            const valorOrigP   = Math.round((parseFloat(parc.valor_original || parc.valor_atual) || 0) * 100) / 100;
+            const valorJaPagoP = Math.round((parseFloat(parc.valor_pago     || 0)) * 100) / 100;
+            const multaAcumP   = Math.max(0, Math.round((valorAtualP - valorOrigP - valorJaPagoP) * 100) / 100);
+
+            if (multaAcumP <= 0.01) {
+                return res.status(400).json({ erro: "Não há multa acumulada nesta parcela para abater." });
+            }
+
+            let descontoAplicar;
+            if (zerarMultaTudo) {
+                descontoAplicar = multaAcumP;
+            } else {
+                const valDesc = valorDescontoMulta ? Math.round(parseFloat(valorDescontoMulta) * 100) / 100 : 0;
+                if (!valDesc || valDesc <= 0) return res.status(400).json({ erro: "Informe o valor a abater." });
+                descontoAplicar = Math.min(valDesc, multaAcumP);
+            }
+
+            const novoValorP   = Math.round((valorAtualP - descontoAplicar) * 100) / 100;
+            const novoTotalCtP = Math.max(0, Math.round((totalAtual - descontoAplicar) * 100) / 100);
+
+            await supabase.from('parcelas').update({ valor_atual: novoValorP }).eq('id', parseInt(parcelaId));
+            await supabase.from('devedores').update({ valor_total: novoTotalCtP }).eq('id', parseInt(id));
+
+            await supabase.from('logs').insert([{
+                devedor_id:  parseInt(id),
+                evento:      'Abatimento de Multa',
+                detalhes:    `[DESCONTO MULTA] Parcela ${parc.numero_parcela}: abatimento de R$ ${descontoAplicar.toFixed(2)}. Valor: R$ ${valorAtualP.toFixed(2)} → R$ ${novoValorP.toFixed(2)}.${observacoes ? ' OBS: ' + observacoes : ''}`,
+                valor_fluxo: Math.round(-descontoAplicar * 100) / 100   // negativo = desconto dado
+            }]);
+
+            invalidarCacheFluxo();
+            return res.json({ sucesso: true });
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
+        // ── VALIDAÇÃO DE MODO DE BAIXA ────────────────────────────────────────
+        const modosBaixaValidos = ['PADRAO', 'ACORDO', 'QUITACAO_TOTAL', null, undefined, ''];
+        if (modoBaixa && !modosBaixaValidos.includes(modoBaixa)) {
+            return res.status(400).json({ erro: `Modo de baixa desconhecido: "${modoBaixa}". Recarregue a página.` });
         }
         // ─────────────────────────────────────────────────────────────────────
 
@@ -1794,6 +1992,31 @@ app.post('/api/baixar-manual', async (req, res) => {
                         const novoTotalDiff = Math.max(0, Math.round(((parseFloat(devDiff?.valor_total) || 0) + diff) * 100) / 100);
                         await supabase.from('devedores').update({ valor_total: novoTotalDiff }).eq('id', id);
                     }
+                }
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
+        // ── JUROS SOBRE RESTANTE DO PAGAMENTO PARCIAL ─────────────────────────
+        // Quando o admin define uma taxa de juros sobre o restante de uma parcela
+        // parcialmente paga, aplica o acréscimo no valor_atual da parcela e
+        // ajusta o valor_total do contrato proporcionalmente.
+        const jurosParcialPct = jurosParcial != null ? parseFloat(jurosParcial) : null;
+        if (jurosParcialPct !== null && !isNaN(jurosParcialPct) && jurosParcialPct > 0 && novoStatusParcela === 'PARCIAL') {
+            const { data: parcPosJuros } = await supabase.from('parcelas')
+                .select('valor_pago, valor_atual').eq('id', parseInt(parcelaId)).single();
+            if (parcPosJuros) {
+                const vPagoJ   = Math.round((parseFloat(parcPosJuros.valor_pago)  || 0) * 100) / 100;
+                const vAtualJ  = Math.round((parseFloat(parcPosJuros.valor_atual) || 0) * 100) / 100;
+                const restJ    = Math.max(0, vAtualJ - vPagoJ);
+                const restComJ = Math.round((restJ * (1 + jurosParcialPct / 100)) * 100) / 100;
+                const novoVJ   = Math.round((vPagoJ + restComJ) * 100) / 100;
+                const diffJ    = Math.round((novoVJ - vAtualJ) * 100) / 100;
+                if (diffJ !== 0) {
+                    await supabase.from('parcelas').update({ valor_atual: novoVJ }).eq('id', parseInt(parcelaId));
+                    const { data: devDiffJ } = await supabase.from('devedores').select('valor_total').eq('id', id).single();
+                    const novoTotalJ = Math.max(0, Math.round(((parseFloat(devDiffJ?.valor_total) || 0) + diffJ) * 100) / 100);
+                    await supabase.from('devedores').update({ valor_total: novoTotalJ }).eq('id', id);
                 }
             }
         }
@@ -2253,10 +2476,14 @@ app.post('/api/reenviar-aceite', async (req, res) => {
 
         const linkAceite = `${APP_URL}/aceitar.html?id=${dev.uuid}`;
         const valorParcela = dev.qtd_parcelas > 1 ? (dev.valor_total / dev.qtd_parcelas) : dev.valor_total;
-        
+        const { data: parcelasReenvio } = await supabase.from('parcelas')
+            .select('numero_parcela, valor_original, data_vencimento')
+            .eq('devedor_id', devedor_id).eq('status', 'PENDENTE')
+            .order('numero_parcela', { ascending: true });
+
         await enviarAprovacaoComTermos(
             dev.telefone, dev.nome, dev.valor_emprestado,
-            dev.qtd_parcelas, dev.frequencia, valorParcela, linkAceite, false
+            dev.qtd_parcelas, dev.frequencia, valorParcela, linkAceite, false, parcelasReenvio || null
         );
 
         await supabase.from('logs').insert([{
@@ -2921,7 +3148,11 @@ const rodarRoboLembretes = async () => {
 
         for (const parc of (parcelas || [])) {
             const valorAEnviar = (parseFloat(parc.valor_atual) - parseFloat(parc.valor_pago || 0)).toFixed(2);
-            const textoContexto = parc.vencimento_parcela === strAmanha ? `Sua parcela vence amanhã!` : `Sua parcela vence *hoje*!`;
+            const valorFmtLembrete = Number(valorAEnviar).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const dataFmtLembrete  = new Date(parc.vencimento_parcela + 'T12:00:00Z').toLocaleDateString('pt-BR');
+            const textoContexto = parc.vencimento_parcela === strAmanha
+                ? `Sua parcela de *R$ ${valorFmtLembrete}* vence *amanhã (${dataFmtLembrete})*!`
+                : `Sua parcela de *R$ ${valorFmtLembrete}* vence *hoje (${dataFmtLembrete})*!`;
             // Inclui PIX na mensagem, exceto para contratos marcados como "só em dinheiro"
             const pixDadosLembrete = parc.cobrar_so_em_dinheiro ? null : escolherPixInteligente(confPixLembrete?.valor, valorAEnviar);
 

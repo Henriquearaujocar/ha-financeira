@@ -49,25 +49,33 @@ const enviarZap = async (numeroRecebido, mensagem) => {
 /**
  * APROVAÇÃO E CONTRAPROPOSTA TRANSPARENTE
  */
-const enviarAprovacaoComTermos = async (numero, nome, valor, parcelas, frequencia, valorParcela, linkAssinatura, isContraProposta = false) => {
+const enviarAprovacaoComTermos = async (numero, nome, valor, parcelas, frequencia, valorParcela, linkAssinatura, isContraProposta = false, parcelasDetalhadas = null) => {
     let msg = '';
-    
+
     if (isContraProposta) {
         msg = `Olá, ${nome}! 🤝\n\nA sua análise na *CMS Ventures* foi concluída. Não conseguimos liberar as condições originais, mas temos uma *CONTRAPROPOSTA* aprovada para você:\n\n`;
     } else {
         msg = `🎉 *Boas notícias, ${nome}!*\n\nA sua análise na *CMS Ventures* foi concluída e temos uma proposta aprovada para você:\n\n`;
     }
 
-    msg += `💰 *Valor Liberado:* R$ ${Number(valor).toFixed(2)}\n`;
-    
-    if (parcelas > 1) {
-        msg += `📅 *Plano:* ${parcelas}x de R$ ${Number(valorParcela).toFixed(2)} (${frequencia})\n\n`;
+    msg += `💰 *Valor Liberado:* R$ ${Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n\n`;
+
+    if (parcelasDetalhadas && parcelasDetalhadas.length > 0) {
+        msg += `📋 *Seu Plano de Pagamento Completo:*\n`;
+        parcelasDetalhadas.forEach((p) => {
+            const dtFmt = new Date(p.data_vencimento + 'T12:00:00Z').toLocaleDateString('pt-BR');
+            const valFmt = Number(p.valor_original).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+            msg += `• Parcela ${p.numero_parcela}/${parcelasDetalhadas.length} — *R$ ${valFmt}* — vence em *${dtFmt}*\n`;
+        });
+        msg += `\n`;
+    } else if (parcelas > 1) {
+        msg += `📅 *Plano:* ${parcelas}x de R$ ${Number(valorParcela).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${frequencia})\n\n`;
     } else {
         msg += `📅 *Plano:* Parcela Única em 30 Dias\n\n`;
     }
 
     msg += `Para ler os termos completos, assinar digitalmente e receber o seu PIX, acesse o portal abaixo:\n🔗 ${linkAssinatura}`;
-    
+
     return await enviarZap(numero, msg);
 };
 
@@ -204,7 +212,9 @@ const enviarReguaCobranca = async (numero, nome, valorAtualizado, capitalOrigina
  * Confirmação de pagamento recebido — disparada após cada baixa manual
  */
 const enviarConfirmacaoBaixa = async (numero, nome, valorPago, novoSaldo, proximoVencimento, formaPagamento = 'PIX') => {
-    const tagPgto    = formaPagamento === 'DINHEIRO' ? 'dinheiro em espécie' : 'PIX/transferência';
+    const tagPgto    = formaPagamento === 'DINHEIRO' ? 'dinheiro em espécie'
+                     : formaPagamento === 'CHEQUE'   ? 'cheque'
+                     : 'PIX/transferência';
     const valorFmt   = formatarMoedaZap(valorPago);
     const saldoFmt   = formatarMoedaZap(novoSaldo);
     const dataHoje   = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
@@ -266,7 +276,9 @@ const enviarResumoDiarioAdmin = async (numeroAdmin, dados) => {
  * para o restante — informa o cliente do que foi recebido e o que está pendente.
  */
 const enviarAgendamentoParcial = async (numero, nome, valorPago, valorRestante, dataAgendada, formaPagamento = 'PIX') => {
-    const tagPgto     = formaPagamento === 'DINHEIRO' ? 'dinheiro em espécie' : 'PIX/transferência';
+    const tagPgto     = formaPagamento === 'DINHEIRO' ? 'dinheiro em espécie'
+                      : formaPagamento === 'CHEQUE'   ? 'cheque'
+                      : 'PIX/transferência';
     const valorPagoFmt = formatarMoedaZap(valorPago);
     const restanteFmt  = formatarMoedaZap(valorRestante);
     const dataHoje     = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });

@@ -1330,6 +1330,7 @@
                         <select id="pgtoForma" class="input-dark text-sm font-bold text-white">
                             <option value="DINHEIRO">Dinheiro (Espécie)</option>
                             <option value="CONTA">PIX / Transferência</option>
+                            <option value="CHEQUE">Cheque</option>
                         </select>
                     </div>
                     <div>
@@ -1376,6 +1377,11 @@
                                         <input type="text" id="pgtoProximaParcela" class="input-dark text-xs font-bold text-orange-200" placeholder="Ex: 400,00"
                                                oninput="mascaraMonetaria(this); calcularPreviewRecalculo()" onclick="event.stopPropagation()">
                                         <p class="text-[8px] text-slate-500 mt-1">Em branco = valor original.</p>
+                                    </div>
+                                    <div class="col-span-2">
+                                        <label class="text-[9px] font-bold text-orange-300 block mb-1">📈 Juros sobre o restante (%):</label>
+                                        <input type="number" id="pgtoJurosParcial" class="input-dark text-xs font-bold text-orange-200" placeholder="Ex: 5 — deixe vazio para sem juros" step="0.1" min="0" onclick="event.stopPropagation()">
+                                        <p class="text-[8px] text-slate-500 mt-1">Será aplicado em cima do valor que ainda falta pagar nesta parcela.</p>
                                     </div>
                                 </div>
                             </div>
@@ -1427,38 +1433,125 @@
                     </div>
                 </div>
 
-                <!-- ── CARTÃO 4: Renegociar Contrato ── -->
+                <!-- ── CARTÃO 4: Renegociar Esta Parcela ── -->
                 <div id="card-acao-renegociar" onclick="selecionarAcao('RENEGOCIAR')"
                      class="cursor-pointer rounded-xl border p-4 transition-all select-none border-slate-600 bg-slate-900/30">
                     <div class="flex items-start gap-3">
                         <span class="text-xl mt-0.5 shrink-0">🔄</span>
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2">
-                                <p class="text-sm font-black text-purple-400">Renegociar Contrato</p>
+                                <p class="text-sm font-black text-purple-400">Renegociar Esta Parcela</p>
                                 <span id="card-renegociar-badge" class="hidden text-[8px] bg-purple-500 text-white font-black px-2 py-0.5 rounded-full uppercase">✓ Selecionado</span>
                             </div>
                             <p class="text-[9px] text-slate-400 mt-0.5 leading-relaxed">
-                                Registra o pagamento e <strong class="text-slate-300">reestrutura o contrato</strong>:
-                                ajuste o saldo, mude o número de parcelas, altere a taxa.
-                                Gera novas parcelas a partir do próximo vencimento.
+                                Renegocia <strong class="text-slate-300">somente esta parcela</strong>: define novo valor, aplica juros e divide em novas parcelas.
+                                <strong class="text-slate-300">As demais parcelas do contrato não mudam.</strong>
                             </p>
-                            <!-- Sub-seção de renegociação -->
+                            <!-- Sub-seção de renegociação de parcela -->
                             <div id="card-renegociar-sub" class="hidden mt-3 pt-3 border-t border-slate-700" onclick="event.stopPropagation()">
+                                <p class="text-[9px] text-slate-500 mb-2">Preencha os campos abaixo. O valor digitado recebido acima não é obrigatório para renegociar.</p>
                                 <div class="grid grid-cols-2 gap-2">
-                                    <input type="number" id="pgtoAjuste" class="input-dark text-xs col-span-2"
-                                           placeholder="Ajustar Saldo Total (ex: -200 para dar R$200 de desconto)"
-                                           oninput="calcularPreviewRecalculo()">
-                                    <input type="number" id="pgtoNovoParcelamento" class="input-dark text-xs"
-                                           placeholder="Novo nº de Parcelas"
-                                           oninput="calcularPreviewRecalculo()">
-                                    <input type="number" id="pgtoNovaTaxa" class="input-dark text-xs"
-                                           placeholder="Nova Taxa de Multa (%)"
-                                           oninput="calcularPreviewRecalculo()">
+                                    <div>
+                                        <label class="text-[9px] font-bold text-purple-300 block mb-1">💰 Novo valor desta parcela (R$):</label>
+                                        <input type="text" id="pgtoRenegValor" class="input-dark text-xs font-bold text-purple-200" placeholder="Em branco = valor atual"
+                                               oninput="mascaraMonetaria(this); calcularPreviewRenegParcela()" onclick="event.stopPropagation()">
+                                    </div>
+                                    <div>
+                                        <label class="text-[9px] font-bold text-purple-300 block mb-1">📈 Juros a aplicar (%):</label>
+                                        <input type="number" id="pgtoRenegTaxaParcela" class="input-dark text-xs" placeholder="Ex: 5" step="0.1" min="0"
+                                               oninput="calcularPreviewRenegParcela()" onclick="event.stopPropagation()">
+                                    </div>
+                                    <div>
+                                        <label class="text-[9px] font-bold text-purple-300 block mb-1">🔢 Dividir em quantas parcelas:</label>
+                                        <input type="number" id="pgtoRenegQtdParcelas" class="input-dark text-xs" placeholder="1 = parcela única" min="1"
+                                               oninput="calcularPreviewRenegParcela()" onclick="event.stopPropagation()">
+                                    </div>
+                                    <div>
+                                        <label class="text-[9px] font-bold text-purple-300 block mb-1">📅 Primeiro vencimento: <span class="text-red-400">*</span></label>
+                                        <input type="date" id="pgtoRenegVencimento" class="input-dark text-xs"
+                                               oninput="calcularPreviewRenegParcela()" onclick="event.stopPropagation()">
+                                    </div>
                                 </div>
-                                <div id="previewRecalculo" class="hidden mt-2 bg-purple-900/20 border border-purple-500/30 rounded-xl p-3 text-center">
-                                    <p class="text-[9px] font-black uppercase text-purple-400 mb-1">Resultado após Renegociação</p>
-                                    <p class="text-[10px] text-slate-300">Novo Saldo Total: <span id="previewNovoSaldo" class="font-bold text-white"></span></p>
-                                    <p class="text-[10px] text-slate-300 mt-0.5">Valor de Cada Nova Parcela: <span id="previewNovaParcela" class="font-bold text-emerald-400 text-sm"></span></p>
+                                <div id="previewRenegParcela" class="hidden mt-2 bg-purple-900/20 border border-purple-500/30 rounded-xl p-3 text-center">
+                                    <p class="text-[9px] font-black uppercase text-purple-400 mb-1">Resultado da Renegociação</p>
+                                    <p class="text-[10px] text-slate-300">Total com Juros: <span id="previewRenegTotal" class="font-bold text-white"></span></p>
+                                    <p class="text-[10px] text-slate-300 mt-0.5">Valor por Nova Parcela: <span id="previewRenegValorParc" class="font-bold text-emerald-400 text-sm"></span></p>
+                                </div>
+                                <!-- Campos ocultos mantidos para evitar erros de referência no JS legado -->
+                                <input type="hidden" id="pgtoAjuste" value="">
+                                <input type="hidden" id="pgtoNovaTaxa" value="">
+                                <input type="hidden" id="pgtoNovoParcelamento" value="">
+                                <div id="previewRecalculo" class="hidden"></div>
+                                <span id="previewNovoSaldo"></span><span id="previewNovaParcela"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── CARTÃO 5: Reagendar Esta Parcela ── -->
+                <div id="card-acao-reagendar" onclick="selecionarAcao('REAGENDAR')"
+                     class="cursor-pointer rounded-xl border p-4 transition-all select-none border-slate-600 bg-slate-900/30">
+                    <div class="flex items-start gap-3">
+                        <span class="text-xl mt-0.5 shrink-0">📅</span>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <p class="text-sm font-black text-cyan-400">Reagendar Esta Parcela</p>
+                                <span id="card-reagendar-badge" class="hidden text-[8px] bg-cyan-500 text-black font-black px-2 py-0.5 rounded-full uppercase">✓ Selecionado</span>
+                            </div>
+                            <p class="text-[9px] text-slate-400 mt-0.5 leading-relaxed">
+                                Muda a data de vencimento <strong class="text-slate-300">sem receber pagamento</strong>.
+                                Ideal quando o cliente pediu mais prazo ou houve um acordo de extensão.
+                                <strong class="text-slate-300">Valor da parcela não muda.</strong>
+                            </p>
+                            <div id="card-reagendar-sub" class="hidden mt-3 pt-3 border-t border-slate-700" onclick="event.stopPropagation()">
+                                <div class="grid grid-cols-1 gap-2">
+                                    <div>
+                                        <label class="text-[9px] font-bold text-cyan-300 block mb-1">📅 Nova data de vencimento: <span class="text-red-400">*</span></label>
+                                        <input type="date" id="pgtoReagendarData" class="input-dark text-sm font-bold" onclick="event.stopPropagation()">
+                                        <p class="text-[8px] text-slate-500 mt-1">O cliente será notificado via WhatsApp com a nova data.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── CARTÃO 6: Abater Multa ── -->
+                <div id="card-acao-desconto-multa" onclick="selecionarAcao('DESCONTO_MULTA')"
+                     class="cursor-pointer rounded-xl border p-4 transition-all select-none border-slate-600 bg-slate-900/30">
+                    <div class="flex items-start gap-3">
+                        <span class="text-xl mt-0.5 shrink-0">✂️</span>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <p class="text-sm font-black text-rose-400">Abater Multa desta Parcela</p>
+                                <span id="card-desconto-multa-badge" class="hidden text-[8px] bg-rose-500 text-white font-black px-2 py-0.5 rounded-full uppercase">✓ Selecionado</span>
+                            </div>
+                            <p class="text-[9px] text-slate-400 mt-0.5 leading-relaxed">
+                                Remove parte ou toda a <strong class="text-slate-300">multa acumulada</strong> nesta parcela,
+                                sem exigir pagamento. Ideal para cortesias ou quando o atraso foi erro do sistema.
+                            </p>
+                            <div id="card-desconto-multa-sub" class="hidden mt-3 pt-3 border-t border-slate-700" onclick="event.stopPropagation()">
+                                <div id="card-desconto-multa-info" class="mb-3 p-2 bg-rose-900/20 border border-rose-500/30 rounded-lg">
+                                    <p id="card-desconto-multa-texto" class="text-[9px] text-rose-300 font-bold"></p>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2 items-end">
+                                    <div>
+                                        <label class="text-[9px] font-bold text-rose-300 block mb-1">💸 Valor a abater (R$):</label>
+                                        <input type="text" id="pgtoDescontoMulta" class="input-dark text-xs font-bold text-rose-200" placeholder="Ex: 50,00"
+                                               oninput="mascaraMonetaria(this); atualizarPreviewDescontoMulta()" onclick="event.stopPropagation()">
+                                        <p class="text-[8px] text-slate-500 mt-1">Limitado à multa acumulada.</p>
+                                    </div>
+                                    <div>
+                                        <label class="flex items-center gap-2 cursor-pointer select-none bg-slate-900/50 px-3 py-2 rounded-lg border border-rose-500/30 hover:border-rose-400 transition-colors" onclick="event.stopPropagation()">
+                                            <input type="checkbox" id="pgtoZerarMulta" class="w-4 h-4 accent-rose-500 cursor-pointer" onclick="atualizarPreviewDescontoMulta()">
+                                            <span class="text-[9px] font-bold text-rose-300">Zerar toda a multa</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div id="previewDescontoMulta" class="hidden mt-2 bg-rose-900/20 border border-rose-500/30 rounded-xl p-3 text-center">
+                                    <p class="text-[9px] font-black uppercase text-rose-400 mb-1">Resultado do Abatimento</p>
+                                    <p class="text-[10px] text-slate-300">Parcela ficará em: <span id="previewDescontoValorFinal" class="font-bold text-white"></span></p>
+                                    <p class="text-[10px] text-slate-300 mt-0.5">Abatimento: <span id="previewDescontoValorAbat" class="font-bold text-rose-400"></span></p>
                                 </div>
                             </div>
                         </div>
@@ -2598,21 +2691,32 @@ function renderizarAberto(lista) {
     elAtraso.className   = diasAtraso > 0 ? 'text-sm font-black text-red-500 mt-1' : 'text-sm font-black text-emerald-500 mt-1';
 
     document.getElementById('pgtoObs').value = '';
-    document.getElementById('pgtoAjuste').value = '';
-    document.getElementById('pgtoNovaTaxa').value = '';
-    document.getElementById('pgtoNovoParcelamento').value = '';
     document.getElementById('pgtoNovoVencimento').value = '';
     document.getElementById('pgtoProximaParcela').value = '';
+    document.getElementById('pgtoJurosParcial').value = '';
+    document.getElementById('pgtoRenegValor').value = '';
+    document.getElementById('pgtoRenegTaxaParcela').value = '';
+    document.getElementById('pgtoRenegQtdParcelas').value = '';
+    document.getElementById('pgtoRenegVencimento').value = '';
+    document.getElementById('previewRenegParcela').classList.add('hidden');
+    document.getElementById('pgtoReagendarData').value = '';
+    document.getElementById('pgtoDescontoMulta').value = '';
+    document.getElementById('pgtoZerarMulta').checked = false;
+    document.getElementById('previewDescontoMulta').classList.add('hidden');
     document.getElementById('pgtoModoBaixa').value = 'PADRAO';
     document.getElementById('previewRecalculo').classList.add('hidden');
-    window._saldoParaRecalculo   = saldoTotalProjetado;
-    window._saldoTotalContrato   = saldoTotalProjetado;
-    window._restoOriginalParcela = Math.max(0, valOriginal - jaPago); // falta sem multa
-    window._valorAtualRestante   = faltaNestaParcela; // falta COM multa (igual ao backend)
-    window._faltaNestaParcela    = faltaNestaParcela;
-    window._statusParcelaAtual   = parc.status_parcela;
-    window._jaPagoParcela        = jaPago;
-    window._qtdParcelasContrato  = parseInt(parc.qtd_parcelas) || 1;
+    window._saldoParaRecalculo      = saldoTotalProjetado;
+    window._saldoTotalContrato      = saldoTotalProjetado;
+    window._restoOriginalParcela    = Math.max(0, valOriginal - jaPago); // falta sem multa
+    window._valorAtualRestante      = faltaNestaParcela; // falta COM multa (igual ao backend)
+    window._faltaNestaParcela       = faltaNestaParcela;
+    window._statusParcelaAtual      = parc.status_parcela;
+    window._jaPagoParcela           = jaPago;
+    window._qtdParcelasContrato     = parseInt(parc.qtd_parcelas) || 1;
+    // Multa acumulada nesta parcela = diferença entre valor_atual e valor_original (sem multa de contrato)
+    const valAtualParcBanco = parseFloat(parc.valor_atual || 0);
+    const valOrigParcBanco  = parseFloat(parc.valor_original || parc.valor_atual || 0);
+    window._multaAcumuladaParcela = Math.max(0, Math.round((valAtualParcBanco - valOrigParcBanco - jaPago) * 100) / 100);
 
     // Alerta de parcela parcial anterior
     const alertParcialEl = document.getElementById('alertParcelaParcial');
@@ -2707,8 +2811,19 @@ function renderizarAberto(lista) {
     const id = document.getElementById('pgtoDevedorId').value; 
     const v = parseMoeda(document.getElementById('pgtoValor').value);
 
-    if (!v && v !== 0 && !document.getElementById('pgtoAjuste').value && !document.getElementById('pgtoNovaTaxa').value && !document.getElementById('pgtoNovoParcelamento').value) {
-        return showToast("Preencha um valor recebido ou um ajuste de estrutura.", "error");
+    const modoAtualBaixa = document.getElementById('pgtoModoBaixa').value;
+    const modosSemValor  = ['RENEGOCIAR_PARCELA', 'REAGENDAR', 'DESCONTO_MULTA'];
+    if (!v && v !== 0 && !modosSemValor.includes(modoAtualBaixa)) {
+        return showToast("Preencha o valor recebido.", "error");
+    }
+    if (modoAtualBaixa === 'RENEGOCIAR_PARCELA' && !document.getElementById('pgtoRenegVencimento').value) {
+        return showToast("Informe o primeiro vencimento para a renegociação.", "error");
+    }
+    if (modoAtualBaixa === 'REAGENDAR' && !document.getElementById('pgtoReagendarData').value) {
+        return showToast("Informe a nova data de vencimento.", "error");
+    }
+    if (modoAtualBaixa === 'DESCONTO_MULTA' && !document.getElementById('pgtoZerarMulta').checked && !parseMoeda(document.getElementById('pgtoDescontoMulta').value)) {
+        return showToast("Informe o valor a abater ou marque 'Zerar toda a multa'.", "error");
     }
     if (v < 0) {
         return showToast("O valor recebido não pode ser negativo.", "error");
@@ -2733,11 +2848,19 @@ function renderizarAberto(lista) {
                 dataRecebimento: dataEnvioFinal,
                 formaPagamento: document.getElementById('pgtoForma').value,
                 observacoes: document.getElementById('pgtoObs').value,
-                recalculoAjuste: document.getElementById('pgtoAjuste').value ? parseFloat(document.getElementById('pgtoAjuste').value) : null,
-                recalculoTaxa: document.getElementById('pgtoNovaTaxa').value ? parseFloat(document.getElementById('pgtoNovaTaxa').value) : null,
-                recalculoParcelas: document.getElementById('pgtoNovoParcelamento').value ? parseInt(document.getElementById('pgtoNovoParcelamento').value) : null,
+                recalculoAjuste: null,
+                recalculoTaxa: null,
+                recalculoParcelas: null,
                 valorProximaParcela: document.getElementById('pgtoProximaParcela').value ? parseMoeda(document.getElementById('pgtoProximaParcela').value) : null,
                 novoVencimento: document.getElementById('pgtoNovoVencimento').value || null,
+                jurosParcial: document.getElementById('pgtoJurosParcial').value ? parseFloat(document.getElementById('pgtoJurosParcial').value) : null,
+                renegValor: document.getElementById('pgtoRenegValor').value ? parseMoeda(document.getElementById('pgtoRenegValor').value) : null,
+                renegTaxa: document.getElementById('pgtoRenegTaxaParcela').value ? parseFloat(document.getElementById('pgtoRenegTaxaParcela').value) : null,
+                renegQtdParcelas: document.getElementById('pgtoRenegQtdParcelas').value ? parseInt(document.getElementById('pgtoRenegQtdParcelas').value) : null,
+                renegVencimento: document.getElementById('pgtoRenegVencimento').value || null,
+                reagendarData: document.getElementById('pgtoReagendarData').value || null,
+                zerarMultaTudo: document.getElementById('pgtoZerarMulta').checked,
+                valorDescontoMulta: parseMoeda(document.getElementById('pgtoDescontoMulta').value) || null,
                 modoBaixa: document.getElementById('pgtoModoBaixa').value,
                 parcelaId: document.getElementById('pgtoParcelaId').value
             }) 
@@ -2850,17 +2973,21 @@ function renderizarAberto(lista) {
         // ─── CARTÕES DE AÇÃO ─────────────────────────────────────────────────────
         function selecionarAcao(modo) {
             window._acaoSelecionada = modo;
-            document.getElementById('pgtoModoBaixa').value = (modo === 'RENEGOCIAR') ? 'PADRAO' : modo;
+            document.getElementById('pgtoModoBaixa').value = (modo === 'RENEGOCIAR') ? 'RENEGOCIAR_PARCELA' : modo;
 
             const cartoes = [
-                { id: 'card-acao-padrao',      m: 'PADRAO',         badge: 'card-padrao-badge',
+                { id: 'card-acao-padrao',        m: 'PADRAO',         badge: 'card-padrao-badge',
                   ativo: ['border-emerald-500', 'bg-emerald-900/20'] },
-                { id: 'card-acao-acordo',      m: 'ACORDO',         badge: 'card-acordo-badge',
+                { id: 'card-acao-acordo',        m: 'ACORDO',         badge: 'card-acordo-badge',
                   ativo: ['border-amber-500',   'bg-amber-900/20']   },
-                { id: 'card-acao-quitar-tudo', m: 'QUITACAO_TOTAL', badge: 'card-quitartudo-badge',
+                { id: 'card-acao-quitar-tudo',   m: 'QUITACAO_TOTAL', badge: 'card-quitartudo-badge',
                   ativo: ['border-blue-500',    'bg-blue-900/20']    },
-                { id: 'card-acao-renegociar',  m: 'RENEGOCIAR',     badge: 'card-renegociar-badge',
-                  ativo: ['border-purple-500',  'bg-purple-900/20']  }
+                { id: 'card-acao-renegociar',    m: 'RENEGOCIAR',     badge: 'card-renegociar-badge',
+                  ativo: ['border-purple-500',  'bg-purple-900/20']  },
+                { id: 'card-acao-reagendar',     m: 'REAGENDAR',      badge: 'card-reagendar-badge',
+                  ativo: ['border-cyan-500',    'bg-cyan-900/20']    },
+                { id: 'card-acao-desconto-multa',m: 'DESCONTO_MULTA', badge: 'card-desconto-multa-badge',
+                  ativo: ['border-rose-500',    'bg-rose-900/20']    }
             ];
             cartoes.forEach(({ id, m, badge, ativo }) => {
                 const el = document.getElementById(id);
@@ -2876,8 +3003,22 @@ function renderizarAberto(lista) {
                     b?.classList.add('hidden');
                 }
             });
-            // Sub-seção de renegociação: só expande no cartão selecionado
+            // Sub-seções: só expande no cartão selecionado
             document.getElementById('card-renegociar-sub')?.classList.toggle('hidden', modo !== 'RENEGOCIAR');
+            document.getElementById('card-reagendar-sub')?.classList.toggle('hidden', modo !== 'REAGENDAR');
+            document.getElementById('card-desconto-multa-sub')?.classList.toggle('hidden', modo !== 'DESCONTO_MULTA');
+
+            // Mostra multa acumulada na sub-seção de abatimento
+            if (modo === 'DESCONTO_MULTA') {
+                const multaEl = document.getElementById('card-desconto-multa-texto');
+                const multaAcum = window._multaAcumuladaParcela || 0;
+                if (multaEl) {
+                    multaEl.textContent = multaAcum > 0.01
+                        ? `Multa acumulada nesta parcela: R$ ${multaAcum.toFixed(2).replace('.', ',')}`
+                        : '⚠ Não há multa acumulada nesta parcela — o valor já é o original.';
+                }
+            }
+
             atualizarPreviewBaixa();
         }
 
@@ -2894,7 +3035,8 @@ function renderizarAberto(lista) {
 
             previewDiv.classList.add('hidden');
             cardParcialSub?.classList.add('hidden');
-            if (!valPago || valPago <= 0) return;
+            const modoSemValor = ['RENEGOCIAR', 'REAGENDAR', 'DESCONTO_MULTA'];
+            if ((!valPago || valPago <= 0) && !modoSemValor.includes(modo)) return;
 
             const restoOriginal = window._restoOriginalParcela || 0;
             const jaPago        = window._jaPagoParcela        || 0;
@@ -2961,35 +3103,75 @@ function renderizarAberto(lista) {
                 }
             } else if (modo === 'RENEGOCIAR') {
                 previewDiv.className = 'flex-1 p-2 rounded-lg border text-center bg-purple-900/30 border-purple-500/50';
-                textoEl.innerHTML    = '🔄 Reestruturado';
+                textoEl.innerHTML    = '🔄 Parcela Renegociada';
                 textoEl.className    = 'text-xs font-black text-purple-400 leading-tight';
-                detalheEl.innerHTML  = `<span class="text-slate-400">R$ ${valPago.toFixed(2).replace('.', ',')} recebido</span>`;
+                detalheEl.innerHTML  = valPago > 0
+                    ? `<span class="text-slate-400">R$ ${valPago.toFixed(2).replace('.', ',')} recebido</span>`
+                    : `<span class="text-slate-500">Sem recebimento agora</span>`;
                 detalheEl.className  = 'text-[9px] mt-0.5';
+                previewDiv.classList.remove('hidden');
+            } else if (modo === 'REAGENDAR') {
+                const novaDataReag = document.getElementById('pgtoReagendarData').value;
+                previewDiv.className = 'flex-1 p-2 rounded-lg border text-center bg-cyan-900/30 border-cyan-500/50';
+                textoEl.innerHTML    = '📅 Reagendado';
+                textoEl.className    = 'text-xs font-black text-cyan-400 leading-tight';
+                detalheEl.innerHTML  = novaDataReag
+                    ? `<span class="text-slate-400">${new Date(novaDataReag + 'T12:00:00Z').toLocaleDateString('pt-BR')}</span>`
+                    : `<span class="text-slate-500">Selecione uma data</span>`;
+                detalheEl.className  = 'text-[9px] mt-0.5';
+                previewDiv.classList.remove('hidden');
+            } else if (modo === 'DESCONTO_MULTA') {
+                previewDiv.className = 'flex-1 p-2 rounded-lg border text-center bg-rose-900/30 border-rose-500/50';
+                textoEl.innerHTML    = '✂️ Multa Abatida';
+                textoEl.className    = 'text-xs font-black text-rose-400 leading-tight';
+                const multaAcum = window._multaAcumuladaParcela || 0;
+                detalheEl.innerHTML  = multaAcum > 0.01
+                    ? `<span class="text-slate-400">Multa: R$ ${multaAcum.toFixed(2).replace('.', ',')}</span>`
+                    : `<span class="text-slate-500">Sem multa acumulada</span>`;
+                detalheEl.className  = 'text-[9px] mt-0.5';
+                previewDiv.classList.remove('hidden');
             }
         }
         // ─────────────────────────────────────────────────────────────────────────
 
         function calcularPreviewRecalculo() {
-            const saldo = window._saldoParaRecalculo || 0;
-            const taxa = parseFloat(document.getElementById('pgtoNovaTaxa').value);
-            const parcelas = parseInt(document.getElementById('pgtoNovoParcelamento').value);
-            const ajuste = parseFloat(document.getElementById('pgtoAjuste').value) || 0;
+            // Legado — mantido para não quebrar chamadas dos campos pgtoProximaParcela
+        }
 
-            if (!taxa && !parcelas && !ajuste) {
-                document.getElementById('previewRecalculo').classList.add('hidden');
-                return;
-            }
+        function atualizarPreviewDescontoMulta() {
+            const zerarTudo  = document.getElementById('pgtoZerarMulta').checked;
+            const multaAcum  = window._multaAcumuladaParcela || 0;
+            const valInput   = parseMoeda(document.getElementById('pgtoDescontoMulta').value) || 0;
+            const desconto   = zerarTudo ? multaAcum : Math.min(valInput, multaAcum);
+            const prevDiv    = document.getElementById('previewDescontoMulta');
 
-            // Desconta o que está sendo pago agora para mostrar o saldo pós-pagamento real
-            const valorPagandoAgora = parseMoeda(document.getElementById('pgtoValor').value) || 0;
-            const novoSaldo = Math.max(0, saldo - valorPagandoAgora + ajuste);
-            const novasParcelas = Math.max(1, parcelas || 1);
-            // Parcela = saldo restante dividido igualmente (backend não aplica taxa sobre o saldo)
-            const novaParcela = novoSaldo / novasParcelas;
+            if (zerarTudo) document.getElementById('pgtoDescontoMulta').value = '';
 
-            document.getElementById('previewNovoSaldo').innerText = formatMoney(novoSaldo);
-            document.getElementById('previewNovaParcela').innerText = formatMoney(novaParcela);
-            document.getElementById('previewRecalculo').classList.remove('hidden');
+            if (desconto <= 0.01 || multaAcum <= 0.01) { prevDiv.classList.add('hidden'); return; }
+
+            const faltaAtual  = window._faltaNestaParcela || 0;
+            const novoValor   = Math.max(0, faltaAtual - desconto);
+            document.getElementById('previewDescontoValorFinal').innerText = formatMoney(novoValor);
+            document.getElementById('previewDescontoValorAbat').innerText  = '- ' + formatMoney(desconto);
+            prevDiv.classList.remove('hidden');
+        }
+
+        function calcularPreviewRenegParcela() {
+            const restante    = window._restoOriginalParcela || 0;
+            const valorInput  = document.getElementById('pgtoRenegValor').value;
+            const base        = valorInput ? (parseMoeda(valorInput) || restante) : restante;
+            const taxa        = parseFloat(document.getElementById('pgtoRenegTaxaParcela').value) || 0;
+            const qtd         = Math.max(1, parseInt(document.getElementById('pgtoRenegQtdParcelas').value) || 1);
+            const prevDiv     = document.getElementById('previewRenegParcela');
+
+            if (!base || base <= 0) { prevDiv.classList.add('hidden'); return; }
+
+            const totalComJuros  = Math.round((base * (1 + taxa / 100)) * 100) / 100;
+            const valorPorParcela = Math.round((totalComJuros / qtd) * 100) / 100;
+
+            document.getElementById('previewRenegTotal').innerText    = formatMoney(totalComJuros);
+            document.getElementById('previewRenegValorParc').innerText = formatMoney(valorPorParcela) + (qtd > 1 ? ` × ${qtd}` : '');
+            prevDiv.classList.remove('hidden');
         }
 
         function abrirExtratoListagem(cpfOuBusca) {
