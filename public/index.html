@@ -2586,7 +2586,7 @@ function renderizarAberto(lista) {
                     <p class="text-xs font-black text-orange-400">${formatMoney(valorExibir)}</p>
                 </div>
             </div>
-            <div class="flex gap-2">
+            <div class="flex gap-2 relative">
                 <button onclick="prepararPagamento('${p.devedor_id}', '${p.parcela_id}')" class="flex-1 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600 hover:text-white py-2 rounded-lg text-[10px] font-black uppercase transition-all">
                     <i class="fa-solid fa-money-bill-wave mr-1"></i> Receber
                 </button>
@@ -2596,6 +2596,31 @@ function renderizarAberto(lista) {
                 <button onclick="abrirExtratoPorId(${p.devedor_id})" class="bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white px-3 py-2 rounded-lg text-[10px] font-black uppercase transition-all">
                     <i class="fa-solid fa-file-invoice"></i>
                 </button>
+                <button onclick="toggleDropdown('menu-mob-${p.parcela_id}', this)" class="bg-slate-700/60 text-slate-300 hover:bg-slate-600 hover:text-white px-3 py-2 rounded-lg text-[10px] transition-all">
+                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                </button>
+                <div id="menu-mob-${p.parcela_id}" class="dropdown-menu absolute right-0 bottom-full mb-1 w-52 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-[60]">
+                    <button onclick="prepararPagamento('${p.devedor_id}', '${p.parcela_id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-emerald-400">
+                        <i class="fa-solid fa-money-bill-wave mr-2"></i> Receber Pgto
+                    </button>
+                    <button onclick="enviarCobrancaManual('${p.devedor_id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-green-400">
+                        <i class="fa-solid fa-paper-plane mr-2"></i> Enviar Cobrança
+                    </button>
+                    ${p.status_contrato === 'APROVADO_AGUARDANDO_ACEITE' ? `<button onclick="reenviarAceiteContrato('${p.devedor_id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-blue-400"><i class="fa-solid fa-rotate-right mr-2"></i> Reenviar Confirmação</button>` : ''}
+                    <button onclick="abrirEdicaoContrato('${p.devedor_id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-orange-400">
+                        <i class="fa-solid fa-pen-to-square mr-2"></i> Editar Contrato
+                    </button>
+                    ${(p.total_parcelas_originais || 1) > 1 ? `<button onclick="editarParcelaIndividual('${p.parcela_id}', ${p.valor_original || p.valor_atual})" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-yellow-400"><i class="fa-solid fa-coins mr-2"></i> Ajustar Esta Parcela</button>` : ''}
+                    <button onclick="cancelarContratoAtivo('${p.devedor_id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-red-400">
+                        <i class="fa-solid fa-ban mr-2"></i> Cancelar / Estornar
+                    </button>
+                    <button onclick="abrirExtratoPorId(${p.devedor_id})" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-blue-400">
+                        <i class="fa-solid fa-file-invoice mr-2"></i> Ver Extrato
+                    </button>
+                    <button onclick="marcarComoCalote('${p.devedor_id}')" class="w-full text-left px-4 py-3 text-[10px] font-bold uppercase hover:bg-slate-700 text-red-500">
+                        <i class="fa-solid fa-skull mr-2"></i> Declarar Calote
+                    </button>
+                </div>
             </div>
         </div>`;
     });
