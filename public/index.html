@@ -262,7 +262,7 @@
         <div id="aba-solicitacoes" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-inbox text-blue-500 mr-2"></i> Novas Solicitações</h2>
             <div class="glass-card rounded-3xl overflow-hidden border border-slate-700">
-                <table class="w-full text-left text-sm">
+                <table class="w-full text-left text-sm hidden md:table">
                     <thead class="bg-slate-800/50 text-xs uppercase font-black text-slate-400 tracking-wider">
                         <tr>
                             <th class="px-6 py-4">Cliente</th>
@@ -276,6 +276,8 @@
                     <tbody id="lista-solicitacoes" class="divide-y divide-slate-800">
                         </tbody>
                 </table>
+                <!-- Cards mobile — visível apenas em telas pequenas -->
+                <div id="lista-solicitacoes-mobile" class="md:hidden divide-y divide-slate-800"></div>
             </div>
         </div>
 
@@ -454,15 +456,15 @@
                         </div>
                     </div>
 
-                    <div class="glass-card p-6 rounded-3xl border border-slate-700 flex-1 flex flex-col max-h-[500px]">
+                    <div class="glass-card p-6 rounded-3xl border border-slate-700 flex-1 flex flex-col max-h-[350px] md:max-h-[500px]">
                         <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-4">
                             <h3 id="titulo_logs_extrato" class="text-xs font-black uppercase text-white"><i class="fa-solid fa-list mr-2 text-blue-500"></i> Últimas Movimentações (Todos os Contratos)</h3>
                             <button onclick="renderizarLogsExtrato(null)" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg font-bold transition-all">
                                 <i class="fa-solid fa-rotate-left mr-1"></i> Limpar Filtro
                             </button>
                         </div>
-                        <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                            <table class="w-full text-left text-xs">
+                        <div class="flex-1 overflow-y-auto overflow-x-auto custom-scrollbar">
+                            <table class="w-full text-left text-xs min-w-[380px]">
                                 <thead class="text-[9px] uppercase text-slate-500 sticky top-0 bg-slate-900/90 backdrop-blur z-10 border-b border-slate-700">
                                     <tr>
                                         <th class="py-2 px-2">Data</th>
@@ -506,7 +508,7 @@
             
             <div class="glass-card rounded-3xl overflow-hidden border border-red-500/30 flex-1 flex flex-col">
                 <div class="overflow-y-auto custom-scrollbar flex-1">
-                    <table class="w-full text-left text-sm">
+                    <table class="w-full text-left text-sm hidden md:table">
                         <thead class="bg-red-900/20 text-[10px] uppercase font-black text-red-400 tracking-wider sticky top-0 backdrop-blur-md z-10">
                             <tr>
                                 <th class="px-6 py-4">Devedor</th>
@@ -519,6 +521,8 @@
                         <tbody id="lista-calotes" class="divide-y divide-red-900/20">
                             </tbody>
                     </table>
+                    <!-- Cards mobile -->
+                    <div id="lista-calotes-mobile" class="md:hidden divide-y divide-red-900/20"></div>
                 </div>
             </div>
         </div>
@@ -535,7 +539,7 @@
                 <div id="autocomplete_resultados" class="hidden absolute top-full left-0 w-full mt-2 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto z-[100]"></div>
             </div>
 
-            <form id="formCadastroRapido" class="glass-card p-8 rounded-3xl space-y-6 max-w-4xl border border-slate-700 relative z-10">
+            <form id="formCadastroRapido" class="glass-card p-4 md:p-8 rounded-3xl space-y-6 max-w-4xl border border-slate-700 relative z-10">
                 <input type="hidden" id="cad_id_existente">
 
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-700 pb-4 gap-4">
@@ -711,24 +715,24 @@
             <div id="dashboard-section" class="glass-card p-6 rounded-3xl mb-8 border border-slate-700">
                 <h2 class="text-xl font-bold text-white mb-4"><i class="fa-solid fa-chart-pie text-blue-500 mr-2"></i> Painel de Desempenho e Lucratividade</h2>
                 
-                <div class="flex flex-wrap gap-4 items-end mb-6 bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                <div class="flex flex-col sm:flex-row flex-wrap gap-4 items-start sm:items-end mb-6 bg-slate-900/50 p-4 rounded-xl border border-slate-700">
                     <div>
                         <label class="text-[10px] text-slate-400 font-bold uppercase mb-1 block">Período de Análise</label>
-                        <select id="dash-periodo" class="input-dark text-sm w-48" onchange="mudarPeriodoDash()">
+                        <select id="dash-periodo" class="input-dark text-sm w-full sm:w-48" onchange="mudarPeriodoDash()">
                             <option value="mes">Este Mês</option>
                             <option value="semestre">Este Semestre</option>
                             <option value="ano">Este Ano</option>
                             <option value="personalizado">Personalizado</option>
                         </select>
                     </div>
-                    <div id="dash-custom-dates" class="hidden flex gap-4">
+                    <div id="dash-custom-dates" class="hidden flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
                         <div>
                             <label class="text-[10px] text-slate-400 font-bold uppercase mb-1 block">Data de Início</label>
-                            <input type="date" id="dash-inicio" class="input-dark text-sm w-40">
+                            <input type="date" id="dash-inicio" class="input-dark text-sm w-full sm:w-40">
                         </div>
                         <div>
                             <label class="text-[10px] text-slate-400 font-bold uppercase mb-1 block">Data de Fim</label>
-                            <input type="date" id="dash-fim" class="input-dark text-sm w-40">
+                            <input type="date" id="dash-fim" class="input-dark text-sm w-full sm:w-40">
                         </div>
                     </div>
                     <button onclick="carregarDashboard()" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-xl font-bold transition-all text-sm h-[46px] shadow-lg shadow-blue-500/20">
@@ -786,10 +790,10 @@
             </div>
 
             <h3 class="text-lg font-bold text-white mb-4"><i class="fa-solid fa-list-ul text-blue-500 mr-2"></i> Relatório Analítico (Extrato)</h3>
-            <div class="glass-card p-6 rounded-3xl border border-slate-700 mb-6 flex flex-wrap gap-4 items-end">
+            <div class="glass-card p-6 rounded-3xl border border-slate-700 mb-6 flex flex-col sm:flex-row flex-wrap gap-4 items-start sm:items-end">
                 <div>
                     <label class="text-[10px] font-black uppercase text-slate-500 ml-2 block mb-1">Período de Extração</label>
-                    <select id="filtro-relatorio" class="input-dark w-52 text-sm">
+                    <select id="filtro-relatorio" class="input-dark w-full sm:w-52 text-sm">
                         <option value="mes">Este Mês</option>
                         <option value="mes-passado">Mês Passado</option>
                         <option value="semestre">Semestre Atual</option>
@@ -797,14 +801,14 @@
                         <option value="custom">Personalizado</option>
                     </select>
                 </div>
-                <div id="datas-customizadas" class="hidden flex gap-2">
+                <div id="datas-customizadas" class="hidden flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-500 ml-2 block mb-1">Início</label>
-                        <input type="date" id="data_inicio_rel" class="input-dark w-36 text-sm">
+                        <input type="date" id="data_inicio_rel" class="input-dark w-full sm:w-36 text-sm">
                     </div>
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-500 ml-2 block mb-1">Fim</label>
-                        <input type="date" id="data_fim_rel" class="input-dark w-36 text-sm">
+                        <input type="date" id="data_fim_rel" class="input-dark w-full sm:w-36 text-sm">
                     </div>
                 </div>
                 <button onclick="carregarRelatorios()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-xl transition-all shadow-lg"><i class="fa-solid fa-list text-xs mr-2"></i> Listar Movimentações</button>
@@ -840,14 +844,14 @@
         <div id="aba-logs" class="aba-content hidden">
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-clock-rotate-left text-orange-500 mr-2"></i> Auditoria de Logs (Nível Sistema)</h2>
             <div class="glass-card rounded-3xl overflow-hidden border border-slate-700">
-                <div class="max-h-[70vh] overflow-y-auto">
-                    <table class="w-full text-left text-xs">
+                <div class="max-h-[70vh] overflow-y-auto overflow-x-auto">
+                    <table class="w-full text-left text-xs min-w-[560px]">
                         <thead class="bg-slate-800/80 sticky top-0 text-[10px] uppercase font-black text-slate-400 tracking-wider">
                             <tr>
-                                <th class="px-6 py-4">Data / Hora</th>
-                                <th class="px-6 py-4">Evento</th>
-                                <th class="px-6 py-4">Detalhes</th>
-                                <th class="px-6 py-4 text-right">Valor Associado</th>
+                                <th class="px-4 py-4">Data / Hora</th>
+                                <th class="px-4 py-4">Evento</th>
+                                <th class="px-4 py-4">Detalhes</th>
+                                <th class="px-4 py-4 text-right">Valor Associado</th>
                             </tr>
                         </thead>
                         <tbody id="lista-todos-logs" class="divide-y divide-slate-800">
@@ -861,17 +865,17 @@
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-user-slash text-red-500 mr-2"></i> Lista Negra de CPFs</h2>
             <div class="glass-card p-6 rounded-3xl border border-red-500/20 max-w-4xl mb-6">
                 <h3 class="text-xs font-black uppercase text-red-400 mb-4">Bloquear Novo CPF</h3>
-                <div class="flex gap-4 items-end flex-wrap">
-                    <div class="w-1/3">
+                <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-end flex-wrap">
+                    <div class="w-full sm:w-1/3">
                         <label class="text-[10px] font-black uppercase text-slate-500 ml-2">CPF a Bloquear</label>
                         <input type="text" id="ln_cpf" placeholder="000.000.000-00" maxlength="14" class="input-dark mt-1" oninput="mascaraCPF(this); buscarNomeLN(this)">
                         <p id="ln_nome_txt" class="text-[10px] text-red-400 font-bold ml-2 mt-1"></p>
                     </div>
-                    <div class="w-1/2">
+                    <div class="w-full sm:w-1/2">
                         <label class="text-[10px] font-black uppercase text-slate-500 ml-2">Motivo do Bloqueio</label>
                         <input type="text" id="ln_motivo" placeholder="Ex: Fraude, Inadimplente, Calote..." class="input-dark mt-1">
                     </div>
-                    <button onclick="adicionarListaNegra()" class="bg-red-600 hover:bg-red-500 text-white font-bold px-6 py-3 rounded-xl mb-[2px]">Bloquear CPF</button>
+                    <button onclick="adicionarListaNegra()" class="w-full sm:w-auto bg-red-600 hover:bg-red-500 text-white font-bold px-6 py-3 rounded-xl">Bloquear CPF</button>
                 </div>
             </div>
             <div class="glass-card rounded-3xl overflow-hidden border border-slate-700">
@@ -955,7 +959,7 @@
             <h2 class="text-2xl font-black uppercase tracking-tighter mb-6"><i class="fa-solid fa-handshake text-purple-500 mr-2"></i> Gestão de Avalistas</h2>
             
             <div class="glass-card rounded-3xl overflow-hidden border border-slate-700">
-                <table class="w-full text-left text-sm">
+                <table class="w-full text-left text-sm hidden md:table">
                     <thead class="bg-slate-800/50 text-xs uppercase font-black text-slate-400 tracking-wider">
                         <tr>
                             <th class="px-6 py-4">Avalista</th>
@@ -967,6 +971,8 @@
                     <tbody id="lista-promotores" class="divide-y divide-slate-800">
                     </tbody>
                 </table>
+                <!-- Cards mobile -->
+                <div id="lista-promotores-mobile" class="md:hidden divide-y divide-slate-800"></div>
             </div>
         </div>
 
@@ -1064,7 +1070,7 @@
     </main>
 
     <div id="modalGarantia" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden z-[150] flex items-center justify-center p-4">
-        <div class="glass-card w-full max-w-md rounded-3xl border border-orange-500/30 p-8 relative">
+        <div class="glass-card w-full max-w-md rounded-3xl border border-orange-500/30 p-4 md:p-8 relative">
             <button onclick="fecharModal('modalGarantia')" class="absolute top-6 right-6 text-slate-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
             <h2 class="text-xl font-black uppercase text-orange-500 mb-6"><i class="fa-solid fa-gem mr-2"></i> Registar Penhor</h2>
             
@@ -1259,16 +1265,16 @@
     </div>
 
     <div id="modalPagamento" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-[150] flex items-center justify-center p-4">
-        <div class="glass-card w-full max-w-4xl max-h-[95vh] overflow-y-auto rounded-3xl border border-slate-700 p-8 relative">
+        <div class="glass-card w-full max-w-4xl max-h-[95vh] overflow-y-auto rounded-3xl border border-slate-700 p-4 md:p-8 relative">
             <button onclick="fecharModal('modalPagamento')" class="absolute top-6 right-6 text-slate-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
             <h2 class="text-2xl font-black uppercase text-emerald-500 mb-2"><i class="fa-solid fa-cash-register mr-2"></i> Terminal de Recebimento</h2>
             
-            <div class="mb-6 pb-4 border-b border-slate-700 flex justify-between items-end">
+            <div class="mb-6 pb-4 border-b border-slate-700 flex flex-col sm:flex-row sm:justify-between sm:items-end gap-2">
                 <div>
                     <h3 id="pgtoNome" class="text-xl font-black text-white uppercase tracking-tight">NOME DO CLIENTE</h3>
                     <p id="pgtoCpf" class="text-xs text-slate-400 font-mono mt-1">CPF: 000</p>
                 </div>
-                <div class="text-right space-y-2">
+                <div class="text-left sm:text-right flex gap-4 sm:block sm:space-y-2">
                     <div>
                         <p class="text-[9px] font-black uppercase text-orange-400">Vencimento da Parcela</p>
                         <p id="pgtoVencimento" class="text-sm font-bold text-orange-300 mt-0.5">--/--/----</p>
@@ -1571,7 +1577,7 @@
     </div>
 
     <div id="modalEditarContrato" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-        <div class="glass-card w-full max-w-lg rounded-3xl border border-slate-700 p-8 relative">
+        <div class="glass-card w-full max-w-lg rounded-3xl border border-slate-700 p-4 md:p-8 relative">
             <button onclick="fecharModal('modalEditarContrato')" class="absolute top-6 right-6 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             <div class="flex items-start justify-between mb-6">
                 <h2 class="text-xl font-black uppercase text-blue-500 flex items-center flex-wrap gap-2">
@@ -1633,7 +1639,7 @@
     </div>
 
     <div id="modalDataPromessa" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden z-[200] flex items-center justify-center p-4">
-        <div class="glass-card w-full max-w-sm rounded-3xl border border-emerald-500/30 p-8 relative shadow-[0_0_40px_rgba(16,185,129,0.1)]">
+        <div class="glass-card w-full max-w-sm rounded-3xl border border-emerald-500/30 p-4 md:p-8 relative shadow-[0_0_40px_rgba(16,185,129,0.1)]">
             <h2 class="text-xl font-black uppercase text-emerald-500 mb-4"><i class="fa-solid fa-calendar-check mr-2"></i> Promessa de Pagamento</h2>
             <p class="text-xs text-slate-400 mb-6">Para que dia o cliente prometeu regularizar o atraso?</p>
             <input type="date" id="promessaDataInput" class="input-dark w-full mb-6 text-lg font-bold cursor-pointer text-center">
@@ -2119,6 +2125,9 @@
                 const tbody = document.getElementById('lista-solicitacoes'); 
                 tbody.innerHTML = '';
                 
+                const mobileContainer = document.getElementById('lista-solicitacoes-mobile');
+                if (mobileContainer) mobileContainer.innerHTML = '';
+
                 listaSolicitacoesAtuais.forEach(s => {
                     const valor = parseFloat(s.valor) || 0;
                     tbody.innerHTML += `
@@ -2133,6 +2142,32 @@
                             </td>
                         </tr>
                     `;
+                    if (mobileContainer) {
+                        mobileContainer.innerHTML += `
+                            <div class="p-4">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div>
+                                        <p class="font-black text-white text-sm uppercase leading-tight">${escapeHTML(s.nome)}</p>
+                                        <p class="text-[10px] font-mono text-slate-500 mt-0.5">${escapeHTML(s.cpf)}</p>
+                                    </div>
+                                    <p class="text-xs text-slate-500">${new Date(s.created_at).toLocaleDateString()}</p>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2 mb-3 text-center">
+                                    <div class="bg-slate-800/60 rounded-lg p-2">
+                                        <p class="text-[9px] font-black uppercase text-slate-500">Valor</p>
+                                        <p class="text-sm font-black text-emerald-400">${formatMoney(valor)}</p>
+                                    </div>
+                                    <div class="bg-slate-800/60 rounded-lg p-2">
+                                        <p class="text-[9px] font-black uppercase text-slate-500">Plano</p>
+                                        <p class="text-xs font-bold text-slate-300">${escapeHTML(s.tipo_plano)} / ${s.qtd_parcelas}x</p>
+                                    </div>
+                                </div>
+                                <button onclick="abrirDocumentos('${s.id}')" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-xl text-xs font-black uppercase tracking-widest">
+                                    <i class="fa-solid fa-file-magnifying-glass mr-2"></i> Ver Ficha Completa
+                                </button>
+                            </div>
+                        `;
+                    }
                 });
             } catch(e) {}
         }
@@ -4124,12 +4159,14 @@ function renderizarAberto(lista) {
         // =====================================
         async function carregarPromotores() {
             try {
-                const res = await fetchSeguro(`${API_BASE}/api/promotores`, { headers: headersAuth }); 
-                const l = await res.json(); 
-                
-                const tb = document.getElementById('lista-promotores'); 
+                const res = await fetchSeguro(`${API_BASE}/api/promotores`, { headers: headersAuth });
+                const l = await res.json();
+
+                const tb = document.getElementById('lista-promotores');
+                const mobilePromo = document.getElementById('lista-promotores-mobile');
                 tb.innerHTML = '';
-                
+                if (mobilePromo) mobilePromo.innerHTML = '';
+
                 l.forEach(p => {
                     tb.innerHTML += `
                         <tr class="border-b border-slate-800/50">
@@ -4139,6 +4176,20 @@ function renderizarAberto(lista) {
                             <td class="px-6 py-4 text-right font-black text-purple-400">${p.volume_gerado ? formatMoney(p.volume_gerado) : 'R$ 0,00'}</td>
                         </tr>
                     `;
+                    if (mobilePromo) {
+                        mobilePromo.innerHTML += `
+                            <div class="p-4 flex items-center justify-between gap-4">
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-black text-white text-sm uppercase truncate">${escapeHTML(p.nome)}</p>
+                                    <p class="text-[10px] text-slate-500 mt-0.5">${p.contratos_ativos} contratos ativos · Avalista Verificado</p>
+                                </div>
+                                <div class="text-right shrink-0">
+                                    <p class="text-[9px] font-black uppercase text-slate-500">Volume</p>
+                                    <p class="text-sm font-black text-purple-400">${p.volume_gerado ? formatMoney(p.volume_gerado) : 'R$ 0,00'}</p>
+                                </div>
+                            </div>
+                        `;
+                    }
                 });
             } catch(e) {}
         }
@@ -4269,7 +4320,9 @@ function renderizarAberto(lista) {
         // =====================================
         async function carregarCalotes() {
             const tbody = document.getElementById('lista-calotes');
+            const mobileCalotes = document.getElementById('lista-calotes-mobile');
             tbody.innerHTML = '<tr><td colspan="5" class="text-center py-6 text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Procurando calotes...</td></tr>';
+            if (mobileCalotes) mobileCalotes.innerHTML = '';
             
             try {
                 const res = await fetchSeguro(`${API_BASE}/api/calotes`, { headers: headersAuth });
@@ -4330,6 +4383,30 @@ function renderizarAberto(lista) {
                             </td>
                         </tr>
                     `;
+                    if (mobileCalotes) {
+                        mobileCalotes.innerHTML += `
+                            <div class="p-4">
+                                <div class="flex justify-between items-start mb-1">
+                                    <p class="font-black text-white text-sm uppercase">${escapeHTML(d.nome)}</p>
+                                    <span class="text-[10px] font-bold text-orange-400 shrink-0 ml-2"><i class="fa-regular fa-clock mr-1"></i>${diasAtraso}d</span>
+                                </div>
+                                <p class="text-[10px] font-mono text-slate-500 mb-3">${escapeHTML(d.cpf)}</p>
+                                <div class="grid grid-cols-2 gap-2 mb-3 text-center">
+                                    <div class="bg-slate-800/60 rounded-lg p-2">
+                                        <p class="text-[9px] font-black uppercase text-slate-500">Já Pago</p>
+                                        <p class="text-sm font-black text-emerald-400">${formatMoney(vJaPago)}</p>
+                                    </div>
+                                    <div class="bg-red-900/20 rounded-lg p-2 border border-red-500/20">
+                                        <p class="text-[9px] font-black uppercase text-red-400">Dívida Congel.</p>
+                                        <p class="text-sm font-black text-red-500">${formatMoney(vTotalDivida)}</p>
+                                    </div>
+                                </div>
+                                <button onclick="marcarComoCalote('${d.id}', true)" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+                                    <i class="fa-solid fa-rotate-left mr-1"></i> Reverter Calote
+                                </button>
+                            </div>
+                        `;
+                    }
                 });
 
                 // Atualizar o Painel no Topo
@@ -4658,31 +4735,90 @@ function renderizarAberto(lista) {
             .sidebar-mobile {
                 position: fixed !important; top: 0; left: 0; z-index: 9999;
                 height: 100vh !important; transform: translateX(-100%);
-                transition: transform 0.3s ease-in-out; 
+                transition: transform 0.3s ease-in-out;
                 background-color: rgba(15, 23, 42, 0.95);
                 backdrop-filter: blur(15px);
             }
             .sidebar-mobile.open { transform: translateX(0); }
-            
+
             /* Ajusta as tabelas para deslizarem com o dedo */
-            .table-wrapper { 
-                overflow-x: auto; 
-                -webkit-overflow-scrolling: touch; 
-                width: 100%; 
-                display: block; 
-                padding-bottom: 5px; 
+            .table-wrapper {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                width: 100%;
+                display: block;
+                padding-bottom: 5px;
             }
             .table-wrapper::-webkit-scrollbar { height: 6px; }
             .table-wrapper::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 10px; }
-            
+
             /* Ajusta a área de rolagem principal */
-            main { 
-                padding: 1rem !important; 
-                padding-bottom: 4rem !important; 
-                height: calc(100vh - 70px) !important; 
-                overflow-y: auto !important; 
+            main {
+                padding: 1rem !important;
+                padding-bottom: 4rem !important;
+                height: calc(100vh - 70px) !important;
+                overflow-y: auto !important;
                 width: 100% !important;
             }
+
+            /* Títulos h2 menores no celular para não cortar */
+            .aba-content h2.text-2xl {
+                font-size: 1.1rem !important;
+                line-height: 1.4 !important;
+            }
+
+            /* Botões de ação no topo das abas empilham melhor */
+            .aba-content > div:first-child {
+                gap: 0.75rem;
+            }
+
+            /* Cartões KPI no dashboard: texto e valores compactados */
+            .glass-card h3.text-4xl { font-size: 1.8rem !important; }
+            .glass-card h3.text-3xl { font-size: 1.5rem !important; }
+            .glass-card h3.text-2xl { font-size: 1.25rem !important; }
+
+            /* Inputs de data nativos: garantir largura total no celular */
+            input[type="date"] {
+                width: 100% !important;
+                min-width: 0 !important;
+            }
+
+            /* Modais: garantir que não passem da tela */
+            .fixed.inset-0 > .glass-card,
+            .fixed.inset-0 > div > .glass-card {
+                max-height: 90vh !important;
+                overflow-y: auto !important;
+            }
+
+            /* Tabela do livro-razão (estorno): indicar que é deslizável */
+            #lista-relatorio-detalhado td:last-child button {
+                min-width: 90px;
+                white-space: nowrap;
+            }
+
+            /* Seção do extrato do cliente: empilhar coluna */
+            #box-extrato { display: flex !important; flex-direction: column !important; }
+
+            /* Garantias empilhadas no celular */
+            #lista-garantias-extrato { grid-template-columns: 1fr !important; }
+
+            /* Extrato movimentações: altura menor no celular */
+            #box-extrato .glass-card.flex-1 { max-height: 350px !important; }
+
+            /* Kanban CRM: colunas menores no celular */
+            .kanban-col { min-width: 260px !important; }
+
+            /* Calculadora flutuante: subir para não sobrepor botões */
+            .floating-calc { bottom: 80px !important; right: 12px !important; }
+            .calc-panel { width: 290px !important; }
+
+            /* Logs: padding menor nas células */
+            #aba-logs table th,
+            #aba-logs table td { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+
+            /* Lista Negra: padding menor nas células */
+            #aba-lista-negra table th,
+            #aba-lista-negra table td { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
         }
     </style>
 
@@ -4990,7 +5126,7 @@ function renderizarAberto(lista) {
          MODAL: EDITAR DADOS PESSOAIS DA SOLICITAÇÃO
     ═══════════════════════════════════════════════════════ -->
     <div id="modalEditarDadosSol" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden z-[250] flex items-center justify-center p-4">
-        <div class="glass-card w-full max-w-md rounded-3xl border border-blue-500/30 p-8 relative shadow-[0_0_40px_rgba(59,130,246,0.1)]">
+        <div class="glass-card w-full max-w-md rounded-3xl border border-blue-500/30 p-4 md:p-8 relative shadow-[0_0_40px_rgba(59,130,246,0.1)]">
             <button onclick="fecharModal('modalEditarDadosSol')" class="absolute top-6 right-6 text-slate-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
             <h2 class="text-xl font-black uppercase text-blue-400 mb-1"><i class="fa-solid fa-pen-to-square mr-2"></i> Editar Dados Pessoais</h2>
             <p class="text-[10px] text-slate-400 mb-6">Corrija dados introduzidos incorrectamente pelo cliente. O CPF não pode ser alterado.</p>
@@ -5028,7 +5164,7 @@ function renderizarAberto(lista) {
          MODAL: REPROVAR DOCUMENTOS
     ═══════════════════════════════════════════════════════ -->
     <div id="modalReprovarDocs" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden z-[200] flex items-center justify-center p-4">
-        <div class="glass-card w-full max-w-md rounded-3xl border border-orange-500/30 p-8 relative shadow-[0_0_40px_rgba(249,115,22,0.1)]">
+        <div class="glass-card w-full max-w-md rounded-3xl border border-orange-500/30 p-4 md:p-8 relative shadow-[0_0_40px_rgba(249,115,22,0.1)]">
             <button onclick="fecharModal('modalReprovarDocs')" class="absolute top-6 right-6 text-slate-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
             <h2 class="text-xl font-black uppercase text-orange-500 mb-2"><i class="fa-solid fa-file-circle-xmark mr-2"></i> Reprovar Documento(s)</h2>
             <p class="text-[10px] text-slate-400 mb-5">Selecione os documentos ilegíveis ou incorretos. O cliente receberá um WhatsApp com o link para reenvio.</p>
@@ -5080,7 +5216,7 @@ function renderizarAberto(lista) {
          MODAL: EDITAR CONTATO DO CLIENTE
     ═══════════════════════════════════════════════════════ -->
     <div id="modalEditarContato" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden z-[200] flex items-center justify-center p-4">
-        <div class="glass-card w-full max-w-md rounded-3xl border border-purple-500/30 p-8 relative shadow-[0_0_40px_rgba(168,85,247,0.1)]">
+        <div class="glass-card w-full max-w-md rounded-3xl border border-purple-500/30 p-4 md:p-8 relative shadow-[0_0_40px_rgba(168,85,247,0.1)]">
             <button onclick="fecharModal('modalEditarContato')" class="absolute top-6 right-6 text-slate-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
             <h2 class="text-xl font-black uppercase text-purple-400 mb-6"><i class="fa-solid fa-address-book mr-2"></i> Editar Contatos</h2>
             <input type="hidden" id="contato_cpf">
@@ -5118,7 +5254,7 @@ function renderizarAberto(lista) {
          MODAL — CADASTROS COM CPF INVÁLIDO
     ═══════════════════════════════════════════════════════ -->
     <div id="modalCpfInvalido" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden z-[300] flex items-center justify-center p-4">
-        <div class="glass-card w-full max-w-2xl rounded-3xl border border-red-500/30 p-8 relative shadow-[0_0_60px_rgba(239,68,68,0.15)] max-h-[90vh] flex flex-col">
+        <div class="glass-card w-full max-w-2xl rounded-3xl border border-red-500/30 p-4 md:p-8 relative shadow-[0_0_60px_rgba(239,68,68,0.15)] max-h-[90vh] flex flex-col">
             <div class="flex items-center gap-3 mb-2">
                 <div class="w-12 h-12 rounded-2xl bg-red-500/20 flex items-center justify-center shrink-0">
                     <i class="fa-solid fa-triangle-exclamation text-red-400 text-xl"></i>
