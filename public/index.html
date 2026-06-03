@@ -1774,6 +1774,10 @@
             return Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
+        function normalizeStr(str) {
+            return (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        }
+
         function escapeHTML(str) {
             if (!str) return '';
             return String(str).replace(/[&<>'"]/g, tag => ({
@@ -2396,12 +2400,12 @@
         }
 
         function filtrarAberto() {
-    const t = document.getElementById('busca-aberto').value.toLowerCase(); 
-    const hoje = new Date(); 
+    const t = normalizeStr(document.getElementById('busca-aberto').value);
+    const hoje = new Date();
     hoje.setHours(0,0,0,0);
-    
+
     const filtrados = listaDevedoresAtuais.filter(p => {
-        const matchTexto = p.nome.toLowerCase().includes(t) || p.cpf.includes(t); 
+        const matchTexto = normalizeStr(p.nome).includes(t) || p.cpf.includes(t); 
         let matchStatus = true; 
         let dt = new Date(p.vencimento_parcela + 'T12:00:00Z');
         
@@ -3654,8 +3658,9 @@ function renderizarAberto(lista) {
         }
 
         function filtrarListaClientesLocais() {
-            const termo = document.getElementById('extrato-busca').value.toLowerCase();
-            
+            const termoRaw = document.getElementById('extrato-busca').value;
+            const termo = normalizeStr(termoRaw);
+
             if (termo.length === 0) {
                 renderizarGridClientes(listaClientesCache);
                 document.getElementById('container-lista-clientes').classList.remove('hidden');
@@ -3663,10 +3668,10 @@ function renderizarAberto(lista) {
                 return;
             }
 
-            const filtrados = listaClientesCache.filter(c => 
-                c.nome.toLowerCase().includes(termo) || 
-                c.cpf.includes(termo) || 
-                (c.telefone && c.telefone.includes(termo))
+            const filtrados = listaClientesCache.filter(c =>
+                normalizeStr(c.nome).includes(termo) ||
+                c.cpf.includes(termoRaw) ||
+                (c.telefone && c.telefone.includes(termoRaw))
             );
             
             document.getElementById('container-lista-clientes').classList.remove('hidden');

@@ -21,6 +21,10 @@ const {
 const financeService = require('./services/financeService');
 const { fazerUploadNoSupabase } = require('./services/uploadService');
 
+function normalizeStr(str) {
+    return (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' })); 
@@ -1126,15 +1130,16 @@ app.post('/api/enviar-cobranca-manual', async (req, res) => {
 // ==========================================
 app.get('/api/cliente-extrato/:busca', async (req, res) => {
     try {
-        const buscaOriginal = decodeURIComponent(req.params.busca); 
-        const hasNum = /\d/.test(buscaOriginal); 
-        
+        const buscaOriginal = decodeURIComponent(req.params.busca);
+        const hasNum = /\d/.test(buscaOriginal);
+
         let queryMain = supabase.from('devedores').select('*');
-        if (hasNum) { 
-            const numLimpo = buscaOriginal.replace(/\D/g, ''); 
-            queryMain = queryMain.or(`cpf.eq.${numLimpo},telefone.ilike.%${numLimpo}%`); 
-        } else { 
-            queryMain = queryMain.ilike('nome', `%${buscaOriginal}%`); 
+        if (hasNum) {
+            const numLimpo = buscaOriginal.replace(/\D/g, '');
+            queryMain = queryMain.or(`cpf.eq.${numLimpo},telefone.ilike.%${numLimpo}%`);
+        } else {
+            const buscaNorm = normalizeStr(buscaOriginal);
+            queryMain = queryMain.or(`nome.ilike.%${buscaOriginal}%,nome.ilike.%${buscaNorm}%`);
         }
         
         const { data: cls } = await queryMain.order('created_at', { ascending: false }).limit(20);
@@ -1262,9 +1267,9 @@ app.get('/api/cliente-extrato-id/:id', async (req, res) => {
 
 app.get('/api/buscar-cliente-admin/:busca', async (req, res) => {
     try {
-        const b = decodeURIComponent(req.params.busca); const hasNum = /\d/.test(b); 
+        const b = decodeURIComponent(req.params.busca); const hasNum = /\d/.test(b);
         let q = supabase.from('devedores').select('id, nome, cpf, telefone, status');
-        if (hasNum) { const numL = b.replace(/\D/g, ''); q = q.or(`cpf.eq.${numL},telefone.ilike.%${numL}%`); } else { q = q.ilike('nome', `%${b}%`); }
+        if (hasNum) { const numL = b.replace(/\D/g, ''); q = q.or(`cpf.eq.${numL},telefone.ilike.%${numL}%`); } else { const bNorm = normalizeStr(b); q = q.or(`nome.ilike.%${b}%,nome.ilike.%${bNorm}%`); }
         
         const { data: cls } = await q.limit(10);
         const uniqueClients = []; const cpfs = new Set();
